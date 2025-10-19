@@ -42,19 +42,7 @@ cd achilles_coordinator
 pnpm install
 ```
 
-3. Set up environment variables:
-
-```bash
-cp .env.example .env
-```
-
-4. Configure Firebase:
-   - Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
-   - Enable Authentication and Firestore
-   - Get your Firebase configuration values
-   - Update `.env` with your Firebase credentials
-
-5. Start the development server:
+3. Start the development server:
 
 ```bash
 pnpm dev
