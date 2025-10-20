@@ -1,7 +1,7 @@
 <template>
   <div class="accessibility-panel">
     <!-- Toggle button -->
-    <Button
+    <AchillesButton
       variant="ghost"
       size="small"
       :aria-label="isOpen ? 'Close accessibility settings' : 'Open accessibility settings'"
@@ -16,7 +16,7 @@
         <circle cx="12" cy="12" r="3" />
       </svg>
       <span class="accessibility-label">Accessibility</span>
-    </Button>
+    </AchillesButton>
 
     <!-- Panel content -->
     <div
@@ -97,9 +97,9 @@
       </div>
 
       <div class="accessibility-footer">
-        <Button variant="secondary" size="small" @click="accessibilityStore.resetSettings">
+        <AchillesButton variant="secondary" size="small" @click="accessibilityStore.resetSettings">
           Reset to Defaults
-        </Button>
+        </AchillesButton>
       </div>
     </div>
   </div>
@@ -108,7 +108,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAccessibilityStore } from '@/stores/accessibility'
-import Button from '@/components/ui/Button.vue'
+import AchillesButton from '@/components/ui/AchillesButton.vue'
 
 // Accessibility store
 const accessibilityStore = useAccessibilityStore()
@@ -127,7 +127,9 @@ function togglePanel(): void {
 
 function handleTextSizeChange(event: Event): void {
   const target = event.target as HTMLSelectElement
-  accessibilityStore.setTextSize(target.value as any)
+  // treat the select value as unknown then validate/assign
+  const value = target.value as unknown
+  accessibilityStore.setTextSize(String(value) as 'small' | 'medium' | 'large' | 'extra-large')
 }
 
 // Keyboard shortcuts

@@ -13,7 +13,7 @@
         </header>
 
         <!-- Login form -->
-        <Card class="login-card" title="Sign In">
+        <CardUI class="login-card" title="Sign In">
           <form @submit.prevent="handleSubmit" class="login-form">
             <!-- Email field -->
             <div class="form-field">
@@ -57,7 +57,7 @@
                   required
                   @blur="validateField('password')"
                 />
-                <Button
+                <AchillesButton
                   type="button"
                   variant="ghost"
                   size="small"
@@ -107,7 +107,7 @@
                       stroke-linejoin="round"
                     />
                   </svg>
-                </Button>
+                </AchillesButton>
               </div>
               <div v-if="errors.password" id="password-error" class="form-error" role="alert">
                 {{ errors.password }}
@@ -120,7 +120,7 @@
             </div>
 
             <!-- Submit button -->
-            <Button
+            <AchillesButton
               type="submit"
               variant="primary"
               size="large"
@@ -129,9 +129,9 @@
               class="login-submit"
             >
               Sign In
-            </Button>
+            </AchillesButton>
           </form>
-        </Card>
+        </CardUI>
 
         <!-- Footer -->
         <footer class="login-footer">
@@ -149,8 +149,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useAccessibilityStore } from '@/stores/accessibility'
-import Card from '@/components/ui/Card.vue'
-import Button from '@/components/ui/Button.vue'
+import CardUI from '@/components/ui/CardUI.vue'
+import AchillesButton from '@/components/ui/AchillesButton.vue'
 
 // Router and stores
 const router = useRouter()

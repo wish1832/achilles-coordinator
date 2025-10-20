@@ -71,12 +71,80 @@
   </div>
 </template>
 
+<!--
+Component: SelectInput
+
+Props:
+  - modelValue?: string | number
+    The currently selected value. Use v-model for two-way binding.
+  - options: SelectOption[]
+    Array of options. Each option may be:
+      - a string (used for both value and label)
+      - an object { value, label, disabled? }
+      - a custom object where `valueKey`, `labelKey`, `disabledKey` point to properties
+  - label?: string
+    Visible label text (associates with the native select via an auto-generated id)
+  - placeholder?: string
+    Placeholder text shown as a disabled option when no value is selected
+  - helperText?: string
+    Secondary helper text shown under the select unless there's an error
+  - disabled?: boolean
+    Disables the native select
+  - required?: boolean
+    Marks the input required and visually indicates required state
+  - clearable?: boolean
+    (Not implemented for native select; reserved for future enhancements)
+  - error?: boolean
+    Visual error state
+  - errorMessage?: string
+    Error message text to show in the helper area
+  - ariaLabel?: string
+    Accessible label for screen readers (optional when visible label is present)
+  - ariaDescribedby?: string
+    ID(s) of descriptive elements to reference
+  - valueKey, labelKey, disabledKey?: string
+    Keys to read value/label/disabled properties from custom option objects
+  - size?: 'small' | 'medium' | 'large'
+    Visual size variant
+  - variant?: 'default' | 'filled' | 'outlined'
+    Visual variant
+
+Emits:
+  - update:modelValue (value: string | number | undefined)
+  - change (value: string | number | undefined, option?: SelectOption)
+  - focus (event: FocusEvent)
+  - blur (event: FocusEvent)
+
+Methods exposed via defineExpose:
+  - focus(): focuses the native select
+  - blur(): removes focus from the native select
+
+Accessibility:
+  - Uses a native <select> for built-in keyboard navigation and screen reader support
+  - Associates label via an auto-generated id
+  - Supports aria-label/aria-describedby/aria-required/aria-invalid
+  - Works well with global accessibility classes from the accessibility store (text size, high contrast, reduced motion)
+
+Example:
+  <SelectInput
+    v-model="selected"
+    :options="[{ value: 'a', label: 'Option A' }, 'B', { id: 3, name: 'C' } ]"
+    valueKey="id"
+    labelKey="name"
+    label="Choose an option"
+    placeholder="Select one"
+  />
+
+-->
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed } from 'vue'
 import { useAccessibilityStore } from '@/stores/accessibility'
 
 // Option type - can be string, object with value/label, or custom object
-type SelectOption = string | { value: any; label: string; disabled?: boolean } | Record<string, any>
+type SelectOption =
+  | string
+  | { value: unknown; label: string; disabled?: boolean }
+  | Record<string, unknown>
 
 // Props with comprehensive accessibility support
 interface Props {
@@ -168,7 +236,13 @@ const selectClasses = computed(() => {
 function getOptionValue(option: SelectOption): string | number {
   if (typeof option === 'string') return option
   if (typeof option === 'object' && option !== null) {
-    return option[props.valueKey] ?? option.value ?? option
+    const obj = option as Record<string, unknown>
+    const val =
+      (obj[props.valueKey as string] as string | number | undefined) ??
+      (obj.value as string | number | undefined)
+    if (typeof val === 'string' || typeof val === 'number') return val
+    // fallback: stringify complex objects to provide a stable option value
+    return String(obj[props.valueKey as string] ?? obj.value ?? JSON.stringify(option))
   }
   return option
 }
@@ -176,7 +250,12 @@ function getOptionValue(option: SelectOption): string | number {
 function getOptionLabel(option: SelectOption): string {
   if (typeof option === 'string') return option
   if (typeof option === 'object' && option !== null) {
-    return option[props.labelKey] ?? option.label ?? String(option.value ?? option)
+    const obj = option as Record<string, unknown>
+    return (
+      (obj[props.labelKey as string] as string | undefined) ??
+      (obj.label as string | undefined) ??
+      String(obj.value ?? option)
+    )
   }
   return String(option)
 }
@@ -184,7 +263,12 @@ function getOptionLabel(option: SelectOption): string {
 function getOptionDisabled(option: SelectOption): boolean {
   if (typeof option === 'string') return false
   if (typeof option === 'object' && option !== null) {
-    return option[props.disabledKey] ?? option.disabled ?? false
+    const obj = option as Record<string, unknown>
+    return (
+      (obj[props.disabledKey as string] as boolean | undefined) ??
+      (obj.disabled as boolean | undefined) ??
+      false
+    )
   }
   return false
 }
@@ -207,7 +291,7 @@ function handleBlur(event: FocusEvent): void {
   emit('blur', event)
 }
 
-function handleKeydown(event: KeyboardEvent): void {
+function handleKeydown(): void {
   // Allow default keyboard navigation
   // The native select element handles arrow keys, space, enter, etc.
 }
@@ -315,10 +399,6 @@ defineExpose({
   transition: transform 0.2s ease-in-out;
 }
 
-.select__input:focus + .select__arrow {
-  color: var(--color-focus, #0066cc);
-}
-
 /* Size variants */
 .select--small .select__input {
   padding: 0.5rem 2rem 0.5rem 0.5rem;
@@ -349,10 +429,6 @@ defineExpose({
 }
 
 /* Visual variants */
-.select--default .select__input {
-  /* Uses base styles */
-}
-
 .select--filled .select__input {
   background-color: var(--color-input-filled-bg, #f3f4f6);
   border: 1px solid transparent;

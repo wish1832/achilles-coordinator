@@ -95,7 +95,7 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       // Create Firebase user
-      const firebaseUser = await authService.createUser(email, password, displayName, role)
+      await authService.createUser(email, password, displayName, role)
 
       // Create user document in Firestore
       const userData: Omit<User, 'id'> = {

@@ -22,7 +22,7 @@
           </slot>
 
           <!-- Close button -->
-          <Button
+          <AchillesButton
             v-if="closable"
             variant="ghost"
             size="small"
@@ -39,7 +39,7 @@
                 stroke-linejoin="round"
               />
             </svg>
-          </Button>
+          </AchillesButton>
         </header>
 
         <!-- Modal content -->
@@ -57,9 +57,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import { useAccessibilityStore } from '@/stores/accessibility'
-import Button from './Button.vue'
+import AchillesButton from './AchillesButton.vue'
 
 // Props with comprehensive accessibility support
 interface Props {
@@ -397,82 +397,5 @@ onUnmounted(() => {
 
 .text-size-extra-large .modal__title {
   font-size: 1.5rem;
-}
-
-.text-size-extra-large .modal__description {
-  font-size: 1rem;
-}
-
-/* High contrast mode */
-.high-contrast .modal {
-  border: 2px solid var(--color-text, #000000);
-  background-color: var(--color-bg, #ffffff);
-}
-
-.high-contrast .modal:focus {
-  outline: 3px solid var(--color-focus, #000000);
-  outline-offset: 3px;
-}
-
-.high-contrast .modal__footer {
-  border-top-color: var(--color-text, #000000);
-}
-
-/* Reduced motion support */
-.reduced-motion .modal-overlay {
-  animation: none;
-  opacity: 1;
-}
-
-.reduced-motion .modal--centered {
-  animation: none;
-}
-
-.reduced-motion .modal--bottom-sheet {
-  animation: none;
-}
-
-/* Animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-
-/* Mobile responsiveness */
-@media (max-width: 640px) {
-  .modal--small,
-  .modal--medium,
-  .modal--large {
-    width: 95%;
-    margin: 1rem;
-  }
-
-  .modal--bottom-sheet {
-    border-radius: 0.75rem 0.75rem 0 0;
-  }
 }
 </style>

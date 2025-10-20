@@ -9,12 +9,10 @@ import {
   query,
   where,
   orderBy,
-  limit,
   onSnapshot,
   Timestamp,
-  type DocumentData,
-  type QuerySnapshot,
   type Unsubscribe,
+  type QueryConstraint,
 } from 'firebase/firestore'
 import { db } from './config'
 import type { User, Run, SignUp, Pairing } from '@/types/models'
@@ -118,7 +116,7 @@ export class FirestoreService {
    */
   async getDocuments<T extends { id: string }>(
     collectionName: string,
-    constraints: any[] = [],
+    constraints: QueryConstraint[] = [],
   ): Promise<T[]> {
     try {
       const q = query(collection(db, collectionName), ...constraints)
@@ -144,7 +142,7 @@ export class FirestoreService {
   onCollectionChange<T extends { id: string }>(
     collectionName: string,
     callback: (docs: T[]) => void,
-    constraints: any[] = [],
+    constraints: QueryConstraint[] = [],
   ): Unsubscribe {
     const q = query(collection(db, collectionName), ...constraints)
 

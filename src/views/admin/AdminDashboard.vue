@@ -18,30 +18,30 @@
         <section class="admin-stats" aria-labelledby="stats-heading">
           <h2 id="stats-heading" class="sr-only">Quick Statistics</h2>
           <div class="stats-grid">
-            <Card class="stat-card">
+            <CardUI class="stat-card">
               <div class="stat-content">
                 <div class="stat-number">{{ stats.upcomingRuns }}</div>
                 <div class="stat-label">Upcoming Runs</div>
               </div>
-            </Card>
-            <Card class="stat-card">
+            </CardUI>
+            <CardUI class="stat-card">
               <div class="stat-content">
                 <div class="stat-number">{{ stats.totalUsers }}</div>
                 <div class="stat-label">Total Users</div>
               </div>
-            </Card>
-            <Card class="stat-card">
+            </CardUI>
+            <CardUI class="stat-card">
               <div class="stat-content">
                 <div class="stat-number">{{ stats.activeSignUps }}</div>
                 <div class="stat-label">Active Sign-ups</div>
               </div>
-            </Card>
-            <Card class="stat-card">
+            </CardUI>
+            <CardUI class="stat-card">
               <div class="stat-content">
                 <div class="stat-number">{{ stats.completedPairings }}</div>
                 <div class="stat-label">Completed Pairings</div>
               </div>
-            </Card>
+            </CardUI>
           </div>
         </section>
 
@@ -49,7 +49,7 @@
         <section class="admin-actions" aria-labelledby="actions-heading">
           <h2 id="actions-heading">Quick Actions</h2>
           <div class="actions-grid">
-            <Card class="action-card" clickable @click="navigateTo('/admin/runs')">
+            <CardUI class="action-card" clickable @click="navigateTo('/admin/runs')">
               <div class="action-content">
                 <div class="action-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -61,9 +61,9 @@
                   <p>Create, edit, and manage running events</p>
                 </div>
               </div>
-            </Card>
+            </CardUI>
 
-            <Card class="action-card" clickable @click="navigateTo('/admin/users')">
+            <CardUI class="action-card" clickable @click="navigateTo('/admin/users')">
               <div class="action-content">
                 <div class="action-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -78,9 +78,9 @@
                   <p>Add, edit, and manage user accounts</p>
                 </div>
               </div>
-            </Card>
+            </CardUI>
 
-            <Card class="action-card" clickable @click="navigateTo('/admin/pairings')">
+            <CardUI class="action-card" clickable @click="navigateTo('/admin/pairings')">
               <div class="action-content">
                 <div class="action-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -95,14 +95,14 @@
                   <p>Pair athletes with guides for runs</p>
                 </div>
               </div>
-            </Card>
+            </CardUI>
           </div>
         </section>
 
         <!-- Recent activity -->
         <section class="admin-activity" aria-labelledby="activity-heading">
           <h2 id="activity-heading">Recent Activity</h2>
-          <Card class="activity-card">
+          <CardUI class="activity-card">
             <div class="activity-list">
               <div v-for="activity in recentActivity" :key="activity.id" class="activity-item">
                 <div
@@ -124,7 +124,7 @@
                 </div>
               </div>
             </div>
-          </Card>
+          </CardUI>
         </section>
       </div>
     </main>
@@ -134,12 +134,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
-import Card from '@/components/ui/Card.vue'
+import CardUI from '@/components/ui/CardUI.vue'
 
 // Router and stores
 const router = useRouter()
-const authStore = useAuthStore()
+// auth store not used directly in this view
 
 // State
 const stats = ref({

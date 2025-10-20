@@ -15,18 +15,17 @@
     <main id="main-content" class="runs-main">
       <div class="runs-container">
         <!-- Loading state -->
-        <Loading v-if="loading === 'loading'" type="spinner" text="Loading runs..." centered />
+        <LoadingUI v-if="loading === 'loading'" type="spinner" text="Loading runs..." centered />
 
-        <!-- Error state -->
         <div v-else-if="loading === 'error'" class="runs-error">
           <h2>Unable to load runs</h2>
           <p>There was an error loading the runs. Please try again.</p>
-          <Button @click="loadRuns"> Try Again </Button>
+          <AchillesButton @click="loadRuns"> Try Again </AchillesButton>
         </div>
 
         <!-- Runs list -->
         <div v-else-if="runs.length > 0" class="runs-list">
-          <Card
+          <CardUI
             v-for="run in runs"
             :key="run.id"
             class="run-card"
@@ -41,16 +40,15 @@
               <div class="run-details">
                 <div class="run-detail"><strong>Date:</strong> {{ formatDate(run.date) }}</div>
                 <div class="run-detail"><strong>Time:</strong> {{ run.time }}</div>
-                <div class="run-detail"><strong>Location:</strong> {{ run.location }}</div>
               </div>
 
               <div class="run-actions">
-                <Button variant="primary" size="medium" @click.stop="signUpForRun(run.id)">
+                <AchillesButton variant="primary" size="medium" @click.stop="signUpForRun(run.id)">
                   Sign Up
-                </Button>
+                </AchillesButton>
               </div>
             </div>
-          </Card>
+          </CardUI>
         </div>
 
         <!-- Empty state -->
@@ -66,17 +64,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
-import { useAccessibilityStore } from '@/stores/accessibility'
-import Card from '@/components/ui/Card.vue'
-import Button from '@/components/ui/Button.vue'
-import Loading from '@/components/ui/Loading.vue'
+import CardUI from '@/components/ui/CardUI.vue'
+import AchillesButton from '@/components/ui/AchillesButton.vue'
+import LoadingUI from '@/components/ui/LoadingUI.vue'
 import type { Run, LoadingState } from '@/types'
 
 // Router and stores
 const router = useRouter()
-const authStore = useAuthStore()
-const accessibilityStore = useAccessibilityStore()
+// Stores not required in this view; removed to avoid unused variable lint errors
 
 // State
 const runs = ref<Run[]>([])

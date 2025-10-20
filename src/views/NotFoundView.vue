@@ -25,8 +25,12 @@
 
             <!-- Action buttons -->
             <div class="not-found-actions">
-              <Button variant="primary" size="large" @click="goHome"> Go Home </Button>
-              <Button variant="secondary" size="large" @click="goBack"> Go Back </Button>
+              <AchillesButton variant="primary" size="large" @click="goHome">
+                Go Home
+              </AchillesButton>
+              <AchillesButton variant="secondary" size="large" @click="goBack">
+                Go Back
+              </AchillesButton>
             </div>
           </div>
         </Card>
@@ -37,8 +41,8 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import Card from '@/components/ui/Card.vue'
-import Button from '@/components/ui/Button.vue'
+import Card from '@/components/ui/CardUI.vue'
+import AchillesButton from '@/components/ui/AchillesButton.vue'
 
 // Router
 const router = useRouter()
