@@ -2,12 +2,13 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  User as FirebaseUser,
   createUserWithEmailAndPassword,
   updateProfile,
 } from 'firebase/auth'
-import { auth } from './config'
-import type { User, UserRole } from '@/types/models'
+import type { User as FirebaseUser } from 'firebase/auth'
+import { auth, db } from './config'
+import { doc, setDoc, Timestamp } from 'firebase/firestore'
+import type { UserRole } from '@/types/models'
 
 /**
  * Authentication service wrapper for Firebase Auth
@@ -65,8 +66,15 @@ export class AuthService {
       // Update the user's display name
       await updateProfile(user, { displayName })
 
-      // Note: In a real app, you would also save the role to Firestore here
-      // This would be handled by the UserService in the stores
+      // Save the user record in Firestore using the auth UID as the document ID
+      // This keeps the auth uid and firestore user record in sync.
+      await setDoc(doc(db, 'users', user.uid), {
+        email: user.email ?? email,
+        displayName,
+        role,
+        createdAt: Timestamp.now(),
+        profileDetails: {},
+      })
 
       return user
     } catch (error) {

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import type { UserRole } from '@/types/models'
 import LoginView from '@/views/LoginView.vue'
 
 const router = createRouter({
@@ -38,36 +39,36 @@ const router = createRouter({
         title: 'Admin Dashboard - Achilles Run Coordinator',
       },
     },
-    {
-      path: '/admin/runs',
-      name: 'AdminRuns',
-      component: () => import('@/views/admin/RunsView.vue'),
-      meta: {
-        requiresAuth: true,
-        roles: ['admin'],
-        title: 'Manage Runs - Achilles Run Coordinator',
-      },
-    },
-    {
-      path: '/admin/users',
-      name: 'AdminUsers',
-      component: () => import('@/views/admin/UsersView.vue'),
-      meta: {
-        requiresAuth: true,
-        roles: ['admin'],
-        title: 'Manage Users - Achilles Run Coordinator',
-      },
-    },
-    {
-      path: '/admin/pairings',
-      name: 'AdminPairings',
-      component: () => import('@/views/admin/PairingView.vue'),
-      meta: {
-        requiresAuth: true,
-        roles: ['admin'],
-        title: 'Manage Pairings - Achilles Run Coordinator',
-      },
-    },
+    // {
+    //   path: '/admin/runs',
+    //   name: 'AdminRuns',
+    //   component: () => import('@/views/admin/RunsView.vue'),
+    //   meta: {
+    //     requiresAuth: true,
+    //     roles: ['admin'],
+    //     title: 'Manage Runs - Achilles Run Coordinator',
+    //   },
+    // },
+    // {
+    //   path: '/admin/users',
+    //   name: 'AdminUsers',
+    //   component: () => import('@/views/admin/UsersView.vue'),
+    //   meta: {
+    //     requiresAuth: true,
+    //     roles: ['admin'],
+    //     title: 'Manage Users - Achilles Run Coordinator',
+    //   },
+    // },
+    // {
+    //   path: '/admin/pairings',
+    //   name: 'AdminPairings',
+    //   component: () => import('@/views/admin/PairingView.vue'),
+    //   meta: {
+    //     requiresAuth: true,
+    //     roles: ['admin'],
+    //     title: 'Manage Pairings - Achilles Run Coordinator',
+    //   },
+    // },
     {
       path: '/:pathMatch(.*)*',
       name: 'NotFound',
@@ -91,15 +92,17 @@ router.beforeEach((to, from, next) => {
 
   // Check if route requires authentication
   if (to.meta.requiresAuth) {
+    // Redirect users to login if not authenticated
     if (!authStore.isAuthenticated) {
-      // Redirect to login if not authenticated
       next({ name: 'Login', query: { redirect: to.fullPath } })
       return
     }
 
     // Check role-based access
-    const requiredRoles = to.meta.roles as string[]
-    if (requiredRoles && !authStore.hasPermission(requiredRoles as any)) {
+    const requiredRoles = to.meta.roles as unknown as UserRole[] | undefined
+
+    // If an authenticated user lacks the required roles, redirect based on their role
+    if (requiredRoles?.length && !authStore.hasPermission(requiredRoles)) {
       // Redirect to appropriate page based on user role
       if (authStore.isAdmin) {
         next({ name: 'Admin' })
