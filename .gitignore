@@ -12,10 +12,13 @@ lerna-debug.log*
 
 node_modules
 .DS_Store
-dist
-dist-ssr
 coverage
 *.local
+
+# Build files
+dist
+dist-ssr
+
 
 /cypress/videos/
 /cypress/screenshots/
