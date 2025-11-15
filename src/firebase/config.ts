@@ -9,7 +9,7 @@ console.log('Auth Domain:', import.meta.env.VITE_FIREBASE_AUTH_DOMAIN)
 // Firebase configuration - these values should be set in your environment variables
 // For development, you can use the Firebase console to get these values
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  apiKey: 'Hard coded fucking API key',
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
