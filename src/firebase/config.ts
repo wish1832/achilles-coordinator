@@ -10,7 +10,7 @@ console.log('Auth Domain:', import.meta.env.VITE_FIREBASE_AUTH_DOMAIN)
 // For development, you can use the Firebase console to get these values
 const firebaseConfig = {
   apiKey: 'Hard coded fucking API key',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  authDomain: 'Hard coded fucking auth domain',
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
