@@ -15,6 +15,13 @@ const firebaseEnvVars = [
   'VITE_FIREBASE_MEASUREMENT_ID', // Include if you have it
 ]
 
+console.log(
+  `[vite.config.ts debug] process.env.VITE_FIREBASE_AUTH_DOMAIN:`,
+  process.env['VITE_FIREBASE_AUTH_DOMAIN']
+    ? `***${process.env['VITE_FIREBASE_AUTH_DOMAIN']}***`
+    : 'undefined',
+)
+
 // Dynamically create the 'define' object. Type it so TypeScript knows the shape.
 const definedEnv: Record<string, string> = {}
 firebaseEnvVars.forEach((key) => {
