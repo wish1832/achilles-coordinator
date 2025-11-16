@@ -4,6 +4,8 @@ import { getFirestore } from 'firebase/firestore'
 import { getAnalytics, isSupported as analyticsIsSupported } from 'firebase/analytics'
 import type { Analytics } from 'firebase/analytics'
 
+console.log('Auth domain:', import.meta.env.VITE_FIREBASE_AUTH_DOMAIN)
+
 // Firebase configuration - these values should be set in your environment variables
 // For development, you can use the Firebase console to get these values
 const firebaseConfig = {
