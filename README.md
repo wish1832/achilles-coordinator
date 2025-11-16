@@ -24,7 +24,7 @@ A web application for coordinating sign-ups for Achilles International running e
 ### Prerequisites
 
 - Node.js 20.19.0 or higher
-- pnpm (recommended) or npm
+- npm
 - Firebase project with Authentication and Firestore enabled
 
 ### Installation
@@ -39,13 +39,13 @@ cd achilles_coordinator
 2. Install dependencies:
 
 ```bash
-pnpm install
+npm install
 ```
 
 3. Start the development server:
 
 ```bash
-pnpm dev
+npm run dev
 ```
 
 ## Project Structure
@@ -94,13 +94,13 @@ This application is built with accessibility as a core principle:
 
 ### Available Scripts
 
-- `pnpm dev` - Start development server
-- `pnpm build` - Build for production
-- `pnpm preview` - Preview production build
-- `pnpm test:unit` - Run unit tests
-- `pnpm test:e2e:dev` - Run E2E tests in development
-- `pnpm lint` - Lint code with ESLint
-- `pnpm format` - Format code with Prettier
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run test:unit` - Run unit tests
+- `npm run test:e2e:dev` - Run E2E tests in development
+- `npm run lint` - Lint code with ESLint
+- `npm run format` - Format code with Prettier
 
 ### Code Style
 

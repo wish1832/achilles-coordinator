@@ -22,32 +22,32 @@ Achilles Run Coordinator is a web application for coordinating sign-ups for Achi
 ### Development
 
 ```bash
-pnpm install          # Install dependencies
-pnpm dev              # Start development server (default: http://localhost:5173)
+npm install           # Install dependencies
+npm run dev           # Start development server (default: http://localhost:5173)
 ```
 
 ### Testing
 
 ```bash
-pnpm test:unit        # Run unit tests with Vitest
-pnpm test:e2e:dev     # Run E2E tests with Cypress (opens UI)
-pnpm test:e2e         # Run E2E tests headless (requires preview server)
+npm run test:unit     # Run unit tests with Vitest
+npm run test:e2e:dev  # Run E2E tests with Cypress (opens UI)
+npm run test:e2e      # Run E2E tests headless (requires preview server)
 ```
 
 ### Building & Linting
 
 ```bash
-pnpm build            # Type-check and build for production
-pnpm type-check       # Run TypeScript type checking with vue-tsc
-pnpm lint             # Lint and auto-fix with ESLint
-pnpm format           # Format code with Prettier
-pnpm preview          # Preview production build locally
+npm run build         # Type-check and build for production
+npm run type-check    # Run TypeScript type checking with vue-tsc
+npm run lint          # Lint and auto-fix with ESLint
+npm run format        # Format code with Prettier
+npm run preview       # Preview production build locally
 ```
 
 ### Deployment
 
 ```bash
-firebase deploy       # Deploy to Firebase Hosting (runs `pnpm build` first)
+firebase deploy       # Deploy to Firebase Hosting (runs `npm run build` first)
 ```
 
 ## Architecture

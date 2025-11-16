@@ -6,7 +6,7 @@
       "**/.*",
       "**/node_modules/**"
     ],
-    "predeploy": ["pnpm run build"],
+    "predeploy": ["npm run build"],
     "rewrites": [
       {
         "source": "**",
