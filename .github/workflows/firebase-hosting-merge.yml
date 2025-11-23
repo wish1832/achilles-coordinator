@@ -13,6 +13,14 @@ concurrency:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+    env:
+      VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+      VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+      VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+      VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+      VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+      VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -30,25 +38,7 @@ jobs:
 
       - name: Build Project
         run: |
-          echo "--- DEBUGGING ---"
-          echo "Checking environment variables available to build command:"
-          echo "VITE_FIREBASE_API_KEY_CHECK: $VITE_FIREBASE_API_KEY"
-          echo "VITE_FIREBASE_AUTH_DOMAIN_CHECK: $VITE_FIREBASE_AUTH_DOMAIN"
-          echo "VITE_FIREBASE_PROJECT_ID_CHECK: $VITE_FIREBASE_PROJECT_ID"
-          echo "VITE_FIREBASE_STORAGE_BUCKET_CHECK: $VITE_FIREBASE_STORAGE_BUCKET"
-          echo "VITE_FIREBASE_MESSAGING_SENDER_ID_CHECK: $VITE_FIREBASE_MESSAGING_SENDER_ID"
-          echo "VITE_FIREBASE_APP_ID_CHECK: $VITE_FIREBASE_APP_ID"
-
-          echo "--- END DEBUGGING ---"
-
           pnpm install --frozen-lockfile && pnpm build
-        env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
