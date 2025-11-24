@@ -100,6 +100,43 @@ src/
 
 ## Data Models
 
+### Organization
+
+```typescript
+interface Organization {
+  id: string
+  name: string // e.g., "Achilles Denver", "Achilles Boulder"
+  adminIds: string[] // User IDs of organization admins
+  memberIds: string[] // User IDs of all members (for easier querying)
+  createdAt: Date
+  updatedAt?: Date
+  settings?: {
+    defaultMaxAthletes?: number
+    defaultMaxGuides?: number
+  }
+}
+```
+
+### Location
+
+```typescript
+interface Location {
+  id: string
+  organizationId: string // Organization this location belongs to
+  name: string // e.g., "Washington Park", "Boulder Creek Path"
+  address?: string
+  city?: string
+  state?: string
+  coordinates?: {
+    latitude: number
+    longitude: number
+  }
+  notes?: string
+  createdAt: Date
+  updatedAt?: Date
+}
+```
+
 ### User
 
 ```typescript
@@ -107,13 +144,21 @@ interface User {
   id: string
   email: string
   displayName: string
-  role: 'athlete' | 'guide' | 'admin'
+  role: 'athlete' | 'guide' // Primary role - NOT admin (admin is org-specific)
+  organizationIds: string[] // Organizations this user belongs to
   createdAt: Date
   updatedAt?: Date
   profileDetails: {
     phone?: string
     emergencyContact?: string
     emergencyPhone?: string
+    // Activity preferences (for both athletes and guides)
+    activities?: ('walk' | 'run' | 'roll')[] // Activities user participates in
+    preferredPace?: number // Minutes per mile
+    paceRange?: {
+      min: number // Minimum pace in minutes per mile
+      max: number // Maximum pace in minutes per mile
+    }
     // Athlete-specific
     disabilityType?: string
     assistanceNeeded?: string
@@ -123,6 +168,7 @@ interface User {
     certifications?: string[]
     maxAthletesPerRun?: number
   }
+  userNotes?: string // Notes written BY user about themselves, visible to user + admins
 }
 ```
 
@@ -131,17 +177,21 @@ interface User {
 ```typescript
 interface Run {
   id: string
+  organizationId: string // Organization hosting this run
   date: Date
   time: string // Format: "HH:MM" (24-hour)
-  location: string
+  locationId: string // Reference to Location document
   description: string
-  createdBy: string // User ID of admin
+  createdBy: string // User ID of admin who created this run
   createdAt: Date
   updatedAt?: Date
   status: 'upcoming' | 'completed' | 'cancelled'
   maxAthletes?: number
   maxGuides?: number
   notes?: string
+  pairings?: {
+    [athleteId: string]: string // Maps athlete user ID to guide user ID
+  }
 }
 ```
 
@@ -159,46 +209,48 @@ interface SignUp {
 }
 ```
 
-### Pairing
-
-```typescript
-interface Pairing {
-  id: string
-  runId: string
-  athleteId: string
-  guideId: string
-  createdBy: string // User ID of admin
-  createdAt: Date
-  notes?: string
-  status: 'active' | 'cancelled'
-}
-```
-
 ## Firestore Collections
+
+### organizations/
+
+- Document ID: Auto-generated
+- Fields: name, adminIds, memberIds, createdAt, updatedAt, settings
+- Security: All authenticated users can read; only organization admins can write
+- Indexes: None required for initial implementation
+
+### locations/
+
+- Document ID: Auto-generated
+- Fields: organizationId, name, address, city, state, coordinates, notes, createdAt, updatedAt
+- Security: All authenticated users can read; only organization admins can write
+- Indexes: organizationId (for querying locations by organization)
 
 ### users/
 
 - Document ID: Firebase Auth UID
-- Fields: email, displayName, role, createdAt, updatedAt, profileDetails
-- Security: Users can read/write their own data; admins can read all
+- Fields: email, displayName, role, organizationIds, createdAt, updatedAt, profileDetails, userNotes
+- Security: Users can read/write their own data; organization admins can read all users in their organizations
+- Indexes: organizationIds (array-contains for querying users by organization)
 
 ### runs/
 
 - Document ID: Auto-generated
-- Fields: date, time, location, description, createdBy, createdAt, updatedAt, status, maxAthletes, maxGuides, notes
-- Security: All authenticated users can read; only admins can write
+- Fields: organizationId, date, time, locationId, description, createdBy, createdAt, updatedAt, status, maxAthletes, maxGuides, notes, pairings
+- Security: All authenticated users can read; only organization admins can write
+- Indexes:
+  - organizationId (for querying runs by organization)
+  - date (for sorting by date)
+  - Composite: organizationId + date (for filtered and sorted queries)
 
 ### signups/
 
 - Document ID: Auto-generated
 - Fields: runId, userId, role, timestamp, status, notes
-- Security: Users can read/write their own sign-ups; admins can read/write all
-
-### pairings/
-
-- Document ID: Auto-generated
-- Fields: runId, athleteId, guideId, createdBy, createdAt, notes, status
-- Security: All authenticated users can read; only admins can write
+- Security: Users can read/write their own sign-ups; organization admins can read/write all sign-ups for their organization's runs
+- Indexes:
+  - runId (for querying sign-ups by run)
+  - userId (for querying a user's sign-ups)
+  - Composite: runId + role (for querying athletes or guides for a specific run)
 
 ## Authentication & Authorization
 
@@ -206,21 +258,38 @@ interface Pairing {
 
 1. User signs in with email/password via Firebase Authentication
 2. On successful authentication, user data is fetched from Firestore `users` collection
-3. User data stored in Pinia `auth` store
-4. Router guards check authentication status and role for route access
+3. User's organizations are fetched to determine admin status for each organization
+4. User data and organization permissions stored in Pinia `auth` store
+5. Router guards check authentication status, organization membership, and admin status for route access
 
 ### Authorization Rules
 
-- **Athletes & Guides**: Can access `/runs` route
-- **Admins**: Can access `/admin/*` routes
+- **All Authenticated Users**: Can access `/runs` route (view runs for their organizations)
+- **Organization Admins**: Can access `/admin/*` routes for their organizations
+  - Create and manage runs for their organizations
+  - Create and manage locations for their organizations
+  - Manage sign-ups for runs in their organizations
+  - Create pairings for runs in their organizations
+  - Invite users to their organizations
 - **Unauthenticated**: Redirected to `/login`
 - **Authenticated on login page**: Redirected to appropriate dashboard
+
+### Admin Permissions Model
+
+Admin status is **organization-specific**, not a global user role:
+- A user's `role` field is either `'athlete'` or `'guide'`
+- Admin permissions are determined by the `adminIds` array in each organization
+- A user can be an admin of one or more organizations
+- A user can be a regular member of some organizations and an admin of others
+- Athletes can be admins (e.g., an athlete who helps organize their chapter)
+- Guides can be admins (e.g., a guide who coordinates runs)
 
 ### Route Guards
 
 - `requiresAuth`: Boolean - Route requires authentication
-- `roles`: Array - Allowed roles for route access
-- Automatic redirects based on authentication status and role
+- `requiresOrgAdmin`: Boolean - Route requires admin status in at least one organization
+- `organizationId`: String - Route requires admin status in a specific organization
+- Automatic redirects based on authentication status and organization permissions
 
 ## Accessibility Implementation
 
@@ -310,38 +379,78 @@ All UI components in `src/components/ui/` are built with accessibility as a core
 
 ### User Pages
 
-1. **RunsListView** (`/runs`)
-   - List of upcoming runs
+1. **DashboardView** (`/dashboard`)
+   - Organization selector (if user belongs to multiple organizations)
+   - Upcoming runs for selected organization(s)
+   - User's sign-up history
+   - Quick sign-up actions
+
+2. **RunsListView** (`/runs`)
+   - List of upcoming runs across all user's organizations
+   - Filter by organization
    - Sign-up functionality
-   - Filtering and sorting (future)
-   - Accessible to athletes and guides
+   - View run details (date, time, location, description)
+   - Accessible to all authenticated users
+
+3. **RunDetailView** (`/runs/:id`)
+   - Detailed view of a specific run
+   - Location information
+   - Sign-up button (if not already signed up)
+   - Withdraw button (if already signed up)
+   - View pairings (if pairings have been created)
 
 ### Admin Pages
 
+**Note**: Admin pages are organization-scoped. Admins see only data for organizations they administer.
+
 1. **AdminDashboard** (`/admin`)
-   - Quick stats overview
-   - Quick action cards
+   - Organization selector (if admin of multiple organizations)
+   - Quick stats for selected organization:
+     - Upcoming runs count
+     - Total athletes and guides
+     - Pending pairings count
+   - Quick action cards (Create Run, Manage Locations, View Users)
    - Recent activity feed
 
-2. **RunsView** (`/admin/runs`)
-   - List all runs
+2. **OrganizationView** (`/admin/organizations/:id`)
+   - Organization details page
+   - List of runs for this organization
+   - Manage organization settings
+   - View organization members
+   - Manage organization admins
+
+3. **RunsManagementView** (`/admin/organizations/:orgId/runs`)
+   - List all runs for the organization
    - Create new run
    - Edit existing runs
    - Delete runs
    - View sign-ups per run
+   - Quick link to pairing page for each run
 
-3. **UsersView** (`/admin/users`)
-   - List all users
-   - Create new user (invite-only)
-   - Edit user profiles
-   - Assign roles
-
-4. **PairingView** (`/admin/pairings`)
-   - Select run to pair for
-   - View athletes and guides signed up
+4. **RunDetailAdminView** (`/admin/organizations/:orgId/runs/:runId`)
+   - Detailed admin view of a specific run
+   - Edit run details
+   - View all sign-ups (athletes and guides)
+   - Create/manage pairings for this run
    - Manual pairing interface (keyboard accessible)
    - View existing pairings
    - Unpair functionality
+   - Export participant list
+
+5. **LocationsView** (`/admin/organizations/:orgId/locations`)
+   - List all locations for the organization
+   - Create new location
+   - Edit existing locations
+   - Delete locations
+   - View which runs use each location
+
+6. **UsersView** (`/admin/organizations/:orgId/users`)
+   - List all users in the organization
+   - Filter by role (athlete/guide)
+   - Invite new user to organization
+   - View user profiles
+   - Remove users from organization
+   - Assign/revoke admin status for the organization
 
 ## Implementation Plan
 
@@ -355,21 +464,33 @@ All UI components in `src/components/ui/` are built with accessibility as a core
 - [x] Router setup with guards
 - [x] Login view
 
-### Phase 2: Core Features
+### Phase 2: Organization & Location Management
 
-- [ ] Runs list view (athletes/guides)
+- [ ] Organization data models and Firestore integration
+- [ ] Location data models and Firestore integration
+- [ ] Update auth store to handle organization-specific admin permissions
+- [ ] Organization selector component
+- [ ] Locations management view (admin)
+
+### Phase 3: Core Features
+
+- [ ] User dashboard view
+- [ ] Runs list view (all users)
+- [ ] Run detail view
 - [ ] Sign-up functionality
-- [ ] Admin dashboard
-- [ ] Run management (create, edit, delete)
-- [ ] User management (create, edit)
+- [ ] Admin dashboard with organization selector
+- [ ] Organization view (admin)
+- [ ] Run management view (admin: create, edit, delete)
+- [ ] User management view (admin: invite, manage)
 
-### Phase 3: Pairing System
+### Phase 4: Pairing System
 
-- [ ] Pairing interface
+- [ ] Run detail admin view with pairing interface
 - [ ] Keyboard-accessible pairing workflow
-- [ ] Pairing management (view, edit, delete)
+- [ ] Embedded pairings in run documents
+- [ ] Pairing display in user-facing run detail view
 
-### Phase 4: Polish & Testing
+### Phase 5: Polish & Testing
 
 - [ ] Error handling and validation
 - [ ] Loading states
@@ -386,40 +507,78 @@ All UI components in `src/components/ui/` are built with accessibility as a core
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can read their own data
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // Helper function to check if user is admin of an organization
+    function isOrgAdmin(orgId) {
+      return request.auth != null &&
+        request.auth.uid in get(/databases/$(database)/documents/organizations/$(orgId)).data.adminIds;
     }
 
-    // Admins can read all users
+    // Helper function to check if user is admin of any organization
+    function isAnyOrgAdmin() {
+      let user = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return request.auth != null &&
+        user.data.organizationIds.size() > 0;
+      // Note: Full validation requires checking each org's adminIds array
+      // This is a simplified check; full implementation should verify against organizations collection
+    }
+
+    // Organizations are readable by all authenticated users
+    // Writable only by organization admins
+    match /organizations/{orgId} {
+      allow read: if request.auth != null;
+      allow write: if isOrgAdmin(orgId);
+    }
+
+    // Locations are readable by all authenticated users
+    // Writable only by admins of the organization that owns the location
+    match /locations/{locationId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null &&
+        isOrgAdmin(request.resource.data.organizationId);
+      allow update, delete: if request.auth != null &&
+        isOrgAdmin(resource.data.organizationId);
+    }
+
+    // Users can read and write their own data
+    // Organization admins can read users in their organizations
     match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
       allow read: if request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        exists(/databases/$(database)/documents/users/$(userId)) &&
+        get(/databases/$(database)/documents/users/$(userId)).data.organizationIds.hasAny(
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.organizationIds
+        );
+      // Note: Additional rules needed to verify admin status for user management
     }
 
     // Runs are readable by all authenticated users
+    // Writable only by admins of the organization hosting the run
     match /runs/{runId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow create: if request.auth != null &&
+        isOrgAdmin(request.resource.data.organizationId);
+      allow update, delete: if request.auth != null &&
+        isOrgAdmin(resource.data.organizationId);
     }
 
-    // Signups are readable by the user who created them and admins
+    // Signups are readable and writable by the user who created them
+    // Organization admins can read/write all signups for runs in their organizations
     match /signups/{signupId} {
       allow read, write: if request.auth != null &&
-        (resource.data.userId == request.auth.uid ||
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-    }
-
-    // Pairings are readable by all authenticated users, writable by admins
-    match /pairings/{pairingId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        request.auth.uid == resource.data.userId;
+      allow read, write: if request.auth != null &&
+        exists(/databases/$(database)/documents/runs/$(resource.data.runId)) &&
+        isOrgAdmin(get(/databases/$(database)/documents/runs/$(resource.data.runId)).data.organizationId);
     }
   }
 }
 ```
+
+**Note**: These security rules provide organization-scoped permissions. Key principles:
+- Users can manage their own data
+- Organization admins can manage resources (runs, locations, signups) for their organizations
+- All authenticated users can read organizations and runs (for signup purposes)
+- Admin status is determined by the `adminIds` array in the organization document
 
 ### Authentication Security
 
