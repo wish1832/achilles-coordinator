@@ -106,7 +106,7 @@ firebase deploy       # Deploy to Firebase Hosting (runs `pnpm build` first)
    - Document ID matches Firebase Auth UID
    - Fields: `email`, `displayName`, `role` (athlete/guide), `organizationIds`, `profileDetails`, `userNotes`, `createdAt`, `updatedAt`
    - `organizationIds`: Array of organizations user belongs to
-   - `profileDetails`: Contains `activities` (walk/run/roll), `preferredPace`, `paceRange`, disability info, guide experience, etc.
+   - `profileDetails`: Contains `activities` (walk/run/roll), `preferredPace`, `paceRange`, disability info, certifications, etc.
    - `userNotes`: Notes written BY the user about themselves, visible to user + org admins
    - Role is either 'athlete' or 'guide' (admin is NOT a role, it's org-specific)
 
@@ -236,9 +236,7 @@ interface User {
     // Athlete-specific fields
     disabilityType?: string
     assistanceNeeded?: string
-    experienceLevel?: 'beginner' | 'intermediate' | 'advanced'
     // Guide-specific fields
-    guideExperience?: 'new' | 'experienced' | 'expert'
     certifications?: string[]
     maxAthletesPerRun?: number
   }

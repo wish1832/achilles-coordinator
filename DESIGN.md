@@ -73,10 +73,24 @@ src/
 │   │   ├── Select.vue
 │   │   └── Loading.vue
 │   └── AccessibilityPanel.vue
-├── firebase/           # Firebase configuration and services
-│   ├── config.ts       # Firebase initialization
-│   ├── auth.ts         # Authentication service wrapper
-│   └── firestore.ts    # Firestore service wrapper
+├── repositories/       # Data access layer (Repository Pattern)
+│   ├── interfaces/     # Repository interface definitions
+│   │   ├── IAuthRepository.ts
+│   │   ├── IDataRepository.ts
+│   │   └── IStorageRepository.ts
+│   ├── firebase/       # Firebase implementations (production)
+│   │   ├── FirebaseAuthRepository.ts
+│   │   └── FirebaseDataRepository.ts
+│   ├── mocks/          # Mock implementations (unit tests)
+│   │   ├── MockAuthRepository.ts
+│   │   └── MockDataRepository.ts
+│   └── emulators/      # Emulator implementations (integration tests)
+│       ├── EmulatorAuthRepository.ts
+│       └── EmulatorDataRepository.ts
+├── composables/        # Vue composables
+│   └── useRepositories.ts  # Repository dependency injection
+├── firebase/           # Firebase configuration
+│   └── config.ts       # Firebase initialization
 ├── stores/             # Pinia stores for state management
 │   ├── auth.ts         # Authentication store
 │   └── accessibility.ts # Accessibility preferences store
@@ -162,9 +176,7 @@ interface User {
     // Athlete-specific
     disabilityType?: string
     assistanceNeeded?: string
-    experienceLevel?: 'beginner' | 'intermediate' | 'advanced'
     // Guide-specific
-    guideExperience?: 'new' | 'experienced' | 'expert'
     certifications?: string[]
     maxAthletesPerRun?: number
   }
@@ -277,6 +289,7 @@ interface SignUp {
 ### Admin Permissions Model
 
 Admin status is **organization-specific**, not a global user role:
+
 - A user's `role` field is either `'athlete'` or `'guide'`
 - Admin permissions are determined by the `adminIds` array in each organization
 - A user can be an admin of one or more organizations
@@ -457,47 +470,100 @@ All UI components in `src/components/ui/` are built with accessibility as a core
 ### Phase 1: Foundation ✅
 
 - [x] Firebase setup and configuration
-- [x] Data models and TypeScript interfaces
+- [x] Data models and TypeScript interfaces (initial version)
 - [x] Authentication system with Pinia store
-- [x] Accessible UI component library
-- [x] Accessibility features (theme, text sizing)
-- [x] Router setup with guards
+- [x] Accessible UI component library (Button, Card, Modal, Select, Loading)
+- [x] Accessibility features (AccessibilityPanel, theme, text sizing, high contrast, reduced motion)
+- [x] Router setup with authentication guards
 - [x] Login view
+- [x] Runs list view (basic)
+- [x] Admin dashboard view (basic)
+- [x] Not found (404) view
+- [x] Firestore service wrapper with CRUD operations
 
-### Phase 2: Organization & Location Management
+### Phase 2: Repository Pattern Refactoring & Testing Infrastructure
 
-- [ ] Organization data models and Firestore integration
-- [ ] Location data models and Firestore integration
+- [ ] **Refactor to Repository Pattern**:
+  - [ ] Create repository interfaces (`IAuthRepository`, `IDataRepository`)
+  - [ ] Refactor existing Firebase code to implement repository interfaces
+  - [ ] Update stores and components to use repository abstractions
+- [ ] **Update Data Models**:
+  - [ ] Add Organization model and Firestore integration
+  - [ ] Add Location model and Firestore integration
+  - [ ] Update User model with organizationIds array
+  - [ ] Update Run model with organizationId and locationId
+  - [ ] Remove 'admin' from UserRole (make it org-specific)
+- [ ] **Testing Setup**:
+  - [ ] Create mock repository implementations for unit testing
+  - [ ] Create emulator repository implementations for integration tests
+  - [ ] Implement dependency injection using Vue composables (`useAuthRepository`, `useDataRepository`)
+  - [ ] Configure Vitest for unit tests with mock repositories
+  - [ ] Configure Firebase emulator suite for integration tests
+  - [ ] Add test environment configuration files (.env.test, .env.integration)
+  - [ ] Write initial unit tests for stores using mock repositories
+  - [ ] Write initial integration tests for auth flow using emulator
+
+### Phase 3: Organization & Multi-Tenant Architecture
+
 - [ ] Update auth store to handle organization-specific admin permissions
-- [ ] Organization selector component
-- [ ] Locations management view (admin)
+- [ ] Organization selector component (for users in multiple orgs)
+- [ ] Organization view (admin) - view/edit org details
+- [ ] Locations management view (admin) - create/edit/delete locations
+- [ ] Update router guards to check organization-specific admin status
+- [ ] Update all queries to be organization-scoped
 
-### Phase 3: Core Features
+### Phase 4: Core User Features
 
-- [ ] User dashboard view
-- [ ] Runs list view (all users)
-- [ ] Run detail view
-- [ ] Sign-up functionality
-- [ ] Admin dashboard with organization selector
-- [ ] Organization view (admin)
-- [ ] Run management view (admin: create, edit, delete)
-- [ ] User management view (admin: invite, manage)
+- [ ] User dashboard view with organization selector
+- [ ] Enhanced runs list view with organization filtering
+- [ ] Run detail view (user-facing)
+- [ ] Sign-up functionality (create/withdraw signups)
+- [ ] User profile view and editing
+- [ ] Sign-up history view
+- [ ] Run filtering and search
 
-### Phase 4: Pairing System
+### Phase 5: Admin Features
 
-- [ ] Run detail admin view with pairing interface
+- [ ] Admin dashboard with organization selector and stats
+- [ ] Run management view (admin: create, edit, delete runs)
+- [ ] Run detail admin view with sign-up management
+- [ ] User management view (admin: invite users, manage org membership)
+- [ ] Admin assignment (assign/revoke org admin status)
+- [ ] Location management integration with run creation
+
+### Phase 6: Pairing System
+
+- [ ] Update Run model to use embedded pairings object
+- [ ] Pairing interface in run detail admin view
 - [ ] Keyboard-accessible pairing workflow
-- [ ] Embedded pairings in run documents
+- [ ] Drag-and-drop pairing (with keyboard alternative)
+- [ ] Unpair functionality
 - [ ] Pairing display in user-facing run detail view
+- [ ] Pairing conflict detection (athlete/guide already paired)
 
-### Phase 5: Polish & Testing
+### Phase 7: Polish & Enhanced Features
 
-- [ ] Error handling and validation
-- [ ] Loading states
-- [ ] Form validation
-- [ ] Accessibility testing
-- [ ] Screen reader testing
-- [ ] Keyboard navigation testing
+- [ ] Comprehensive error handling and user feedback
+- [ ] Loading states throughout the app
+- [ ] Form validation for all forms
+- [ ] Toast notifications for actions
+- [ ] Confirmation dialogs for destructive actions
+- [ ] Export functionality (participant lists, run reports)
+- [ ] Email notifications (optional)
+- [ ] Run templates for common events
+
+### Phase 8: Testing & Accessibility Audit
+
+- [ ] Complete unit test coverage (>80%)
+- [ ] Integration tests for all critical flows
+- [ ] E2E tests for complete user journeys
+- [ ] Screen reader testing (NVDA, JAWS, VoiceOver)
+- [ ] Keyboard navigation testing (all features)
+- [ ] Color contrast validation
+- [ ] WCAG 2.1 AA compliance audit
+- [ ] Cross-browser testing
+- [ ] Mobile responsiveness testing
+- [ ] Performance optimization
 
 ## Security Considerations
 
@@ -575,6 +641,7 @@ service cloud.firestore {
 ```
 
 **Note**: These security rules provide organization-scoped permissions. Key principles:
+
 - Users can manage their own data
 - Organization admins can manage resources (runs, locations, signups) for their organizations
 - All authenticated users can read organizations and runs (for signup purposes)
@@ -587,26 +654,189 @@ service cloud.firestore {
 - Role-based access control
 - Secure token management by Firebase
 
-## Testing Strategy
+## Testing Strategy & Data Abstraction
+
+### Architecture Pattern: Repository Pattern + Dependency Injection
+
+To support both production Firebase usage and local testing with mock data, all Firebase services must be implemented using the **Repository Pattern** with **dependency injection**.
+
+#### Repository Pattern
+
+Create repository interfaces (contracts) for all data access and authentication operations, with multiple implementations:
+
+1. **Production Implementation**: Uses real Firebase SDK
+2. **Mock Implementation**: Uses in-memory data structures for fast unit tests
+3. **Emulator Implementation**: Uses Firebase emulator suite for integration tests
+
+**Example Structure**:
+
+```typescript
+// 1. Define the repository interface (contract)
+interface IAuthRepository {
+  signIn(email: string, password: string): Promise<User>
+  signOut(): Promise<void>
+  getCurrentUser(): Promise<User | null>
+  onAuthStateChanged(callback: (user: User | null) => void): () => void
+}
+
+// 2. Firebase implementation (production)
+class FirebaseAuthRepository implements IAuthRepository {
+  async signIn(email: string, password: string): Promise<User> {
+    // Real Firebase Auth logic
+  }
+  // ... other methods
+}
+
+// 3. Mock implementation (unit tests)
+class MockAuthRepository implements IAuthRepository {
+  private currentUser: User | null = null
+
+  async signIn(email: string, password: string): Promise<User> {
+    // Return mock user from in-memory store
+  }
+  // ... other methods
+}
+
+// 4. Emulator implementation (integration tests)
+class EmulatorAuthRepository implements IAuthRepository {
+  // Uses Firebase Auth with emulator endpoint
+}
+```
+
+#### Dependency Injection Approach
+
+Use Vue composables and/or provide/inject to deliver the correct repository implementation based on environment:
+
+**Option 1: Composables (Recommended for Vue 3)**
+
+```typescript
+// src/composables/useRepositories.ts
+export function useAuthRepository(): IAuthRepository {
+  if (import.meta.env.MODE === 'test') {
+    return mockAuthRepository
+  } else if (import.meta.env.VITE_USE_EMULATOR === 'true') {
+    return emulatorAuthRepository
+  }
+  return firebaseAuthRepository
+}
+
+export function useDataRepository(): IDataRepository {
+  if (import.meta.env.MODE === 'test') {
+    return mockDataRepository
+  } else if (import.meta.env.VITE_USE_EMULATOR === 'true') {
+    return emulatorDataRepository
+  }
+  return firebaseDataRepository
+}
+
+// Usage in components and stores
+const authRepo = useAuthRepository()
+const user = await authRepo.signIn(email, password)
+```
+
+**Option 2: Provide/Inject (Vue's DI system)**
+
+```typescript
+// src/main.ts
+const authRepository = createAuthRepository() // Factory selects implementation
+app.provide('authRepository', authRepository)
+
+// In components
+const authRepository = inject<IAuthRepository>('authRepository')
+```
+
+#### Repositories to Implement
+
+All Firebase services must be abstracted into repositories following this pattern:
+
+1. **Authentication Repository** (`IAuthRepository`)
+   - Sign in/out operations
+   - User state management
+   - Auth state change listeners
+   - User creation (admin only)
+
+2. **Data Repository** (`IDataRepository`)
+   - CRUD operations for all Firestore collections
+   - Real-time listeners for data changes
+   - Query operations with filtering and sorting
+   - Batch operations
+
+3. **Storage Repository** (`IStorageRepository`) - if file uploads are added
+   - File uploads to Firebase Storage
+   - File downloads and URL generation
+   - File deletion
+
+#### Testing Strategy
+
+Use a **hybrid approach** with both mock and emulator testing:
 
 ### Unit Tests
 
-- Store logic (auth, accessibility)
-- Utility functions
-- Component logic
+- **Use**: In-memory mock implementations
+- **Speed**: Very fast (no Firebase dependency)
+- **Scope**:
+  - Store logic (auth, accessibility)
+  - Utility functions
+  - Component logic
+  - Service layer logic
+  - Form validation
+
+**Example**:
+
+```typescript
+// tests/unit/auth.spec.ts
+import { mockAuthRepository } from '@/repositories/mocks'
+
+describe('Auth Store', () => {
+  it('should sign in user', async () => {
+    const authStore = useAuthStore(mockAuthRepository)
+    await authStore.signIn('test@example.com', 'password')
+    expect(authStore.isAuthenticated).toBe(true)
+  })
+})
+```
 
 ### Integration Tests
 
-- Authentication flow
-- Firestore operations
-- Router navigation
+- **Use**: Firebase emulator suite
+- **Speed**: Slower but more realistic
+- **Scope**:
+  - Authentication flow with Firestore
+  - Firestore operations with security rules
+  - Router navigation with auth guards
+  - Complex multi-service workflows
+
+**Example**:
+
+```typescript
+// tests/integration/signup-flow.spec.ts
+import { emulatorDataRepository, emulatorAuthRepository } from '@/repositories/emulators'
+
+describe('Sign-up Flow', () => {
+  beforeAll(async () => {
+    // Connect to emulator
+    await setupEmulator()
+  })
+
+  it('should allow user to sign up for run', async () => {
+    // Uses real Firestore emulator
+    const run = await emulatorDataRepository.addDocument('runs', runData)
+    const signup = await emulatorDataRepository.addDocument('signups', signupData)
+    // Verify security rules, triggers, etc.
+  })
+})
+```
 
 ### E2E Tests
 
-- User sign-in flow
-- Run sign-up flow
-- Admin pairing flow
-- Accessibility features
+- **Use**: Firebase emulator suite OR staging environment
+- **Speed**: Slowest, most comprehensive
+- **Scope**:
+  - Complete user sign-in flow
+  - Complete run sign-up flow
+  - Admin pairing workflow
+  - Accessibility features
+  - Cross-browser testing
 
 ### Accessibility Testing
 
@@ -614,6 +844,42 @@ service cloud.firestore {
 - Keyboard navigation testing
 - Color contrast validation
 - WCAG compliance audit
+
+### Environment Configuration
+
+Add environment variables for test mode selection:
+
+```bash
+# .env.test
+VITE_USE_MOCK_SERVICES=true
+VITE_USE_EMULATOR=false
+
+# .env.integration
+VITE_USE_MOCK_SERVICES=false
+VITE_USE_EMULATOR=true
+VITE_FIREBASE_AUTH_EMULATOR_HOST=localhost:9099
+VITE_FIRESTORE_EMULATOR_HOST=localhost:8080
+```
+
+### Benefits of the Repository Pattern
+
+1. **Fast Unit Tests**: No Firebase dependency, instant feedback with in-memory mocks
+2. **Realistic Integration Tests**: Test with actual Firebase behavior and security rules using emulators
+3. **Flexible Development**: Develop offline with mocks or use emulator for local testing
+4. **Easy Mocking**: Test error scenarios and edge cases without complicated setup
+5. **Future-Proof**: Easy to swap data sources (e.g., move from Firebase to another backend)
+6. **Type Safety**: TypeScript interfaces ensure all repository implementations match the contract
+7. **Separation of Concerns**: Business logic stays in stores/components, data access logic in repositories
+8. **Testable Code**: Components and stores can be tested independently of Firebase
+
+### Repository Pattern Best Practices
+
+- **Single Responsibility**: Each repository handles one domain (auth, data, storage)
+- **Interface-First**: Always define the interface before implementing
+- **Consistent API**: All implementations of the same interface must behave identically
+- **Error Handling**: Repositories should throw consistent error types across implementations
+- **No Business Logic**: Repositories only handle data access, not business rules
+- **Composable Integration**: Use Vue composables to inject repositories into stores and components
 
 ## Deployment
 
