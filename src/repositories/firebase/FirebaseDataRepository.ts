@@ -10,12 +10,14 @@ import {
   where,
   orderBy,
   onSnapshot,
+  arrayUnion,
+  arrayRemove,
   Timestamp,
   type Unsubscribe,
   type QueryConstraint,
 } from 'firebase/firestore'
 import { db } from '@/firebase/config'
-import type { User, Run, SignUp, Pairing } from '@/types/models'
+import type { User, Run, SignUp, Pairing, Organization } from '@/types/models'
 import type { IDataRepository } from '../interfaces/IDataRepository'
 
 /**
@@ -402,6 +404,197 @@ export class FirebaseDataRepository implements IDataRepository {
       where('runId', '==', runId),
       orderBy('createdAt', 'desc'),
     ])
+  }
+
+  // ==========================================
+  // Organization-specific methods
+  // ==========================================
+
+  /**
+   * Create a new organization document
+   * @param organizationData - Organization data (without id)
+   * @returns Promise resolving to the new organization document ID
+   * @throws Error if organization creation fails
+   */
+  async createOrganization(organizationData: Omit<Organization, 'id'>): Promise<string> {
+    return this.addDocument<Organization>('organizations', organizationData)
+  }
+
+  /**
+   * Update an existing organization document
+   * @param id - Organization document ID
+   * @param organizationData - Partial organization data to update
+   * @returns Promise that resolves when update is complete
+   * @throws Error if organization update fails
+   */
+  async updateOrganization(
+    id: string,
+    organizationData: Partial<Omit<Organization, 'id'>>,
+  ): Promise<void> {
+    return this.updateDocument<Organization>('organizations', id, organizationData)
+  }
+
+  /**
+   * Delete an organization document
+   * @param id - Organization document ID
+   * @returns Promise that resolves when deletion is complete
+   * @throws Error if organization deletion fails
+   */
+  async deleteOrganization(id: string): Promise<void> {
+    return this.deleteDocument('organizations', id)
+  }
+
+  /**
+   * Get an organization document by ID
+   * @param id - Organization document ID
+   * @returns Promise resolving to the organization data or null if not found
+   * @throws Error if retrieval fails
+   */
+  async getOrganization(id: string): Promise<Organization | null> {
+    return this.getDocument<Organization>('organizations', id)
+  }
+
+  /**
+   * Get all organizations, ordered by name
+   * @returns Promise resolving to array of organizations
+   * @throws Error if retrieval fails
+   */
+  async getOrganizations(): Promise<Organization[]> {
+    return this.getDocuments<Organization>('organizations', [orderBy('name')])
+  }
+
+  /**
+   * Get organizations where the user is a member
+   * Uses array-contains query to find organizations where user ID is in memberIds array
+   * @param userId - User document ID
+   * @returns Promise resolving to array of organizations
+   * @throws Error if retrieval fails
+   */
+  async getUserOrganizations(userId: string): Promise<Organization[]> {
+    return this.getDocuments<Organization>('organizations', [
+      where('memberIds', 'array-contains', userId),
+      orderBy('name'),
+    ])
+  }
+
+  /**
+   * Get organizations where the user is an admin
+   * Uses array-contains query to find organizations where user ID is in adminIds array
+   * @param userId - User document ID
+   * @returns Promise resolving to array of organizations
+   * @throws Error if retrieval fails
+   */
+  async getUserAdminOrganizations(userId: string): Promise<Organization[]> {
+    return this.getDocuments<Organization>('organizations', [
+      where('adminIds', 'array-contains', userId),
+      orderBy('name'),
+    ])
+  }
+
+  /**
+   * Add a user to an organization as a member
+   * Uses Firestore arrayUnion to add userId to memberIds array (no duplicates)
+   * @param organizationId - Organization document ID
+   * @param userId - User document ID to add
+   * @returns Promise that resolves when update is complete
+   * @throws Error if update fails
+   */
+  async addOrganizationMember(organizationId: string, userId: string): Promise<void> {
+    try {
+      // Get reference to the organization document
+      const orgRef = doc(db, 'organizations', organizationId)
+      // Use arrayUnion to add the userId to memberIds (avoids duplicates)
+      await updateDoc(orgRef, {
+        memberIds: arrayUnion(userId),
+        updatedAt: Timestamp.now(),
+      })
+    } catch (error) {
+      console.error(
+        `Error adding member ${userId} to organization ${organizationId}:`,
+        error,
+      )
+      throw error
+    }
+  }
+
+  /**
+   * Remove a user from an organization
+   * Removes user from both memberIds and adminIds arrays
+   * @param organizationId - Organization document ID
+   * @param userId - User document ID to remove
+   * @returns Promise that resolves when update is complete
+   * @throws Error if update fails
+   */
+  async removeOrganizationMember(organizationId: string, userId: string): Promise<void> {
+    try {
+      // Get reference to the organization document
+      const orgRef = doc(db, 'organizations', organizationId)
+      // Use arrayRemove to remove the userId from both arrays
+      await updateDoc(orgRef, {
+        memberIds: arrayRemove(userId),
+        adminIds: arrayRemove(userId),
+        updatedAt: Timestamp.now(),
+      })
+    } catch (error) {
+      console.error(
+        `Error removing member ${userId} from organization ${organizationId}:`,
+        error,
+      )
+      throw error
+    }
+  }
+
+  /**
+   * Add a user as an admin of an organization
+   * Also adds them as a member if not already
+   * Uses Firestore arrayUnion for both memberIds and adminIds (no duplicates)
+   * @param organizationId - Organization document ID
+   * @param userId - User document ID to make admin
+   * @returns Promise that resolves when update is complete
+   * @throws Error if update fails
+   */
+  async addOrganizationAdmin(organizationId: string, userId: string): Promise<void> {
+    try {
+      // Get reference to the organization document
+      const orgRef = doc(db, 'organizations', organizationId)
+      // Use arrayUnion to add the userId to both memberIds and adminIds
+      // arrayUnion automatically avoids duplicates
+      await updateDoc(orgRef, {
+        memberIds: arrayUnion(userId),
+        adminIds: arrayUnion(userId),
+        updatedAt: Timestamp.now(),
+      })
+    } catch (error) {
+      console.error(`Error adding admin ${userId} to organization ${organizationId}:`, error)
+      throw error
+    }
+  }
+
+  /**
+   * Remove admin status from a user in an organization
+   * User remains a member (only removes from adminIds, not memberIds)
+   * @param organizationId - Organization document ID
+   * @param userId - User document ID to remove admin status from
+   * @returns Promise that resolves when update is complete
+   * @throws Error if update fails
+   */
+  async removeOrganizationAdmin(organizationId: string, userId: string): Promise<void> {
+    try {
+      // Get reference to the organization document
+      const orgRef = doc(db, 'organizations', organizationId)
+      // Use arrayRemove to remove the userId from adminIds only
+      // User remains in memberIds
+      await updateDoc(orgRef, {
+        adminIds: arrayRemove(userId),
+        updatedAt: Timestamp.now(),
+      })
+    } catch (error) {
+      console.error(
+        `Error removing admin status from ${userId} in organization ${organizationId}:`,
+        error,
+      )
+      throw error
+    }
   }
 }
 

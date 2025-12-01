@@ -1,5 +1,5 @@
 import type { QueryConstraint, Unsubscribe } from 'firebase/firestore'
-import type { User, Run, SignUp, Pairing } from '@/types/models'
+import type { User, Run, SignUp, Pairing, Organization } from '@/types/models'
 
 /**
  * Data repository interface
@@ -255,4 +255,105 @@ export interface IDataRepository {
    * @throws Error if retrieval fails
    */
   getPairingsForRun(runId: string): Promise<Pairing[]>
+
+  // ==========================================
+  // Organization-specific methods
+  // ==========================================
+
+  /**
+   * Create a new organization document
+   * @param organizationData - Organization data (without id)
+   * @returns Promise resolving to the new organization document ID
+   * @throws Error if organization creation fails
+   */
+  createOrganization(organizationData: Omit<Organization, 'id'>): Promise<string>
+
+  /**
+   * Update an existing organization document
+   * @param id - Organization document ID
+   * @param organizationData - Partial organization data to update
+   * @returns Promise that resolves when update is complete
+   * @throws Error if organization update fails
+   */
+  updateOrganization(
+    id: string,
+    organizationData: Partial<Omit<Organization, 'id'>>,
+  ): Promise<void>
+
+  /**
+   * Delete an organization document
+   * @param id - Organization document ID
+   * @returns Promise that resolves when deletion is complete
+   * @throws Error if organization deletion fails
+   */
+  deleteOrganization(id: string): Promise<void>
+
+  /**
+   * Get an organization document by ID
+   * @param id - Organization document ID
+   * @returns Promise resolving to the organization data or null if not found
+   * @throws Error if retrieval fails
+   */
+  getOrganization(id: string): Promise<Organization | null>
+
+  /**
+   * Get all organizations, ordered by name
+   * @returns Promise resolving to array of organizations
+   * @throws Error if retrieval fails
+   */
+  getOrganizations(): Promise<Organization[]>
+
+  /**
+   * Get organizations where the user is a member
+   * @param userId - User document ID
+   * @returns Promise resolving to array of organizations
+   * @throws Error if retrieval fails
+   */
+  getUserOrganizations(userId: string): Promise<Organization[]>
+
+  /**
+   * Get organizations where the user is an admin
+   * @param userId - User document ID
+   * @returns Promise resolving to array of organizations
+   * @throws Error if retrieval fails
+   */
+  getUserAdminOrganizations(userId: string): Promise<Organization[]>
+
+  /**
+   * Add a user to an organization as a member
+   * @param organizationId - Organization document ID
+   * @param userId - User document ID to add
+   * @returns Promise that resolves when update is complete
+   * @throws Error if update fails
+   */
+  addOrganizationMember(organizationId: string, userId: string): Promise<void>
+
+  /**
+   * Remove a user from an organization
+   * @param organizationId - Organization document ID
+   * @param userId - User document ID to remove
+   * @returns Promise that resolves when update is complete
+   * @throws Error if update fails
+   */
+  removeOrganizationMember(organizationId: string, userId: string): Promise<void>
+
+  /**
+   * Add a user as an admin of an organization
+   * Also adds them as a member if not already
+   * @param organizationId - Organization document ID
+   * @param userId - User document ID to make admin
+   * @returns Promise that resolves when update is complete
+   * @throws Error if update fails
+   */
+  addOrganizationAdmin(organizationId: string, userId: string): Promise<void>
+
+  /**
+   * Remove admin status from a user in an organization
+   * User remains a member
+   * @param organizationId - Organization document ID
+   * @param userId - User document ID to remove admin status from
+   * @returns Promise that resolves when update is complete
+   * @throws Error if update fails
+   */
+  removeOrganizationAdmin(organizationId: string, userId: string): Promise<void>
 }
