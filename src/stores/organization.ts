@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useDataRepository } from '@/composables/useRepositories'
 import type { Organization, LoadingState } from '@/types'
 
@@ -19,18 +19,16 @@ export const useOrganizationStore = defineStore('organization', () => {
   const loading = ref<LoadingState>('idle')
   const error = ref<string | null>(null)
 
-  // Getters (computed properties)
+  // Getters (functions)
 
   /**
    * Get organization by ID from the loaded organizations
    * @param id - Organization ID to find
    * @returns Organization or undefined if not found
    */
-  const getOrganizationById = computed(() => {
-    return (id: string): Organization | undefined => {
-      return organizations.value.find((org) => org.id === id)
-    }
-  })
+  function getOrganizationById(id: string): Organization | undefined {
+    return organizations.value.find((org) => org.id === id)
+  }
 
   /**
    * Check if a user is an admin of a specific organization
@@ -38,12 +36,10 @@ export const useOrganizationStore = defineStore('organization', () => {
    * @param userId - User ID to check
    * @returns True if user is admin of the organization
    */
-  const isUserOrgAdmin = computed(() => {
-    return (organizationId: string, userId: string): boolean => {
-      const org = organizations.value.find((o) => o.id === organizationId)
-      return org ? org.adminIds.includes(userId) : false
-    }
-  })
+  function isUserOrgAdmin(organizationId: string, userId: string): boolean {
+    const org = organizations.value.find((o) => o.id === organizationId)
+    return org ? org.adminIds.includes(userId) : false
+  }
 
   /**
    * Check if a user is a member of a specific organization
@@ -51,34 +47,28 @@ export const useOrganizationStore = defineStore('organization', () => {
    * @param userId - User ID to check
    * @returns True if user is member of the organization
    */
-  const isUserOrgMember = computed(() => {
-    return (organizationId: string, userId: string): boolean => {
-      const org = organizations.value.find((o) => o.id === organizationId)
-      return org ? org.memberIds.includes(userId) : false
-    }
-  })
+  function isUserOrgMember(organizationId: string, userId: string): boolean {
+    const org = organizations.value.find((o) => o.id === organizationId)
+    return org ? org.memberIds.includes(userId) : false
+  }
 
   /**
    * Get all organizations where the user is an admin
    * @param userId - User ID to check
    * @returns Array of organizations where user is admin
    */
-  const getUserAdminOrganizations = computed(() => {
-    return (userId: string): Organization[] => {
-      return organizations.value.filter((org) => org.adminIds.includes(userId))
-    }
-  })
+  function getUserAdminOrganizations(userId: string): Organization[] {
+    return organizations.value.filter((org) => org.adminIds.includes(userId))
+  }
 
   /**
    * Get all organizations where the user is a member
    * @param userId - User ID to check
    * @returns Array of organizations where user is member
    */
-  const getUserMemberOrganizations = computed(() => {
-    return (userId: string): Organization[] => {
-      return organizations.value.filter((org) => org.memberIds.includes(userId))
-    }
-  })
+  function getUserMemberOrganizations(userId: string): Organization[] {
+    return organizations.value.filter((org) => org.memberIds.includes(userId))
+  }
 
   // Actions
 
