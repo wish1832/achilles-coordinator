@@ -1,15 +1,20 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { authService } from '@/firebase/auth'
-import { firestoreService } from '@/firebase/firestore'
+import { useAuthRepository } from '@/composables/useRepositories'
+import { useDataRepository } from '@/composables/useRepositories'
 import type { User, UserRole, LoadingState } from '@/types'
 
 /**
  * Authentication store using Pinia
  * Manages user authentication state and provides methods for login/logout
- * Integrates with Firebase Auth and Firestore for user data
+ * Integrates with Firebase Auth and Firestore for user data via repository pattern
  */
 export const useAuthStore = defineStore('auth', () => {
+  // Get repository instances via dependency injection
+  // This allows for easy testing with mock implementations
+  const authRepository = useAuthRepository()
+  const dataRepository = useDataRepository()
+
   // State
   const currentUser = ref<User | null>(null)
   const loading = ref<LoadingState>('idle')
@@ -33,11 +38,11 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = 'loading'
       error.value = null
 
-      // Authenticate with Firebase
-      const firebaseUser = await authService.signIn(email, password)
+      // Authenticate with Firebase via repository
+      const firebaseUser = await authRepository.signIn(email, password)
 
-      // Get user data from Firestore
-      const userData = await firestoreService.getUser(firebaseUser.uid)
+      // Get user data from Firestore via repository
+      const userData = await dataRepository.getUser(firebaseUser.uid)
 
       if (!userData) {
         throw new Error('User data not found. Please contact an administrator.')
@@ -60,7 +65,7 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = 'loading'
       error.value = null
 
-      await authService.signOut()
+      await authRepository.signOut()
       currentUser.value = null
       loading.value = 'success'
     } catch (err) {
@@ -94,10 +99,10 @@ export const useAuthStore = defineStore('auth', () => {
         throw new Error('Only administrators can create new users')
       }
 
-      // Create Firebase user
-      await authService.createUser(email, password, displayName, role)
+      // Create Firebase user via repository
+      await authRepository.createUser(email, password, displayName, role)
 
-      // Create user document in Firestore
+      // Create user document in Firestore via repository
       const userData: Omit<User, 'id'> = {
         email,
         displayName,
@@ -108,7 +113,7 @@ export const useAuthStore = defineStore('auth', () => {
         },
       }
 
-      await firestoreService.createUser(userData)
+      await dataRepository.createUser(userData)
       loading.value = 'success'
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'User creation failed'
@@ -130,7 +135,7 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = 'loading'
       error.value = null
 
-      await firestoreService.updateUser(currentUser.value.id, updates)
+      await dataRepository.updateUser(currentUser.value.id, updates)
 
       // Update local state
       currentUser.value = { ...currentUser.value, ...updates }
@@ -147,11 +152,11 @@ export const useAuthStore = defineStore('auth', () => {
    * Sets up the auth state listener to automatically update when auth state changes
    */
   function initializeAuth(): void {
-    authService.onAuthStateChanged(async (firebaseUser) => {
+    authRepository.onAuthStateChanged(async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          // Get user data from Firestore
-          const userData = await firestoreService.getUser(firebaseUser.uid)
+          // Get user data from Firestore via repository
+          const userData = await dataRepository.getUser(firebaseUser.uid)
           currentUser.value = userData
         } catch (err) {
           console.error('Error loading user data:', err)
