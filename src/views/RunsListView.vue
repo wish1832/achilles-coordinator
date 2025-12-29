@@ -20,7 +20,7 @@
         <div v-else-if="loading === 'error'" class="runs-error">
           <h2>Unable to load runs</h2>
           <p>There was an error loading the runs. Please try again.</p>
-          <AchillesButton @click="loadRuns"> Try Again </AchillesButton>
+          <AchillesButton @click="runsStore.loadUpcomingRuns"> Try Again </AchillesButton>
         </div>
 
         <!-- Runs list -->
@@ -62,59 +62,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
-import type { Run, LoadingState } from '@/types'
+import { useRunsStore } from '@/stores/runs'
 
 // Router and stores
 const router = useRouter()
-// Stores not required in this view; removed to avoid unused variable lint errors
+const runsStore = useRunsStore()
 
-// State
-const runs = ref<Run[]>([])
-const loading = ref<LoadingState>('idle')
-
-// Load runs data
-async function loadRuns(): Promise<void> {
-  try {
-    loading.value = 'loading'
-
-    // TODO: Replace with actual API call to Firestore
-    // For now, using mock data
-    await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate API call
-
-    runs.value = [
-      {
-        id: '1',
-        date: new Date('2024-02-15'),
-        time: '08:00',
-        location: 'Central Park',
-        description: 'Morning run through Central Park with beautiful scenery',
-        createdBy: 'admin1',
-        createdAt: new Date('2024-01-01'),
-        status: 'upcoming',
-      },
-      {
-        id: '2',
-        date: new Date('2024-02-22'),
-        time: '09:00',
-        location: 'Brooklyn Bridge',
-        description: 'Scenic run across the Brooklyn Bridge and back',
-        createdBy: 'admin1',
-        createdAt: new Date('2024-01-01'),
-        status: 'upcoming',
-      },
-    ]
-
-    loading.value = 'success'
-  } catch (error) {
-    console.error('Error loading runs:', error)
-    loading.value = 'error'
-  }
-}
+const { runs, loading } = storeToRefs(runsStore)
 
 // Format run date and time for display
 function formatRunDate(date: Date, time: string): string {
@@ -157,7 +117,7 @@ async function signUpForRun(runId: string): Promise<void> {
 
 // Initialize on mount
 onMounted(() => {
-  loadRuns()
+  runsStore.loadUpcomingRuns()
 })
 </script>
 
