@@ -3,10 +3,10 @@ import { useAuthStore } from '@/stores/auth'
 import { useOrganizationStore } from '@/stores/organization'
 
 /**
- * Centralized authorization helpers derived from auth + org state.
- * Keep admin checks out of auth store to avoid role conflation.
+ * Centralized admin capability helpers derived from auth + org state.
+ * Keeps admin checks out of the auth store and supports future run-level admins.
  */
-export function usePermissions() {
+export function useAdminCapabilities() {
   const authStore = useAuthStore()
   const organizationStore = useOrganizationStore()
 
@@ -22,8 +22,20 @@ export function usePermissions() {
     return organizationStore.isUserOrgAdmin(organizationId, user.id)
   }
 
+  function isRunAdmin(runAdminIds?: string[]): boolean {
+    const user = authStore.currentUser
+    if (!user) return false
+    return runAdminIds?.includes(user.id) ?? false
+  }
+
+  function canManageRun(organizationId: string, runAdminIds?: string[]): boolean {
+    return isOrgAdmin(organizationId) || isRunAdmin(runAdminIds)
+  }
+
   return {
     isAnyOrgAdmin,
     isOrgAdmin,
+    isRunAdmin,
+    canManageRun,
   }
 }
