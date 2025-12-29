@@ -6,6 +6,30 @@
 // User roles in the system
 export type UserRole = 'athlete' | 'guide' | 'admin'
 
+/**
+ * Organization (Achilles chapter)
+ * Represents a local Achilles chapter (e.g., Denver, Boulder)
+ * Admin status is organization-specific, stored in adminIds array
+ */
+export interface Organization {
+  id: string
+  name: string
+  adminIds: string[] // Array of user IDs who are admins of this organization
+  memberIds: string[] // Array of user IDs who are members of this organization
+  createdAt: Date
+  updatedAt?: Date
+  settings?: {
+    // Organization-specific settings
+    defaultMaxAthletes?: number
+    defaultMaxGuides?: number
+    timezone?: string
+    notificationPreferences?: {
+      emailNotifications?: boolean
+      smsNotifications?: boolean
+    }
+  }
+}
+
 // Run status options
 export type RunStatus = 'upcoming' | 'completed' | 'cancelled'
 
