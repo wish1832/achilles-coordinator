@@ -7,7 +7,7 @@ import type {
   User,
 } from '@/types/models'
 import type { IDataRepository } from '@/repositories/interfaces/IDataRepository'
-import { seedData } from './mockData'
+import { mockNow, seedData } from './mockData'
 
 type CollectionName =
   | 'organizations'
@@ -208,7 +208,7 @@ export class MockDataRepository implements IDataRepository {
   }
 
   async getUpcomingRuns(): Promise<Run[]> {
-    const now = Date.now()
+    const now = mockNow.getTime()
     const upcoming = state.runs.filter((entry) => new Date(entry.date).getTime() >= now)
     return sortByDateAscending(clone(upcoming))
   }

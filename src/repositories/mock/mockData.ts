@@ -8,7 +8,11 @@ type SeedData = {
   pairings: Pairing[]
 }
 
-const now = new Date()
+const mockNow = new Date('2030-01-01T09:00:00Z')
+
+function daysFromNow(offsetDays: number): Date {
+  return new Date(mockNow.getTime() + offsetDays * 24 * 60 * 60 * 1000)
+}
 
 export const seedData: SeedData = {
   organizations: [
@@ -17,7 +21,7 @@ export const seedData: SeedData = {
       name: 'Achilles Denver',
       adminIds: ['user-admin-1'],
       memberIds: ['user-admin-1', 'user-guide-1', 'user-athlete-1'],
-      createdAt: now,
+      createdAt: daysFromNow(-5),
       settings: {
         defaultMaxAthletes: 8,
         defaultMaxGuides: 8,
@@ -31,7 +35,7 @@ export const seedData: SeedData = {
       email: 'admin@achilles.local',
       displayName: 'Admin Casey',
       role: 'guide',
-      createdAt: now,
+      createdAt: daysFromNow(-4),
       profileDetails: {
         guideExperience: 'experienced',
       },
@@ -41,7 +45,7 @@ export const seedData: SeedData = {
       email: 'guide@achilles.local',
       displayName: 'Guide Riley',
       role: 'guide',
-      createdAt: now,
+      createdAt: daysFromNow(-3),
       profileDetails: {
         guideExperience: 'new',
       },
@@ -51,7 +55,7 @@ export const seedData: SeedData = {
       email: 'athlete@achilles.local',
       displayName: 'Athlete Morgan',
       role: 'athlete',
-      createdAt: now,
+      createdAt: daysFromNow(-2),
       profileDetails: {
         experienceLevel: 'beginner',
       },
@@ -60,22 +64,22 @@ export const seedData: SeedData = {
   runs: [
     {
       id: 'run-1',
-      date: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+      date: daysFromNow(1),
       time: '08:00',
       location: 'City Park Loop',
       description: 'Easy pace run with coffee after.',
       createdBy: 'user-admin-1',
-      createdAt: now,
+      createdAt: daysFromNow(-1),
       status: 'upcoming',
     },
     {
       id: 'run-2',
-      date: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+      date: daysFromNow(2),
       time: '09:00',
       location: 'River Trail',
       description: 'Scenic out-and-back along the river.',
       createdBy: 'user-admin-1',
-      createdAt: now,
+      createdAt: daysFromNow(-2),
       status: 'upcoming',
     },
   ],
@@ -85,7 +89,7 @@ export const seedData: SeedData = {
       runId: 'run-1',
       userId: 'user-athlete-1',
       role: 'athlete',
-      timestamp: now,
+      timestamp: daysFromNow(-1),
       status: 'active',
     },
   ],
@@ -96,8 +100,10 @@ export const seedData: SeedData = {
       athleteId: 'user-athlete-1',
       guideId: 'user-guide-1',
       createdBy: 'user-admin-1',
-      createdAt: now,
+      createdAt: daysFromNow(-1),
       status: 'active',
     },
   ],
 }
+
+export { mockNow }
