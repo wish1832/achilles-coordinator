@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { usePermissions } from '@/composables/usePermissions'
 import type { UserRole } from '@/types/models'
 import LoginView from '@/views/LoginView.vue'
 
@@ -36,7 +35,6 @@ const router = createRouter({
       component: () => import('@/views/admin/AdminDashboard.vue'),
       meta: {
         requiresAuth: true,
-        requiresOrgAdmin: true,
         title: 'Admin Dashboard - Achilles Run Coordinator',
       },
     },
@@ -46,7 +44,6 @@ const router = createRouter({
     //   component: () => import('@/views/admin/RunsView.vue'),
     //   meta: {
     //     requiresAuth: true,
-    //     requiresOrgAdmin: true,
     //     title: 'Manage Runs - Achilles Run Coordinator',
     //   },
     // },
@@ -56,7 +53,6 @@ const router = createRouter({
     //   component: () => import('@/views/admin/UsersView.vue'),
     //   meta: {
     //     requiresAuth: true,
-    //     requiresOrgAdmin: true,
     //     title: 'Manage Users - Achilles Run Coordinator',
     //   },
     // },
@@ -66,7 +62,6 @@ const router = createRouter({
     //   component: () => import('@/views/admin/PairingView.vue'),
     //   meta: {
     //     requiresAuth: true,
-    //     requiresOrgAdmin: true,
     //     title: 'Manage Pairings - Achilles Run Coordinator',
     //   },
     // },
@@ -85,7 +80,6 @@ const router = createRouter({
 // Navigation guards for authentication and role-based access
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
-  const permissions = usePermissions()
 
   // Set page title
   if (to.meta.title) {
@@ -109,20 +103,11 @@ router.beforeEach((to, from, next) => {
       return
     }
 
-    // Check organization admin access for admin routes
-    if (to.meta.requiresOrgAdmin && !permissions.isAnyOrgAdmin.value) {
-      next({ name: 'Runs' })
-      return
-    }
   }
 
   // Redirect authenticated users away from login page
   if (to.name === 'Login' && authStore.isAuthenticated) {
-    if (permissions.isAnyOrgAdmin.value) {
-      next({ name: 'Admin' })
-    } else {
-      next({ name: 'Runs' })
-    }
+    next({ name: 'Runs' })
     return
   }
 

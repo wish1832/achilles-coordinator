@@ -2,7 +2,6 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useAuthRepository } from '@/composables/useRepositories'
 import { useDataRepository } from '@/composables/useRepositories'
-import { useOrganizationStore } from './organization'
 import type { User, UserRole, LoadingState } from '@/types'
 
 /**
@@ -76,7 +75,8 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * Create a new user account (admin only)
+   * Create a new user account
+   * Permission should be enforced by the caller and Firestore rules.
    * @param email - User's email address
    * @param password - User's password
    * @param displayName - User's display name
@@ -94,17 +94,8 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = 'loading'
       error.value = null
 
-      // Check if current user is admin
       if (!currentUser.value) {
         throw new Error('No user logged in')
-      }
-
-      const organizationStore = useOrganizationStore()
-      const canCreateUsers =
-        organizationStore.getUserAdminOrganizations(currentUser.value.id).length > 0
-
-      if (!canCreateUsers) {
-        throw new Error('Only organization admins can create new users')
       }
 
       // Create Firebase user via repository
@@ -166,10 +157,6 @@ export const useAuthStore = defineStore('auth', () => {
           // Get user data from Firestore via repository
           const userData = await dataRepository.getUser(firebaseUser.uid)
           currentUser.value = userData
-          if (userData) {
-            const organizationStore = useOrganizationStore()
-            await organizationStore.loadUserOrganizations(userData.id)
-          }
         } catch (err) {
           console.error('Error loading user data:', err)
           currentUser.value = null
