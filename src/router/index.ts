@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { usePermissions } from '@/composables/usePermissions'
 import type { UserRole } from '@/types/models'
 import LoginView from '@/views/LoginView.vue'
 
@@ -84,6 +85,7 @@ const router = createRouter({
 // Navigation guards for authentication and role-based access
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
+  const permissions = usePermissions()
 
   // Set page title
   if (to.meta.title) {
@@ -108,7 +110,7 @@ router.beforeEach((to, from, next) => {
     }
 
     // Check organization admin access for admin routes
-    if (to.meta.requiresOrgAdmin && !authStore.isAdmin) {
+    if (to.meta.requiresOrgAdmin && !permissions.isAnyOrgAdmin.value) {
       next({ name: 'Runs' })
       return
     }
@@ -116,7 +118,7 @@ router.beforeEach((to, from, next) => {
 
   // Redirect authenticated users away from login page
   if (to.name === 'Login' && authStore.isAuthenticated) {
-    if (authStore.isAdmin) {
+    if (permissions.isAnyOrgAdmin.value) {
       next({ name: 'Admin' })
     } else {
       next({ name: 'Runs' })

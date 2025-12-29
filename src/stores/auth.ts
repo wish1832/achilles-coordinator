@@ -23,48 +23,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Getters (computed properties)
   const isAuthenticated = computed(() => !!currentUser.value)
-  const isAdmin = computed(() => {
-    if (!currentUser.value) return false
-    const organizationStore = useOrganizationStore()
-    return organizationStore.getUserAdminOrganizations(currentUser.value.id).length > 0
-  })
   const isAthlete = computed(() => currentUser.value?.role === 'athlete')
   const isGuide = computed(() => currentUser.value?.role === 'guide')
   const userDisplayName = computed(() => currentUser.value?.displayName || '')
   const userRole = computed(() => currentUser.value?.role || null)
-
-  /**
-   * Check if current user is an admin of a specific organization
-   * @param organizationId - Organization ID to check
-   * @returns True if user is admin of the organization
-   */
-  const isOrgAdmin = computed(() => {
-    return (organizationId: string): boolean => {
-      if (!currentUser.value) return false
-      const organizationStore = useOrganizationStore()
-      return organizationStore.isUserOrgAdmin(organizationId, currentUser.value.id)
-    }
-  })
-
-  /**
-   * Get all organizations where the current user is an admin
-   * Returns empty array if no user is logged in
-   */
-  const adminOrganizations = computed(() => {
-    if (!currentUser.value) return []
-    const organizationStore = useOrganizationStore()
-    return organizationStore.getUserAdminOrganizations(currentUser.value.id)
-  })
-
-  /**
-   * Get all organizations where the current user is a member
-   * Returns empty array if no user is logged in
-   */
-  const memberOrganizations = computed(() => {
-    if (!currentUser.value) return []
-    const organizationStore = useOrganizationStore()
-    return organizationStore.getUserMemberOrganizations(currentUser.value.id)
-  })
 
   /**
    * Sign in with email and password
@@ -133,8 +95,16 @@ export const useAuthStore = defineStore('auth', () => {
       error.value = null
 
       // Check if current user is admin
-      if (!isAdmin.value) {
-        throw new Error('Only administrators can create new users')
+      if (!currentUser.value) {
+        throw new Error('No user logged in')
+      }
+
+      const organizationStore = useOrganizationStore()
+      const canCreateUsers =
+        organizationStore.getUserAdminOrganizations(currentUser.value.id).length > 0
+
+      if (!canCreateUsers) {
+        throw new Error('Only organization admins can create new users')
       }
 
       // Create Firebase user via repository
@@ -235,14 +205,10 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Getters
     isAuthenticated,
-    isAdmin,
     isAthlete,
     isGuide,
     userDisplayName,
     userRole,
-    isOrgAdmin,
-    adminOrganizations,
-    memberOrganizations,
 
     // Actions
     signIn,
