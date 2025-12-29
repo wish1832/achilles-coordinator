@@ -148,6 +148,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { usePermissions } from '@/composables/usePermissions'
 import { useAccessibilityStore } from '@/stores/accessibility'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
@@ -155,6 +156,7 @@ import AchillesButton from '@/components/ui/AchillesButton.vue'
 // Router and stores
 const router = useRouter()
 const authStore = useAuthStore()
+const permissions = usePermissions()
 const accessibilityStore = useAccessibilityStore()
 
 // Form state
@@ -222,7 +224,7 @@ async function handleSubmit(): Promise<void> {
     await authStore.signIn(form.value.email, form.value.password)
 
     // Redirect based on user role
-    if (authStore.isAdmin) {
+    if (permissions.isAnyOrgAdmin.value) {
       router.push('/admin')
     } else {
       router.push('/runs')
