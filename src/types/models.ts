@@ -4,7 +4,7 @@
  */
 
 // User roles in the system
-export type UserRole = 'athlete' | 'guide' | 'admin'
+export type UserRole = 'athlete' | 'guide'
 
 /**
  * Organization (Achilles chapter)
@@ -63,8 +63,6 @@ export interface User {
     certifications?: string[]
     maxAthletesPerRun?: number
 
-    // Admin-specific fields
-    permissions?: string[]
   }
 }
 
