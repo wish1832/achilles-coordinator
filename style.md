@@ -1,0 +1,34 @@
+# Style Guidance
+
+This document captures the UI and content style guidance derived from the project README and CLAUDE guidance. Use it when shaping UI, copy, and interaction behavior.
+
+Agents: read this file for style guidance before making UI changes.
+
+## Accessibility First
+
+- Treat WCAG 2.1 AA compliance as a baseline, not a stretch goal.
+- All interactions must be fully keyboard accessible with visible focus states.
+- Use semantic HTML first, then ARIA where needed.
+- Maintain sufficient color contrast, including in high contrast mode.
+- Respect reduced motion preferences by limiting or disabling animations.
+- Support multiple text sizes without breaking layouts.
+
+## Interaction Patterns
+
+- Make focus order predictable and logical.
+- Provide clear success and error feedback for form actions.
+- Prefer simple, step-by-step flows over complex, multi-panel layouts.
+- Use plain language labels for form fields and actions.
+
+## Visual Language
+
+- Favor clarity and legibility over decorative styling.
+- Use CSS custom properties for theming and accessibility settings.
+- Ensure components scale well across desktop and mobile.
+- Keep component structure consistent with existing UI library patterns.
+
+## Content Tone
+
+- Write in a calm, supportive tone that is clear and action-oriented.
+- Use descriptive button labels (e.g., "Create Run" instead of "Submit").
+- Avoid jargon where possible; prefer everyday language.
