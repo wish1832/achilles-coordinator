@@ -32,7 +32,7 @@ export interface IAuthRepository {
    * @param email - User's email address
    * @param password - User's password
    * @param displayName - User's display name
-   * @param role - User's role (athlete, guide, or admin)
+   * @param role - User's role (athlete or guide)
    * @returns Promise resolving to Firebase User object
    * @throws Error if user creation fails
    */

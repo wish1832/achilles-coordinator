@@ -23,7 +23,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Getters (computed properties)
   const isAuthenticated = computed(() => !!currentUser.value)
-  const isAdmin = computed(() => currentUser.value?.role === 'admin')
+  const isAdmin = computed(() => {
+    if (!currentUser.value) return false
+    const organizationStore = useOrganizationStore()
+    return organizationStore.getUserAdminOrganizations(currentUser.value.id).length > 0
+  })
   const isAthlete = computed(() => currentUser.value?.role === 'athlete')
   const isGuide = computed(() => currentUser.value?.role === 'guide')
   const userDisplayName = computed(() => currentUser.value?.displayName || '')
@@ -192,6 +196,10 @@ export const useAuthStore = defineStore('auth', () => {
           // Get user data from Firestore via repository
           const userData = await dataRepository.getUser(firebaseUser.uid)
           currentUser.value = userData
+          if (userData) {
+            const organizationStore = useOrganizationStore()
+            await organizationStore.loadUserOrganizations(userData.id)
+          }
         } catch (err) {
           console.error('Error loading user data:', err)
           currentUser.value = null
