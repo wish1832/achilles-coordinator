@@ -6,6 +6,10 @@ This file provides guidance to coding agents when working with code in this repo
 
 For domain and design specifics (roles, permissions, data models, and architecture), read `DESIGN.md` and follow it as the source of truth.
 
+## Repository Implementations
+
+Data access uses repository interfaces under `src/repositories/interfaces`. Production implementations live in `src/repositories/firebase`. Mock and emulator implementations are intended but not yet present; when added, they should implement the same interfaces and be selected by environment or test setup.
+
 ## Guidelines
 
 - You are an expert in Vue 3, TypeScript, Firebase, and web accessibility.
