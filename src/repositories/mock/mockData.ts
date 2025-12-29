@@ -1,0 +1,103 @@
+import type { Organization, Pairing, Run, SignUp, User } from '@/types/models'
+
+type SeedData = {
+  organizations: Organization[]
+  users: User[]
+  runs: Run[]
+  signUps: SignUp[]
+  pairings: Pairing[]
+}
+
+const now = new Date()
+
+export const seedData: SeedData = {
+  organizations: [
+    {
+      id: 'org-denver',
+      name: 'Achilles Denver',
+      adminIds: ['user-admin-1'],
+      memberIds: ['user-admin-1', 'user-guide-1', 'user-athlete-1'],
+      createdAt: now,
+      settings: {
+        defaultMaxAthletes: 8,
+        defaultMaxGuides: 8,
+        timezone: 'America/Denver',
+      },
+    },
+  ],
+  users: [
+    {
+      id: 'user-admin-1',
+      email: 'admin@achilles.local',
+      displayName: 'Admin Casey',
+      role: 'guide',
+      createdAt: now,
+      profileDetails: {
+        guideExperience: 'experienced',
+      },
+    },
+    {
+      id: 'user-guide-1',
+      email: 'guide@achilles.local',
+      displayName: 'Guide Riley',
+      role: 'guide',
+      createdAt: now,
+      profileDetails: {
+        guideExperience: 'new',
+      },
+    },
+    {
+      id: 'user-athlete-1',
+      email: 'athlete@achilles.local',
+      displayName: 'Athlete Morgan',
+      role: 'athlete',
+      createdAt: now,
+      profileDetails: {
+        experienceLevel: 'beginner',
+      },
+    },
+  ],
+  runs: [
+    {
+      id: 'run-1',
+      date: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+      time: '08:00',
+      location: 'City Park Loop',
+      description: 'Easy pace run with coffee after.',
+      createdBy: 'user-admin-1',
+      createdAt: now,
+      status: 'upcoming',
+    },
+    {
+      id: 'run-2',
+      date: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+      time: '09:00',
+      location: 'River Trail',
+      description: 'Scenic out-and-back along the river.',
+      createdBy: 'user-admin-1',
+      createdAt: now,
+      status: 'upcoming',
+    },
+  ],
+  signUps: [
+    {
+      id: 'signup-1',
+      runId: 'run-1',
+      userId: 'user-athlete-1',
+      role: 'athlete',
+      timestamp: now,
+      status: 'active',
+    },
+  ],
+  pairings: [
+    {
+      id: 'pairing-1',
+      runId: 'run-1',
+      athleteId: 'user-athlete-1',
+      guideId: 'user-guide-1',
+      createdBy: 'user-admin-1',
+      createdAt: now,
+      status: 'active',
+    },
+  ],
+}

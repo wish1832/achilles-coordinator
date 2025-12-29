@@ -1,18 +1,20 @@
 import type { IAuthRepository } from '@/repositories/interfaces/IAuthRepository'
 import type { IDataRepository } from '@/repositories/interfaces/IDataRepository'
 import { firebaseAuthRepository, firebaseDataRepository } from '@/repositories/firebase'
+import { mockAuthRepository, mockDataRepository } from '@/repositories/mock'
 
 /**
  * Repository wiring for the app.
  * Keep this explicit so the dependency swap is easy to follow.
  */
+const useMockRepositories = import.meta.env.VITE_USE_MOCK === 'true'
+
 const repositories: {
   auth: IAuthRepository
   data: IDataRepository
 } = {
-  auth: firebaseAuthRepository,
-  data: firebaseDataRepository,
-  // When mock/emulator repos are ready, swap the bindings here.
+  auth: useMockRepositories ? mockAuthRepository : firebaseAuthRepository,
+  data: useMockRepositories ? mockDataRepository : firebaseDataRepository,
 }
 
 // tests can use this to swap out repositories as needed by overriding before stores are inited
