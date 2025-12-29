@@ -1,12 +1,14 @@
 # Achilles Run Coordinator - Design Document
 
+This is the source of truth for domain and design specifics (roles, permissions, data models, and architecture). Other docs should defer to this file.
+
 ## Overview
 
 Achilles Run Coordinator is a web application for coordinating sign-ups for Achilles International running events. The application pairs athletes with disabilities with able-bodied guides for each run. Built with Vue 3, TypeScript, and Firebase, with comprehensive WCAG 2.1 AA compliant accessibility features.
 
 ## Core Requirements
 
-### User Roles
+### User Roles and Admin Access
 
 1. **Athletes** - Athletes with disabilities who participate in runs
    - View upcoming runs
@@ -18,10 +20,10 @@ Achilles Run Coordinator is a web application for coordinating sign-ups for Achi
    - Sign up for runs
    - View their sign-up history
 
-3. **Admins** - Administrators who manage the system
-   - Create and manage runs
-   - View all sign-ups
-   - Create pairings (athlete + guide)
+3. **Organization Admins** - Athletes or guides with admin access for specific organizations
+   - Create and manage runs for their organizations
+   - View all sign-ups for their organizations
+   - Create pairings (athlete + guide) for their organizations
    - Manage users (invite-only user creation)
 
 ### Key Features
@@ -35,10 +37,12 @@ Achilles Run Coordinator is a web application for coordinating sign-ups for Achi
    - Admins manually pair athletes with guides for each run
    - Keyboard-accessible pairing interface
    - View and manage existing pairings
+   - Admin-only pairing notes to explain pairing decisions (not visible to users)
 
 3. **User Management**
    - Invite-only registration (admins create accounts)
-   - Role assignment (athlete, guide, admin)
+   - Role assignment (athlete, guide)
+   - Admin access is organization-specific and can be granted to athletes or guides
    - User profile management
 
 4. **Accessibility**
@@ -492,7 +496,7 @@ All UI components in `src/components/ui/` are built with accessibility as a core
   - [ ] Add Location model and Firestore integration
   - [ ] Update User model with organizationIds array
   - [ ] Update Run model with organizationId and locationId
-  - [ ] Remove 'admin' from UserRole (make it org-specific)
+  - [x] Remove 'admin' from UserRole (make it org-specific)
 - [ ] **Testing Setup**:
   - [ ] Create mock repository implementations for unit testing
   - [ ] Create emulator repository implementations for integration tests
