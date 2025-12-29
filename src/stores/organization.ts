@@ -18,6 +18,8 @@ export const useOrganizationStore = defineStore('organization', () => {
   const currentOrganization = ref<Organization | null>(null)
   const loading = ref<LoadingState>('idle')
   const error = ref<string | null>(null)
+  const loadSequence = ref(0)
+  const loadedForUserId = ref<string | null>(null)
 
   // Getters (functions)
 
@@ -77,14 +79,28 @@ export const useOrganizationStore = defineStore('organization', () => {
    * Sets organizations state with all organizations, ordered by name
    */
   async function loadOrganizations(): Promise<void> {
+    const flight = ++loadSequence.value
     try {
       loading.value = 'loading'
       error.value = null
 
       // Fetch all organizations from Firestore via repository
-      organizations.value = await dataRepository.getOrganizations()
+      const orgs = await dataRepository.getOrganizations()
+      if (flight !== loadSequence.value) return
+
+      organizations.value = orgs
+      loadedForUserId.value = null
+
+      if (
+        currentOrganization.value &&
+        !organizations.value.find((org) => org.id === currentOrganization.value?.id)
+      ) {
+        currentOrganization.value = null
+      }
+
       loading.value = 'success'
     } catch (err) {
+      if (flight !== loadSequence.value) return
       error.value = err instanceof Error ? err.message : 'Failed to load organizations'
       loading.value = 'error'
       throw err
@@ -96,14 +112,28 @@ export const useOrganizationStore = defineStore('organization', () => {
    * @param userId - User ID to load organizations for
    */
   async function loadUserOrganizations(userId: string): Promise<void> {
+    const flight = ++loadSequence.value
     try {
       loading.value = 'loading'
       error.value = null
 
       // Fetch user's organizations from Firestore via repository
-      organizations.value = await dataRepository.getUserOrganizations(userId)
+      const orgs = await dataRepository.getUserOrganizations(userId)
+      if (flight !== loadSequence.value) return
+
+      organizations.value = orgs
+      loadedForUserId.value = userId
+
+      if (
+        currentOrganization.value &&
+        !organizations.value.find((org) => org.id === currentOrganization.value?.id)
+      ) {
+        currentOrganization.value = null
+      }
+
       loading.value = 'success'
     } catch (err) {
+      if (flight !== loadSequence.value) return
       error.value = err instanceof Error ? err.message : 'Failed to load user organizations'
       loading.value = 'error'
       throw err
@@ -420,6 +450,7 @@ export const useOrganizationStore = defineStore('organization', () => {
     currentOrganization.value = null
     loading.value = 'idle'
     error.value = null
+    loadedForUserId.value = null
   }
 
   return {
@@ -428,6 +459,7 @@ export const useOrganizationStore = defineStore('organization', () => {
     currentOrganization,
     loading,
     error,
+    loadedForUserId,
 
     // Getters
     getOrganizationById,
