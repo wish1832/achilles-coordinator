@@ -30,6 +30,7 @@ const mockUsers: MockAuthUser[] = [
   },
 ]
 
+const storageKey = 'mock-auth-user'
 let currentUser: FirebaseUser | null = null
 const listeners = new Set<(user: FirebaseUser | null) => void>()
 let idCounter = 100
@@ -48,6 +49,30 @@ function toFirebaseUser(user: MockAuthUser): FirebaseUser {
   } as FirebaseUser
 }
 
+function loadPersistedUser(): FirebaseUser | null {
+  if (typeof window === 'undefined') return null
+  const raw = sessionStorage.getItem(storageKey)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as FirebaseUser
+  } catch (error) {
+    console.warn('Failed to parse mock auth session:', error)
+    sessionStorage.removeItem(storageKey)
+    return null
+  }
+}
+
+function persistUser(user: FirebaseUser | null): void {
+  if (typeof window === 'undefined') return
+  if (!user) {
+    sessionStorage.removeItem(storageKey)
+    return
+  }
+  sessionStorage.setItem(storageKey, JSON.stringify(user))
+}
+
+currentUser = loadPersistedUser()
+
 export class MockAuthRepository implements IAuthRepository {
   async signIn(email: string, password: string): Promise<FirebaseUser> {
     const user = mockUsers.find((entry) => entry.email === email)
@@ -56,12 +81,14 @@ export class MockAuthRepository implements IAuthRepository {
     }
 
     currentUser = toFirebaseUser(user)
+    persistUser(currentUser)
     notifyListeners(currentUser)
     return currentUser
   }
 
   async signOut(): Promise<void> {
     currentUser = null
+    persistUser(currentUser)
     notifyListeners(currentUser)
   }
 
@@ -85,6 +112,7 @@ export class MockAuthRepository implements IAuthRepository {
 
     mockUsers.push(newUser)
     currentUser = toFirebaseUser(newUser)
+    persistUser(currentUser)
     notifyListeners(currentUser)
     return currentUser
   }
