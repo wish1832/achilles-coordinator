@@ -120,7 +120,9 @@ export class MockDataRepository implements IDataRepository {
     if (index === -1) {
       throw new Error(`Document ${id} not found in ${collectionName}`)
     }
-    items[index] = { ...items[index], ...clone(data) }
+    // Merge the partial update with the existing item
+    // Type assertion is needed because Partial makes fields optional
+    items[index] = { ...items[index], ...clone(data) } as T
   }
 
   async deleteDocument(collectionName: string, id: string): Promise<void> {
@@ -142,6 +144,7 @@ export class MockDataRepository implements IDataRepository {
 
   async getDocuments<T extends { id: string }>(
     collectionName: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _constraints?: QueryConstraint[],
   ): Promise<T[]> {
     const items = getCollection<T>(collectionName as CollectionName)
@@ -151,6 +154,7 @@ export class MockDataRepository implements IDataRepository {
   onCollectionChange<T extends { id: string }>(
     collectionName: string,
     callback: (docs: T[]) => void,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _constraints?: QueryConstraint[],
   ): Unsubscribe {
     void this.getDocuments<T>(collectionName).then(callback)
@@ -168,7 +172,7 @@ export class MockDataRepository implements IDataRepository {
     if (index === -1) {
       throw new Error(`User ${id} not found`)
     }
-    state.users[index] = { ...state.users[index], ...clone(userData) }
+    state.users[index] = { ...state.users[index], ...clone(userData) } as User
   }
 
   async getUser(id: string): Promise<User | null> {
@@ -191,7 +195,7 @@ export class MockDataRepository implements IDataRepository {
     if (index === -1) {
       throw new Error(`Run ${id} not found`)
     }
-    state.runs[index] = { ...state.runs[index], ...clone(runData) }
+    state.runs[index] = { ...state.runs[index], ...clone(runData) } as Run
   }
 
   async deleteRun(id: string): Promise<void> {
@@ -224,7 +228,7 @@ export class MockDataRepository implements IDataRepository {
     if (index === -1) {
       throw new Error(`SignUp ${id} not found`)
     }
-    state.signups[index] = { ...state.signups[index], ...clone(signUpData) }
+    state.signups[index] = { ...state.signups[index], ...clone(signUpData) } as SignUp
   }
 
   async deleteSignUp(id: string): Promise<void> {
@@ -255,7 +259,7 @@ export class MockDataRepository implements IDataRepository {
     if (index === -1) {
       throw new Error(`Pairing ${id} not found`)
     }
-    state.pairings[index] = { ...state.pairings[index], ...clone(pairingData) }
+    state.pairings[index] = { ...state.pairings[index], ...clone(pairingData) } as Pairing
   }
 
   async deletePairing(id: string): Promise<void> {
@@ -281,7 +285,10 @@ export class MockDataRepository implements IDataRepository {
     if (index === -1) {
       throw new Error(`Organization ${id} not found`)
     }
-    state.organizations[index] = { ...state.organizations[index], ...clone(organizationData) }
+    state.organizations[index] = {
+      ...state.organizations[index],
+      ...clone(organizationData),
+    } as Organization
   }
 
   async deleteOrganization(id: string): Promise<void> {
