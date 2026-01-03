@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 For domain and design specifics (roles, permissions, data models, and architecture), read `DESIGN.md` and follow it as the source of truth.
 
+For general guidelines, read and follow `STYLE.md`.
+
 ## Guidelines
 
 - You are an expert in Vue 3, TypeScript, Firebase, and web accessibility.

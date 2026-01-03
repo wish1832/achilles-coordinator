@@ -199,6 +199,7 @@ interface Run {
   locationId: string // Reference to Location document
   description: string
   createdBy: string // User ID of admin who created this run
+  runAdminIds?: string[] // User IDs of admins for this run (org admins are implicit admins)
   createdAt: Date
   updatedAt?: Date
   status: 'upcoming' | 'completed' | 'cancelled'
@@ -251,7 +252,7 @@ interface SignUp {
 ### runs/
 
 - Document ID: Auto-generated
-- Fields: organizationId, date, time, locationId, description, createdBy, createdAt, updatedAt, status, maxAthletes, maxGuides, notes, pairings
+- Fields: organizationId, date, time, locationId, description, createdBy, runAdminIds, createdAt, updatedAt, status, maxAthletes, maxGuides, notes, pairings
 - Security: All authenticated users can read; only organization admins can write
 - Indexes:
   - organizationId (for querying runs by organization)
@@ -583,13 +584,10 @@ service cloud.firestore {
         request.auth.uid in get(/databases/$(database)/documents/organizations/$(orgId)).data.adminIds;
     }
 
-    // Helper function to check if user is admin of any organization
-    function isAnyOrgAdmin() {
-      let user = get(/databases/$(database)/documents/users/$(request.auth.uid));
+    // Helper function to check if user is admin of a run
+    function isRunAdmin(runId) {
       return request.auth != null &&
-        user.data.organizationIds.size() > 0;
-      // Note: Full validation requires checking each org's adminIds array
-      // This is a simplified check; full implementation should verify against organizations collection
+        request.auth.uid in get(/databases/$(database)/documents/runs/$(runId)).data.runAdminIds;
     }
 
     // Organizations are readable by all authenticated users
@@ -622,23 +620,24 @@ service cloud.firestore {
     }
 
     // Runs are readable by all authenticated users
-    // Writable only by admins of the organization hosting the run
+    // Writable by org admins or run admins
     match /runs/{runId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null &&
         isOrgAdmin(request.resource.data.organizationId);
       allow update, delete: if request.auth != null &&
-        isOrgAdmin(resource.data.organizationId);
+        (isOrgAdmin(resource.data.organizationId) || isRunAdmin(runId));
     }
 
     // Signups are readable and writable by the user who created them
-    // Organization admins can read/write all signups for runs in their organizations
+    // Org admins or run admins can read/write all signups for runs they manage
     match /signups/{signupId} {
       allow read, write: if request.auth != null &&
         request.auth.uid == resource.data.userId;
       allow read, write: if request.auth != null &&
         exists(/databases/$(database)/documents/runs/$(resource.data.runId)) &&
-        isOrgAdmin(get(/databases/$(database)/documents/runs/$(resource.data.runId)).data.organizationId);
+        (isOrgAdmin(get(/databases/$(database)/documents/runs/$(resource.data.runId)).data.organizationId) ||
+        isRunAdmin(resource.data.runId));
     }
   }
 }
@@ -648,8 +647,10 @@ service cloud.firestore {
 
 - Users can manage their own data
 - Organization admins can manage resources (runs, locations, signups) for their organizations
+- Run admins can manage resources (runs, signups) for their specific runs
 - All authenticated users can read organizations and runs (for signup purposes)
 - Admin status is determined by the `adminIds` array in the organization document
+- Run admin status is determined by the `runAdminIds` array in the run document
 
 ### Authentication Security
 

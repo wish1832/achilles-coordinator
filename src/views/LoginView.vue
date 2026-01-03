@@ -222,11 +222,7 @@ async function handleSubmit(): Promise<void> {
     await authStore.signIn(form.value.email, form.value.password)
 
     // Redirect based on user role
-    if (authStore.isAdmin) {
-      router.push('/admin')
-    } else {
-      router.push('/runs')
-    }
+    router.push('/runs')
   } catch (error) {
     // Error is handled by the auth store
     console.error('Login failed:', error)

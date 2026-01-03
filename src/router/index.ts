@@ -25,7 +25,7 @@ const router = createRouter({
       component: () => import('@/views/RunsListView.vue'),
       meta: {
         requiresAuth: true,
-        roles: ['athlete', 'guide', 'admin'],
+        roles: ['athlete', 'guide'],
         title: 'Runs - Achilles Run Coordinator',
       },
     },
@@ -35,7 +35,6 @@ const router = createRouter({
       component: () => import('@/views/admin/AdminDashboard.vue'),
       meta: {
         requiresAuth: true,
-        roles: ['admin'],
         title: 'Admin Dashboard - Achilles Run Coordinator',
       },
     },
@@ -45,7 +44,6 @@ const router = createRouter({
     //   component: () => import('@/views/admin/RunsView.vue'),
     //   meta: {
     //     requiresAuth: true,
-    //     roles: ['admin'],
     //     title: 'Manage Runs - Achilles Run Coordinator',
     //   },
     // },
@@ -55,7 +53,6 @@ const router = createRouter({
     //   component: () => import('@/views/admin/UsersView.vue'),
     //   meta: {
     //     requiresAuth: true,
-    //     roles: ['admin'],
     //     title: 'Manage Users - Achilles Run Coordinator',
     //   },
     // },
@@ -65,7 +62,6 @@ const router = createRouter({
     //   component: () => import('@/views/admin/PairingView.vue'),
     //   meta: {
     //     requiresAuth: true,
-    //     roles: ['admin'],
     //     title: 'Manage Pairings - Achilles Run Coordinator',
     //   },
     // },
@@ -103,23 +99,15 @@ router.beforeEach((to, from, next) => {
 
     // If an authenticated user lacks the required roles, redirect based on their role
     if (requiredRoles?.length && !authStore.hasPermission(requiredRoles)) {
-      // Redirect to appropriate page based on user role
-      if (authStore.isAdmin) {
-        next({ name: 'Admin' })
-      } else {
-        next({ name: 'Runs' })
-      }
+      next({ name: 'Runs' })
       return
     }
+
   }
 
   // Redirect authenticated users away from login page
   if (to.name === 'Login' && authStore.isAuthenticated) {
-    if (authStore.isAdmin) {
-      next({ name: 'Admin' })
-    } else {
-      next({ name: 'Runs' })
-    }
+    next({ name: 'Runs' })
     return
   }
 
