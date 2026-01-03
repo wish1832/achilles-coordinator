@@ -7,6 +7,7 @@ type MockAuthUser = {
   email: string
   displayName: string
   password: string
+  role: UserRole
 }
 
 const mockUsers: MockAuthUser[] = [
@@ -15,18 +16,21 @@ const mockUsers: MockAuthUser[] = [
     email: 'admin@achilles.local',
     displayName: 'Admin Casey',
     password: 'password',
+    role: 'guide',
   },
   {
     uid: 'user-guide-1',
     email: 'guide@achilles.local',
     displayName: 'Guide Riley',
     password: 'password',
+    role: 'guide',
   },
   {
     uid: 'user-athlete-1',
     email: 'athlete@achilles.local',
     displayName: 'Athlete Morgan',
     password: 'password',
+    role: 'athlete',
   },
 ]
 
@@ -108,6 +112,7 @@ export class MockAuthRepository implements IAuthRepository {
       email,
       displayName,
       password,
+      role,
     }
 
     mockUsers.push(newUser)
