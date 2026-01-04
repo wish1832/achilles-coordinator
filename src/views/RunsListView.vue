@@ -7,7 +7,6 @@
     <header class="runs-header">
       <div class="runs-header__content">
         <h1 class="runs-title">Upcoming Runs</h1>
-        <p class="runs-subtitle">Sign up for upcoming Achilles International runs</p>
       </div>
     </header>
 
@@ -29,7 +28,7 @@
             v-for="run in runs"
             :key="run.id"
             class="run-card"
-            :title="run.locationId"
+            :title="getLocationName(run.locationId)"
             :subtitle="formatRunDate(run.date, run.time)"
             clickable
             @click="viewRun(run.id)"
@@ -40,6 +39,14 @@
               <div class="run-details">
                 <div class="run-detail"><strong>Date:</strong> {{ formatDate(run.date) }}</div>
                 <div class="run-detail"><strong>Time:</strong> {{ run.time }}</div>
+                <div class="run-detail run-signup-counts">
+                  <span class="signup-count">
+                    <strong>Athletes:</strong> {{ signUpsStore.getSignUpCounts(run.id).athletes }}
+                  </span>
+                  <span class="signup-count">
+                    <strong>Guides:</strong> {{ signUpsStore.getSignUpCounts(run.id).guides }}
+                  </span>
+                </div>
               </div>
 
               <div class="run-actions">
@@ -69,12 +76,23 @@ import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import { useRunsStore } from '@/stores/runs'
+import { useLocationStore } from '@/stores/location'
+import { useSignUpsStore } from '@/stores/signups'
 
 // Router and stores
 const router = useRouter()
 const runsStore = useRunsStore()
+const locationStore = useLocationStore()
+const signUpsStore = useSignUpsStore()
 
 const { runs, loading } = storeToRefs(runsStore)
+
+// Helper function to get location name by ID
+// Returns the location name if found, otherwise returns 'Unknown Location'
+function getLocationName(locationId: string): string {
+  const location = locationStore.getLocationById(locationId)
+  return location ? location.name : 'Unknown Location'
+}
 
 // Format run date and time for display
 function formatRunDate(date: Date, time: string): string {
@@ -116,8 +134,27 @@ async function signUpForRun(runId: string): Promise<void> {
 }
 
 // Initialize on mount
-onMounted(() => {
-  runsStore.loadUpcomingRuns()
+// Load runs, locations, and sign-ups when the component mounts
+onMounted(async () => {
+  // First, load the upcoming runs
+  await runsStore.loadUpcomingRuns()
+
+  // Then, load locations for all organizations that have runs
+  // Extract unique organization IDs from the loaded runs
+  const organizationIds = new Set(runs.value.map((run) => run.organizationId))
+
+  // Load locations for each unique organization
+  // This ensures we have location data to display location names
+  for (const orgId of organizationIds) {
+    await locationStore.loadLocationsForOrganization(orgId)
+  }
+
+  // Load sign-ups for all runs
+  // This allows us to display athlete and guide counts for each run
+  const runIds = runs.value.map((run) => run.id)
+  if (runIds.length > 0) {
+    await signUpsStore.loadSignUpsForRuns(runIds)
+  }
 })
 </script>
 
@@ -214,6 +251,18 @@ onMounted(() => {
   font-size: 0.875rem;
   color: var(--color-text, #111827);
   line-height: 1.4;
+}
+
+.run-signup-counts {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.25rem;
+}
+
+.signup-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .run-actions {
