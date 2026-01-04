@@ -8,3 +8,6 @@
 
 export type { IAuthRepository } from './IAuthRepository'
 export type { IDataRepository } from './IDataRepository'
+export type { IOrganizationRepository } from './IOrganizationRepository'
+export type { IRunRepository } from './IRunRepository'
+export type { IUserRepository } from './IUserRepository'
