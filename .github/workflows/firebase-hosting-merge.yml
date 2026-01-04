@@ -38,7 +38,8 @@ jobs:
 
       - name: Build Project
         run: |
-          pnpm install --frozen-lockfile && pnpm build
+          pnpm install --frozen-lockfile
+          pnpm build --mode production
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0

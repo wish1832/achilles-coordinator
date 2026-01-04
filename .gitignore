@@ -35,7 +35,10 @@ dist-ssr
 
 *.tsbuildinfo
 
-# env files (never commit these)
-.env.example
+# Ignore all env files by default
 .env*
+# But keep safe, committed variants
+!.env.example
+!.env.mock
+!.env.emulator
 README_secret.md
