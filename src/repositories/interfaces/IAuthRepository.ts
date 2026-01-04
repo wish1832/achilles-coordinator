@@ -1,6 +1,4 @@
 import type { User as FirebaseUser } from 'firebase/auth'
-import type { UserRole } from '@/types/models'
-
 /**
  * Authentication repository interface
  * Defines the contract for all authentication operations
@@ -28,20 +26,14 @@ export interface IAuthRepository {
 
   /**
    * Create a new user account (admin only)
-   * This creates both a Firebase Auth user and a Firestore user document
+   * This creates a Firebase Auth user only (profile data lives in the user repository).
    * @param email - User's email address
    * @param password - User's password
    * @param displayName - User's display name
-   * @param role - User's role (athlete or guide)
    * @returns Promise resolving to Firebase User object
    * @throws Error if user creation fails
    */
-  createUser(
-    email: string,
-    password: string,
-    displayName: string,
-    role: UserRole,
-  ): Promise<FirebaseUser>
+  createUser(email: string, password: string, displayName: string): Promise<FirebaseUser>
 
   /**
    * Get the current authenticated user
