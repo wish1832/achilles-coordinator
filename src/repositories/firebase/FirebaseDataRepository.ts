@@ -13,10 +13,11 @@ import {
   arrayUnion,
   arrayRemove,
   Timestamp,
+  type Firestore,
   type Unsubscribe,
   type QueryConstraint,
 } from 'firebase/firestore'
-import { db } from '@/firebase/config'
+import { getFirebaseDb } from '@/firebase/client'
 import type { User, Run, SignUp, Organization, Location } from '@/types/models'
 import type { IDataRepository } from '../interfaces/IDataRepository'
 
@@ -26,6 +27,14 @@ import type { IDataRepository } from '../interfaces/IDataRepository'
  * For testing, use MockDataRepository (unit tests) or EmulatorDataRepository (integration tests)
  */
 export class FirebaseDataRepository implements IDataRepository {
+  /**
+   * Lazily resolve Firestore so Firebase doesn't initialize until needed.
+   * This keeps mock mode from booting the SDK just by importing the repository.
+   */
+  private getDb(): Firestore {
+    return getFirebaseDb()
+  }
+
   // ==========================================
   // Generic CRUD operations
   // ==========================================
@@ -44,7 +53,7 @@ export class FirebaseDataRepository implements IDataRepository {
   ): Promise<string> {
     try {
       // Add the document to Firestore with a createdAt timestamp
-      const docRef = await addDoc(collection(db, collectionName), {
+      const docRef = await addDoc(collection(this.getDb(), collectionName), {
         ...data,
         createdAt: Timestamp.now(),
       })
@@ -72,7 +81,7 @@ export class FirebaseDataRepository implements IDataRepository {
   ): Promise<void> {
     try {
       // Get a reference to the document
-      const docRef = doc(db, collectionName, id)
+      const docRef = doc(this.getDb(), collectionName, id)
       // Update the document with the new data and an updatedAt timestamp
       await updateDoc(docRef, {
         ...data,
@@ -94,7 +103,7 @@ export class FirebaseDataRepository implements IDataRepository {
   async deleteDocument(collectionName: string, id: string): Promise<void> {
     try {
       // Get a reference to the document and delete it
-      const docRef = doc(db, collectionName, id)
+      const docRef = doc(this.getDb(), collectionName, id)
       await deleteDoc(docRef)
     } catch (error) {
       console.error(`Error deleting document ${id} from ${collectionName}:`, error)
@@ -115,7 +124,7 @@ export class FirebaseDataRepository implements IDataRepository {
   ): Promise<T | null> {
     try {
       // Get a reference to the document
-      const docRef = doc(db, collectionName, id)
+      const docRef = doc(this.getDb(), collectionName, id)
       // Fetch the document snapshot
       const docSnap = await getDoc(docRef)
 
@@ -145,7 +154,7 @@ export class FirebaseDataRepository implements IDataRepository {
   ): Promise<T[]> {
     try {
       // Build the query with the provided constraints
-      const q = query(collection(db, collectionName), ...constraints)
+      const q = query(collection(this.getDb(), collectionName), ...constraints)
       // Execute the query
       const querySnapshot = await getDocs(q)
 
@@ -175,7 +184,7 @@ export class FirebaseDataRepository implements IDataRepository {
     constraints: QueryConstraint[] = [],
   ): Unsubscribe {
     // Build the query with the provided constraints
-    const q = query(collection(db, collectionName), ...constraints)
+    const q = query(collection(this.getDb(), collectionName), ...constraints)
 
     // Set up the real-time listener
     return onSnapshot(q, (querySnapshot) => {
@@ -454,7 +463,7 @@ export class FirebaseDataRepository implements IDataRepository {
   async addOrganizationMember(organizationId: string, userId: string): Promise<void> {
     try {
       // Get reference to the organization document
-      const orgRef = doc(db, 'organizations', organizationId)
+      const orgRef = doc(this.getDb(), 'organizations', organizationId)
       // Use arrayUnion to add the userId to memberIds (avoids duplicates)
       await updateDoc(orgRef, {
         memberIds: arrayUnion(userId),
@@ -480,7 +489,7 @@ export class FirebaseDataRepository implements IDataRepository {
   async removeOrganizationMember(organizationId: string, userId: string): Promise<void> {
     try {
       // Get reference to the organization document
-      const orgRef = doc(db, 'organizations', organizationId)
+      const orgRef = doc(this.getDb(), 'organizations', organizationId)
       // Use arrayRemove to remove the userId from both arrays
       await updateDoc(orgRef, {
         memberIds: arrayRemove(userId),
@@ -508,7 +517,7 @@ export class FirebaseDataRepository implements IDataRepository {
   async addOrganizationAdmin(organizationId: string, userId: string): Promise<void> {
     try {
       // Get reference to the organization document
-      const orgRef = doc(db, 'organizations', organizationId)
+      const orgRef = doc(this.getDb(), 'organizations', organizationId)
       // Use arrayUnion to add the userId to both memberIds and adminIds
       // arrayUnion automatically avoids duplicates
       await updateDoc(orgRef, {
@@ -533,7 +542,7 @@ export class FirebaseDataRepository implements IDataRepository {
   async removeOrganizationAdmin(organizationId: string, userId: string): Promise<void> {
     try {
       // Get reference to the organization document
-      const orgRef = doc(db, 'organizations', organizationId)
+      const orgRef = doc(this.getDb(), 'organizations', organizationId)
       // Use arrayRemove to remove the userId from adminIds only
       // User remains in memberIds
       await updateDoc(orgRef, {
