@@ -8,7 +8,7 @@
     <!-- Optional header section -->
     <header v-if="$slots.header || title" class="card__header">
       <slot name="header">
-        <h3 v-if="title" :id="titleId" class="card__title">{{ title }}</h3>
+        <h2 v-if="title" :id="titleId" class="card__title">{{ title }}</h2>
         <p v-if="subtitle" class="card__subtitle">{{ subtitle }}</p>
       </slot>
     </header>
