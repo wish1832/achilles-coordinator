@@ -29,7 +29,7 @@
             v-for="run in runs"
             :key="run.id"
             class="run-card"
-            :title="run.location"
+            :title="run.locationId"
             :subtitle="formatRunDate(run.date, run.time)"
             clickable
             @click="viewRun(run.id)"

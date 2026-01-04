@@ -106,6 +106,7 @@ export const useAuthStore = defineStore('auth', () => {
         email,
         displayName,
         role,
+        organizationIds: [], // New users start with no organizations
         createdAt: new Date(),
         profileDetails: {
           ...profileDetails,

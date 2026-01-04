@@ -1,27 +1,16 @@
 import type { QueryConstraint, Unsubscribe } from 'firebase/firestore'
-import type {
-  Organization,
-  Pairing,
-  Run,
-  SignUp,
-  User,
-} from '@/types/models'
+import type { Location, Organization, Run, SignUp, User } from '@/types/models'
 import type { IDataRepository } from '@/repositories/interfaces/IDataRepository'
 import { mockNow, seedData } from './mockData'
 
-type CollectionName =
-  | 'organizations'
-  | 'users'
-  | 'runs'
-  | 'signups'
-  | 'pairings'
+type CollectionName = 'organizations' | 'locations' | 'users' | 'runs' | 'signups'
 
 const state = {
   organizations: [...seedData.organizations],
+  locations: [...seedData.locations],
   users: [...seedData.users],
   runs: [...seedData.runs],
   signups: [...seedData.signUps],
-  pairings: [...seedData.pairings],
 }
 
 let idCounter = 1000
@@ -42,14 +31,14 @@ function getCollection<T>(collectionName: CollectionName): T[] {
   switch (collectionName) {
     case 'organizations':
       return state.organizations as T[]
+    case 'locations':
+      return state.locations as T[]
     case 'users':
       return state.users as T[]
     case 'runs':
       return state.runs as T[]
     case 'signups':
       return state.signups as T[]
-    case 'pairings':
-      return state.pairings as T[]
     default:
       return []
   }
@@ -60,6 +49,9 @@ function setCollection<T>(collectionName: CollectionName, items: T[]): void {
     case 'organizations':
       state.organizations = items as Organization[]
       break
+    case 'locations':
+      state.locations = items as Location[]
+      break
     case 'users':
       state.users = items as User[]
       break
@@ -68,9 +60,6 @@ function setCollection<T>(collectionName: CollectionName, items: T[]): void {
       break
     case 'signups':
       state.signups = items as SignUp[]
-      break
-    case 'pairings':
-      state.pairings = items as Pairing[]
       break
   }
 }
@@ -245,32 +234,6 @@ export class MockDataRepository implements IDataRepository {
     return sortByDateDescending(clone(entries))
   }
 
-  async createPairing(pairingData: Omit<Pairing, 'id'>): Promise<string> {
-    const id = nextId('pairing')
-    state.pairings.push({ ...clone(pairingData), id })
-    return id
-  }
-
-  async updatePairing(
-    id: string,
-    pairingData: Partial<Omit<Pairing, 'id'>>,
-  ): Promise<void> {
-    const index = state.pairings.findIndex((entry) => entry.id === id)
-    if (index === -1) {
-      throw new Error(`Pairing ${id} not found`)
-    }
-    state.pairings[index] = { ...state.pairings[index], ...clone(pairingData) } as Pairing
-  }
-
-  async deletePairing(id: string): Promise<void> {
-    state.pairings = state.pairings.filter((entry) => entry.id !== id)
-  }
-
-  async getPairingsForRun(runId: string): Promise<Pairing[]> {
-    const entries = state.pairings.filter((entry) => entry.runId === runId)
-    return sortByDateDescending(clone(entries))
-  }
-
   async createOrganization(organizationData: Omit<Organization, 'id'>): Promise<string> {
     const id = nextId('org')
     state.organizations.push({ ...clone(organizationData), id })
@@ -350,6 +313,37 @@ export class MockDataRepository implements IDataRepository {
       throw new Error(`Organization ${organizationId} not found`)
     }
     organization.adminIds = organization.adminIds.filter((id) => id !== userId)
+  }
+
+  async createLocation(locationData: Omit<Location, 'id'>): Promise<string> {
+    const id = nextId('location')
+    state.locations.push({ ...clone(locationData), id })
+    return id
+  }
+
+  async updateLocation(
+    id: string,
+    locationData: Partial<Omit<Location, 'id'>>,
+  ): Promise<void> {
+    const index = state.locations.findIndex((entry) => entry.id === id)
+    if (index === -1) {
+      throw new Error(`Location ${id} not found`)
+    }
+    state.locations[index] = { ...state.locations[index], ...clone(locationData) } as Location
+  }
+
+  async deleteLocation(id: string): Promise<void> {
+    state.locations = state.locations.filter((entry) => entry.id !== id)
+  }
+
+  async getLocation(id: string): Promise<Location | null> {
+    const location = state.locations.find((entry) => entry.id === id)
+    return location ? clone(location) : null
+  }
+
+  async getLocationsForOrganization(organizationId: string): Promise<Location[]> {
+    const entries = state.locations.filter((entry) => entry.organizationId === organizationId)
+    return clone(entries).sort((a, b) => a.name.localeCompare(b.name))
   }
 }
 

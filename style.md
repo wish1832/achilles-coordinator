@@ -12,6 +12,10 @@ Agents: read this file for style guidance before making UI changes.
 - Maintain sufficient color contrast, including in high contrast mode.
 - Respect reduced motion preferences by limiting or disabling animations.
 - Support multiple text sizes without breaking layouts.
+- Test with keyboard navigation (Tab, Enter, Space, Escape)
+- Ensure focus indicators are visible
+- Support screen readers with descriptive labels
+- Respect user preferences from accessibility store
 
 ## Interaction Patterns
 

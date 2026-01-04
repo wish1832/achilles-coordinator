@@ -1,5 +1,5 @@
 import type { QueryConstraint, Unsubscribe } from 'firebase/firestore'
-import type { User, Run, SignUp, Pairing, Organization } from '@/types/models'
+import type { User, Run, SignUp, Organization, Location } from '@/types/models'
 
 /**
  * Data repository interface
@@ -220,43 +220,6 @@ export interface IDataRepository {
   getUserSignUps(userId: string): Promise<SignUp[]>
 
   // ==========================================
-  // Pairing-specific methods
-  // ==========================================
-
-  /**
-   * Create a new pairing document
-   * @param pairingData - Pairing data (without id)
-   * @returns Promise resolving to the new pairing document ID
-   * @throws Error if pairing creation fails
-   */
-  createPairing(pairingData: Omit<Pairing, 'id'>): Promise<string>
-
-  /**
-   * Update an existing pairing document
-   * @param id - Pairing document ID
-   * @param pairingData - Partial pairing data to update
-   * @returns Promise that resolves when update is complete
-   * @throws Error if pairing update fails
-   */
-  updatePairing(id: string, pairingData: Partial<Omit<Pairing, 'id'>>): Promise<void>
-
-  /**
-   * Delete a pairing document
-   * @param id - Pairing document ID
-   * @returns Promise that resolves when deletion is complete
-   * @throws Error if pairing deletion fails
-   */
-  deletePairing(id: string): Promise<void>
-
-  /**
-   * Get all pairings for a specific run, ordered by createdAt (descending)
-   * @param runId - Run document ID
-   * @returns Promise resolving to array of pairings
-   * @throws Error if retrieval fails
-   */
-  getPairingsForRun(runId: string): Promise<Pairing[]>
-
-  // ==========================================
   // Organization-specific methods
   // ==========================================
 
@@ -356,4 +319,49 @@ export interface IDataRepository {
    * @throws Error if update fails
    */
   removeOrganizationAdmin(organizationId: string, userId: string): Promise<void>
+
+  // ==========================================
+  // Location-specific methods
+  // ==========================================
+
+  /**
+   * Create a new location document
+   * @param locationData - Location data (without id)
+   * @returns Promise resolving to the new location document ID
+   * @throws Error if location creation fails
+   */
+  createLocation(locationData: Omit<Location, 'id'>): Promise<string>
+
+  /**
+   * Update an existing location document
+   * @param id - Location document ID
+   * @param locationData - Partial location data to update
+   * @returns Promise that resolves when update is complete
+   * @throws Error if location update fails
+   */
+  updateLocation(id: string, locationData: Partial<Omit<Location, 'id'>>): Promise<void>
+
+  /**
+   * Delete a location document
+   * @param id - Location document ID
+   * @returns Promise that resolves when deletion is complete
+   * @throws Error if location deletion fails
+   */
+  deleteLocation(id: string): Promise<void>
+
+  /**
+   * Get a location document by ID
+   * @param id - Location document ID
+   * @returns Promise resolving to the location data or null if not found
+   * @throws Error if retrieval fails
+   */
+  getLocation(id: string): Promise<Location | null>
+
+  /**
+   * Get all locations for a specific organization, ordered by name
+   * @param organizationId - Organization document ID
+   * @returns Promise resolving to array of locations
+   * @throws Error if retrieval fails
+   */
+  getLocationsForOrganization(organizationId: string): Promise<Location[]>
 }
