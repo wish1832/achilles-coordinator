@@ -14,14 +14,17 @@ import {
   type Unsubscribe,
   type QueryConstraint,
 } from 'firebase/firestore'
-import { db } from './config'
+import { getFirebaseDb } from './client'
 import type { User, Run, SignUp, Location, Organization } from '@/types/models'
+
 
 /**
  * Firestore service wrapper with type-safe collection operations
  * Provides CRUD operations for all data models
  */
 export class FirestoreService {
+  constructor(private readonly db = getFirebaseDb()) {}
+
   /**
    * Generic method to add a document to a collection
    * @param collectionName - Name of the Firestore collection
@@ -33,7 +36,7 @@ export class FirestoreService {
     data: Omit<T, 'id'>,
   ): Promise<string> {
     try {
-      const docRef = await addDoc(collection(db, collectionName), {
+      const docRef = await addDoc(collection(this.db, collectionName), {
         ...data,
         createdAt: Timestamp.now(),
       })
@@ -57,7 +60,7 @@ export class FirestoreService {
     data: Partial<Omit<T, 'id'>>,
   ): Promise<void> {
     try {
-      const docRef = doc(db, collectionName, id)
+      const docRef = doc(this.db, collectionName, id)
       await updateDoc(docRef, {
         ...data,
         updatedAt: Timestamp.now(),
@@ -76,7 +79,7 @@ export class FirestoreService {
    */
   async deleteDocument(collectionName: string, id: string): Promise<void> {
     try {
-      const docRef = doc(db, collectionName, id)
+      const docRef = doc(this.db, collectionName, id)
       await deleteDoc(docRef)
     } catch (error) {
       console.error(`Error deleting document ${id} from ${collectionName}:`, error)
@@ -95,7 +98,7 @@ export class FirestoreService {
     id: string,
   ): Promise<T | null> {
     try {
-      const docRef = doc(db, collectionName, id)
+      const docRef = doc(this.db, collectionName, id)
       const docSnap = await getDoc(docRef)
 
       if (docSnap.exists()) {
@@ -119,7 +122,7 @@ export class FirestoreService {
     constraints: QueryConstraint[] = [],
   ): Promise<T[]> {
     try {
-      const q = query(collection(db, collectionName), ...constraints)
+      const q = query(collection(this.db, collectionName), ...constraints)
       const querySnapshot = await getDocs(q)
 
       return querySnapshot.docs.map((doc) => ({
@@ -144,7 +147,7 @@ export class FirestoreService {
     callback: (docs: T[]) => void,
     constraints: QueryConstraint[] = [],
   ): Unsubscribe {
-    const q = query(collection(db, collectionName), ...constraints)
+    const q = query(collection(this.db, collectionName), ...constraints)
 
     return onSnapshot(q, (querySnapshot) => {
       const docs = querySnapshot.docs.map((doc) => ({
