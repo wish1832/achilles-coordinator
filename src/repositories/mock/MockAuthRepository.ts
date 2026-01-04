@@ -1,13 +1,10 @@
 import type { User as FirebaseUser } from 'firebase/auth'
 import type { IAuthRepository } from '@/repositories/interfaces/IAuthRepository'
-import type { UserRole } from '@/types/models'
-
 type MockAuthUser = {
   uid: string
   email: string
   displayName: string
   password: string
-  role: UserRole
 }
 
 const mockUsers: MockAuthUser[] = [
@@ -16,63 +13,54 @@ const mockUsers: MockAuthUser[] = [
     email: 'admin@achilles.local',
     displayName: 'Admin Casey',
     password: 'password',
-    role: 'guide',
   },
   {
     uid: 'user-guide-1',
     email: 'guide@achilles.local',
     displayName: 'Guide Riley',
     password: 'password',
-    role: 'guide',
   },
   {
     uid: 'user-guide-2',
     email: 'guide2@achilles.local',
     displayName: 'Guide Alex',
     password: 'password',
-    role: 'guide',
   },
   {
     uid: 'user-guide-3',
     email: 'guide3@achilles.local',
     displayName: 'Guide Jordan',
     password: 'password',
-    role: 'guide',
   },
   {
     uid: 'user-guide-4',
     email: 'guide4@achilles.local',
     displayName: 'Guide Sam',
     password: 'password',
-    role: 'guide',
   },
   {
     uid: 'user-athlete-1',
     email: 'athlete@achilles.local',
     displayName: 'Athlete Morgan',
     password: 'password',
-    role: 'athlete',
   },
   {
     uid: 'user-athlete-2',
     email: 'athlete2@achilles.local',
     displayName: 'Athlete Taylor',
     password: 'password',
-    role: 'athlete',
   },
   {
     uid: 'user-athlete-3',
     email: 'athlete3@achilles.local',
     displayName: 'Athlete Jamie',
     password: 'password',
-    role: 'athlete',
   },
   {
     uid: 'user-athlete-4',
     email: 'athlete4@achilles.local',
     displayName: 'Athlete Pat',
     password: 'password',
-    role: 'athlete',
   },
 ]
 
@@ -139,12 +127,7 @@ export class MockAuthRepository implements IAuthRepository {
     notifyListeners(currentUser)
   }
 
-  async createUser(
-    email: string,
-    password: string,
-    displayName: string,
-    role: UserRole,
-  ): Promise<FirebaseUser> {
+  async createUser(email: string, password: string, displayName: string): Promise<FirebaseUser> {
     const existing = mockUsers.find((entry) => entry.email === email)
     if (existing) {
       throw new Error('User already exists')
@@ -155,7 +138,6 @@ export class MockAuthRepository implements IAuthRepository {
       email,
       displayName,
       password,
-      role,
     }
 
     mockUsers.push(newUser)

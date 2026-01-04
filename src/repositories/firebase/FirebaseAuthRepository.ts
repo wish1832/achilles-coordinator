@@ -6,9 +6,7 @@ import {
   updateProfile,
   type User as FirebaseUser,
 } from 'firebase/auth'
-import { doc, setDoc, Timestamp } from 'firebase/firestore'
-import { getFirebaseAuth, getFirebaseDb } from '@/firebase/client'
-import type { UserRole } from '@/types/models'
+import { getFirebaseAuth } from '@/firebase/client'
 import type { IAuthRepository } from '../interfaces/IAuthRepository'
 
 export class FirebaseAuthRepository implements IAuthRepository {
@@ -23,27 +21,13 @@ export class FirebaseAuthRepository implements IAuthRepository {
     await firebaseSignOut(auth)
   }
 
-  async createUser(
-    email: string,
-    password: string,
-    displayName: string,
-    role: UserRole,
-  ): Promise<FirebaseUser> {
+  async createUser(email: string, password: string, displayName: string): Promise<FirebaseUser> {
     const auth = getFirebaseAuth()
-    const db = getFirebaseDb()
 
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
 
     await updateProfile(user, { displayName })
-
-    await setDoc(doc(db, 'users', user.uid), {
-      email: user.email ?? email,
-      displayName,
-      role,
-      createdAt: Timestamp.now(),
-      profileDetails: {},
-    })
 
     return user
   }

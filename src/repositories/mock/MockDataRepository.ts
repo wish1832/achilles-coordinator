@@ -1,68 +1,15 @@
 import type { QueryConstraint, Unsubscribe } from 'firebase/firestore'
 import type { Location, Organization, Run, SignUp, User } from '@/types/models'
 import type { IDataRepository } from '@/repositories/interfaces/IDataRepository'
-import { mockNow, seedData } from './mockData'
-
-type CollectionName = 'organizations' | 'locations' | 'users' | 'runs' | 'signups'
-
-const state = {
-  organizations: [...seedData.organizations],
-  locations: [...seedData.locations],
-  users: [...seedData.users],
-  runs: [...seedData.runs],
-  signups: [...seedData.signUps],
-}
-
-let idCounter = 1000
-
-function nextId(prefix: string): string {
-  idCounter += 1
-  return `${prefix}-${idCounter}`
-}
-
-function clone<T>(value: T): T {
-  if (typeof structuredClone === 'function') {
-    return structuredClone(value)
-  }
-  return JSON.parse(JSON.stringify(value)) as T
-}
-
-function getCollection<T>(collectionName: CollectionName): T[] {
-  switch (collectionName) {
-    case 'organizations':
-      return state.organizations as T[]
-    case 'locations':
-      return state.locations as T[]
-    case 'users':
-      return state.users as T[]
-    case 'runs':
-      return state.runs as T[]
-    case 'signups':
-      return state.signups as T[]
-    default:
-      return []
-  }
-}
-
-function setCollection<T>(collectionName: CollectionName, items: T[]): void {
-  switch (collectionName) {
-    case 'organizations':
-      state.organizations = items as Organization[]
-      break
-    case 'locations':
-      state.locations = items as Location[]
-      break
-    case 'users':
-      state.users = items as User[]
-      break
-    case 'runs':
-      state.runs = items as Run[]
-      break
-    case 'signups':
-      state.signups = items as SignUp[]
-      break
-  }
-}
+import { mockNow } from './mockData'
+import {
+  clone,
+  getCollection,
+  mockState,
+  nextId,
+  setCollection,
+  type CollectionName,
+} from './mockState'
 
 function sortByDateAscending<T extends { date?: Date }>(items: T[]): T[] {
   return [...items].sort((a, b) => {
@@ -152,91 +99,91 @@ export class MockDataRepository implements IDataRepository {
 
   async createUser(userData: Omit<User, 'id'>): Promise<string> {
     const id = nextId('user')
-    state.users.push({ ...clone(userData), id })
+    mockState.users.push({ ...clone(userData), id })
     return id
   }
 
   async updateUser(id: string, userData: Partial<Omit<User, 'id'>>): Promise<void> {
-    const index = state.users.findIndex((entry) => entry.id === id)
+    const index = mockState.users.findIndex((entry) => entry.id === id)
     if (index === -1) {
       throw new Error(`User ${id} not found`)
     }
-    state.users[index] = { ...state.users[index], ...clone(userData) } as User
+    mockState.users[index] = { ...mockState.users[index], ...clone(userData) } as User
   }
 
   async getUser(id: string): Promise<User | null> {
-    const user = state.users.find((entry) => entry.id === id)
+    const user = mockState.users.find((entry) => entry.id === id)
     return user ? clone(user) : null
   }
 
   async getUsers(): Promise<User[]> {
-    return clone(state.users).sort((a, b) => a.displayName.localeCompare(b.displayName))
+    return clone(mockState.users).sort((a, b) => a.displayName.localeCompare(b.displayName))
   }
 
   async createRun(runData: Omit<Run, 'id'>): Promise<string> {
     const id = nextId('run')
-    state.runs.push({ ...clone(runData), id })
+    mockState.runs.push({ ...clone(runData), id })
     return id
   }
 
   async updateRun(id: string, runData: Partial<Omit<Run, 'id'>>): Promise<void> {
-    const index = state.runs.findIndex((entry) => entry.id === id)
+    const index = mockState.runs.findIndex((entry) => entry.id === id)
     if (index === -1) {
       throw new Error(`Run ${id} not found`)
     }
-    state.runs[index] = { ...state.runs[index], ...clone(runData) } as Run
+    mockState.runs[index] = { ...mockState.runs[index], ...clone(runData) } as Run
   }
 
   async deleteRun(id: string): Promise<void> {
-    state.runs = state.runs.filter((entry) => entry.id !== id)
+    mockState.runs = mockState.runs.filter((entry) => entry.id !== id)
   }
 
   async getRun(id: string): Promise<Run | null> {
-    const run = state.runs.find((entry) => entry.id === id)
+    const run = mockState.runs.find((entry) => entry.id === id)
     return run ? clone(run) : null
   }
 
   async getRuns(): Promise<Run[]> {
-    return sortByDateAscending(clone(state.runs))
+    return sortByDateAscending(clone(mockState.runs))
   }
 
   async getUpcomingRuns(): Promise<Run[]> {
     const now = mockNow.getTime()
-    const upcoming = state.runs.filter((entry) => new Date(entry.date).getTime() >= now)
+    const upcoming = mockState.runs.filter((entry) => new Date(entry.date).getTime() >= now)
     return sortByDateAscending(clone(upcoming))
   }
 
   async createSignUp(signUpData: Omit<SignUp, 'id'>): Promise<string> {
     const id = nextId('signup')
-    state.signups.push({ ...clone(signUpData), id })
+    mockState.signups.push({ ...clone(signUpData), id })
     return id
   }
 
   async updateSignUp(id: string, signUpData: Partial<Omit<SignUp, 'id'>>): Promise<void> {
-    const index = state.signups.findIndex((entry) => entry.id === id)
+    const index = mockState.signups.findIndex((entry) => entry.id === id)
     if (index === -1) {
       throw new Error(`SignUp ${id} not found`)
     }
-    state.signups[index] = { ...state.signups[index], ...clone(signUpData) } as SignUp
+    mockState.signups[index] = { ...mockState.signups[index], ...clone(signUpData) } as SignUp
   }
 
   async deleteSignUp(id: string): Promise<void> {
-    state.signups = state.signups.filter((entry) => entry.id !== id)
+    mockState.signups = mockState.signups.filter((entry) => entry.id !== id)
   }
 
   async getSignUpsForRun(runId: string): Promise<SignUp[]> {
-    const entries = state.signups.filter((entry) => entry.runId === runId)
+    const entries = mockState.signups.filter((entry) => entry.runId === runId)
     return sortByDateDescending(clone(entries))
   }
 
   async getUserSignUps(userId: string): Promise<SignUp[]> {
-    const entries = state.signups.filter((entry) => entry.userId === userId)
+    const entries = mockState.signups.filter((entry) => entry.userId === userId)
     return sortByDateDescending(clone(entries))
   }
 
   async createOrganization(organizationData: Omit<Organization, 'id'>): Promise<string> {
     const id = nextId('org')
-    state.organizations.push({ ...clone(organizationData), id })
+    mockState.organizations.push({ ...clone(organizationData), id })
     return id
   }
 
@@ -244,39 +191,39 @@ export class MockDataRepository implements IDataRepository {
     id: string,
     organizationData: Partial<Omit<Organization, 'id'>>,
   ): Promise<void> {
-    const index = state.organizations.findIndex((entry) => entry.id === id)
+    const index = mockState.organizations.findIndex((entry) => entry.id === id)
     if (index === -1) {
       throw new Error(`Organization ${id} not found`)
     }
-    state.organizations[index] = {
-      ...state.organizations[index],
+    mockState.organizations[index] = {
+      ...mockState.organizations[index],
       ...clone(organizationData),
     } as Organization
   }
 
   async deleteOrganization(id: string): Promise<void> {
-    state.organizations = state.organizations.filter((entry) => entry.id !== id)
+    mockState.organizations = mockState.organizations.filter((entry) => entry.id !== id)
   }
 
   async getOrganization(id: string): Promise<Organization | null> {
-    const organization = state.organizations.find((entry) => entry.id === id)
+    const organization = mockState.organizations.find((entry) => entry.id === id)
     return organization ? clone(organization) : null
   }
 
   async getOrganizations(): Promise<Organization[]> {
-    return clone(state.organizations).sort((a, b) => a.name.localeCompare(b.name))
+    return clone(mockState.organizations).sort((a, b) => a.name.localeCompare(b.name))
   }
 
   async getUserOrganizations(userId: string): Promise<Organization[]> {
-    return clone(state.organizations.filter((org) => org.memberIds.includes(userId)))
+    return clone(mockState.organizations.filter((org) => org.memberIds.includes(userId)))
   }
 
   async getUserAdminOrganizations(userId: string): Promise<Organization[]> {
-    return clone(state.organizations.filter((org) => org.adminIds.includes(userId)))
+    return clone(mockState.organizations.filter((org) => org.adminIds.includes(userId)))
   }
 
   async addOrganizationMember(organizationId: string, userId: string): Promise<void> {
-    const organization = state.organizations.find((entry) => entry.id === organizationId)
+    const organization = mockState.organizations.find((entry) => entry.id === organizationId)
     if (!organization) {
       throw new Error(`Organization ${organizationId} not found`)
     }
@@ -286,7 +233,7 @@ export class MockDataRepository implements IDataRepository {
   }
 
   async removeOrganizationMember(organizationId: string, userId: string): Promise<void> {
-    const organization = state.organizations.find((entry) => entry.id === organizationId)
+    const organization = mockState.organizations.find((entry) => entry.id === organizationId)
     if (!organization) {
       throw new Error(`Organization ${organizationId} not found`)
     }
@@ -295,7 +242,7 @@ export class MockDataRepository implements IDataRepository {
   }
 
   async addOrganizationAdmin(organizationId: string, userId: string): Promise<void> {
-    const organization = state.organizations.find((entry) => entry.id === organizationId)
+    const organization = mockState.organizations.find((entry) => entry.id === organizationId)
     if (!organization) {
       throw new Error(`Organization ${organizationId} not found`)
     }
@@ -308,7 +255,7 @@ export class MockDataRepository implements IDataRepository {
   }
 
   async removeOrganizationAdmin(organizationId: string, userId: string): Promise<void> {
-    const organization = state.organizations.find((entry) => entry.id === organizationId)
+    const organization = mockState.organizations.find((entry) => entry.id === organizationId)
     if (!organization) {
       throw new Error(`Organization ${organizationId} not found`)
     }
@@ -317,7 +264,7 @@ export class MockDataRepository implements IDataRepository {
 
   async createLocation(locationData: Omit<Location, 'id'>): Promise<string> {
     const id = nextId('location')
-    state.locations.push({ ...clone(locationData), id })
+    mockState.locations.push({ ...clone(locationData), id })
     return id
   }
 
@@ -325,24 +272,24 @@ export class MockDataRepository implements IDataRepository {
     id: string,
     locationData: Partial<Omit<Location, 'id'>>,
   ): Promise<void> {
-    const index = state.locations.findIndex((entry) => entry.id === id)
+    const index = mockState.locations.findIndex((entry) => entry.id === id)
     if (index === -1) {
       throw new Error(`Location ${id} not found`)
     }
-    state.locations[index] = { ...state.locations[index], ...clone(locationData) } as Location
+    mockState.locations[index] = { ...mockState.locations[index], ...clone(locationData) } as Location
   }
 
   async deleteLocation(id: string): Promise<void> {
-    state.locations = state.locations.filter((entry) => entry.id !== id)
+    mockState.locations = mockState.locations.filter((entry) => entry.id !== id)
   }
 
   async getLocation(id: string): Promise<Location | null> {
-    const location = state.locations.find((entry) => entry.id === id)
+    const location = mockState.locations.find((entry) => entry.id === id)
     return location ? clone(location) : null
   }
 
   async getLocationsForOrganization(organizationId: string): Promise<Location[]> {
-    const entries = state.locations.filter((entry) => entry.organizationId === organizationId)
+    const entries = mockState.locations.filter((entry) => entry.organizationId === organizationId)
     return clone(entries).sort((a, b) => a.name.localeCompare(b.name))
   }
 }
