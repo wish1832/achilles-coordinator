@@ -6,6 +6,26 @@
 // User roles in the system
 export type UserRole = 'athlete' | 'guide'
 
+// Invitation status options
+export type OrganizationInviteStatus = 'pending' | 'accepted' | 'revoked'
+
+/**
+ * Organization invite
+ * Represents an invite for a user to join an organization by email
+ */
+export interface OrganizationInvite {
+  id: string
+  organizationId: string
+  email: string
+  role: UserRole
+  invitedByUserId: string
+  status: OrganizationInviteStatus
+  createdAt: Date
+  acceptedAt?: Date
+  userId?: string
+  displayName?: string
+}
+
 /**
  * Organization (Achilles chapter)
  * Represents a local Achilles chapter (e.g., Denver, Boulder)
