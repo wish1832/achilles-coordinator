@@ -131,6 +131,7 @@ interface Organization {
   settings?: {
     defaultMaxAthletes?: number
     defaultMaxGuides?: number
+    timezone?: string
   }
 }
 ```
@@ -181,8 +182,7 @@ interface User {
     disabilityType?: string
     assistanceNeeded?: string
     // Guide-specific
-    certifications?: string[]
-    maxAthletesPerRun?: number
+    certifications?: ('visually impaired guiding')[] // Array of certification types
   }
   userNotes?: string // Notes written BY user about themselves, visible to user + admins
 }

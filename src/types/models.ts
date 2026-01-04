@@ -23,10 +23,6 @@ export interface Organization {
     defaultMaxAthletes?: number
     defaultMaxGuides?: number
     timezone?: string
-    notificationPreferences?: {
-      emailNotifications?: boolean
-      smsNotifications?: boolean
-    }
   }
 }
 
@@ -45,6 +41,7 @@ export interface User {
   email: string
   displayName: string
   role: UserRole
+  organizationIds: string[] // Organizations this user belongs to
   createdAt: Date
   updatedAt?: Date
   profileDetails: {
@@ -53,17 +50,40 @@ export interface User {
     emergencyContact?: string
     emergencyPhone?: string
 
+    // Activity preferences (for both athletes and guides)
+    activities?: ('walk' | 'run' | 'roll')[]
+    preferredPace?: number // Minutes per mile
+    paceRange?: { min: number; max: number } // Min/max pace in minutes per mile
+
     // Athlete-specific fields
     disabilityType?: string
     assistanceNeeded?: string
-    experienceLevel?: 'beginner' | 'intermediate' | 'advanced'
 
     // Guide-specific fields
-    guideExperience?: 'new' | 'experienced' | 'expert'
-    certifications?: string[]
-    maxAthletesPerRun?: number
+    certifications?: ('visually impaired guiding')[] // Array of certification types
 
   }
+  userNotes?: string // Notes written BY user about themselves, visible to user + admins
+}
+
+/**
+ * Location information
+ * Represents a location where runs can be held
+ */
+export interface Location {
+  id: string
+  organizationId: string // Organization this location belongs to
+  name: string // e.g., "Washington Park", "Boulder Creek Path"
+  address?: string
+  city?: string
+  state?: string
+  coordinates?: {
+    latitude: number
+    longitude: number
+  }
+  notes?: string
+  createdAt: Date
+  updatedAt?: Date
 }
 
 /**
@@ -72,17 +92,22 @@ export interface User {
  */
 export interface Run {
   id: string
+  organizationId: string // Organization hosting this run
   date: Date
   time: string // Format: "HH:MM" (24-hour)
-  location: string
+  locationId: string // Reference to Location document
   description: string
   createdBy: string // User ID of the admin who created the run
+  runAdminIds?: string[] // User IDs of admins for this run (org admins are implicit admins)
   createdAt: Date
   updatedAt?: Date
   status: RunStatus
   maxAthletes?: number
   maxGuides?: number
   notes?: string // Additional information for the run
+  pairings?: {
+    [athleteId: string]: string // Maps athlete user ID to guide user ID
+  }
 }
 
 /**
@@ -100,32 +125,16 @@ export interface SignUp {
 }
 
 /**
- * Pairing record
- * Represents the pairing of an athlete with a guide for a specific run
- */
-export interface Pairing {
-  id: string
-  runId: string
-  athleteId: string
-  guideId: string
-  createdBy: string // User ID of the admin who created the pairing
-  createdAt: Date
-  notes?: string // Admin notes about the pairing
-  status: 'active' | 'cancelled'
-}
-
-/**
  * Extended interfaces that include related data
  * These are used in the UI to display information with related records
  */
 
 /**
- * Run with sign-up counts and pairing information
+ * Run with sign-up counts and user signup status
  */
 export interface RunWithDetails extends Run {
   athleteSignUps: number
   guideSignUps: number
-  pairings: number
   isUserSignedUp: boolean
   userSignUpRole?: 'athlete' | 'guide'
 }
@@ -135,15 +144,6 @@ export interface RunWithDetails extends Run {
  */
 export interface SignUpWithDetails extends SignUp {
   user: User
-  run: Run
-}
-
-/**
- * Pairing with user and run information
- */
-export interface PairingWithDetails extends Pairing {
-  athlete: User
-  guide: User
   run: Run
 }
 
@@ -171,18 +171,25 @@ export interface CreateUserForm {
 }
 
 export interface CreateRunForm {
+  organizationId: string
   date: string // ISO date string
   time: string
-  location: string
+  locationId: string
   description: string
   maxAthletes?: number
   maxGuides?: number
   notes?: string
 }
 
-export interface CreatePairingForm {
-  runId: string
-  athleteId: string
-  guideId: string
+export interface CreateLocationForm {
+  organizationId: string
+  name: string
+  address?: string
+  city?: string
+  state?: string
+  coordinates?: {
+    latitude: number
+    longitude: number
+  }
   notes?: string
 }

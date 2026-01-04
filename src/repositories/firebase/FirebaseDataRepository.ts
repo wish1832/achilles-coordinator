@@ -17,7 +17,7 @@ import {
   type QueryConstraint,
 } from 'firebase/firestore'
 import { db } from '@/firebase/config'
-import type { User, Run, SignUp, Pairing, Organization } from '@/types/models'
+import type { User, Run, SignUp, Organization, Location } from '@/types/models'
 import type { IDataRepository } from '../interfaces/IDataRepository'
 
 /**
@@ -359,54 +359,6 @@ export class FirebaseDataRepository implements IDataRepository {
   }
 
   // ==========================================
-  // Pairing-specific methods
-  // ==========================================
-
-  /**
-   * Create a new pairing document
-   * @param pairingData - Pairing data (without id)
-   * @returns Promise resolving to the new pairing document ID
-   * @throws Error if pairing creation fails
-   */
-  async createPairing(pairingData: Omit<Pairing, 'id'>): Promise<string> {
-    return this.addDocument<Pairing>('pairings', pairingData)
-  }
-
-  /**
-   * Update an existing pairing document
-   * @param id - Pairing document ID
-   * @param pairingData - Partial pairing data to update
-   * @returns Promise that resolves when update is complete
-   * @throws Error if pairing update fails
-   */
-  async updatePairing(id: string, pairingData: Partial<Omit<Pairing, 'id'>>): Promise<void> {
-    return this.updateDocument<Pairing>('pairings', id, pairingData)
-  }
-
-  /**
-   * Delete a pairing document
-   * @param id - Pairing document ID
-   * @returns Promise that resolves when deletion is complete
-   * @throws Error if pairing deletion fails
-   */
-  async deletePairing(id: string): Promise<void> {
-    return this.deleteDocument('pairings', id)
-  }
-
-  /**
-   * Get all pairings for a specific run, ordered by createdAt (descending)
-   * @param runId - Run document ID
-   * @returns Promise resolving to array of pairings
-   * @throws Error if retrieval fails
-   */
-  async getPairingsForRun(runId: string): Promise<Pairing[]> {
-    return this.getDocuments<Pairing>('pairings', [
-      where('runId', '==', runId),
-      orderBy('createdAt', 'desc'),
-    ])
-  }
-
-  // ==========================================
   // Organization-specific methods
   // ==========================================
 
@@ -595,6 +547,67 @@ export class FirebaseDataRepository implements IDataRepository {
       )
       throw error
     }
+  }
+
+  // ==========================================
+  // Location-specific methods
+  // ==========================================
+
+  /**
+   * Create a new location document
+   * @param locationData - Location data (without id)
+   * @returns Promise resolving to the new location document ID
+   * @throws Error if location creation fails
+   */
+  async createLocation(locationData: Omit<Location, 'id'>): Promise<string> {
+    return this.addDocument<Location>('locations', locationData)
+  }
+
+  /**
+   * Update an existing location document
+   * @param id - Location document ID
+   * @param locationData - Partial location data to update
+   * @returns Promise that resolves when update is complete
+   * @throws Error if location update fails
+   */
+  async updateLocation(
+    id: string,
+    locationData: Partial<Omit<Location, 'id'>>,
+  ): Promise<void> {
+    return this.updateDocument<Location>('locations', id, locationData)
+  }
+
+  /**
+   * Delete a location document
+   * @param id - Location document ID
+   * @returns Promise that resolves when deletion is complete
+   * @throws Error if location deletion fails
+   */
+  async deleteLocation(id: string): Promise<void> {
+    return this.deleteDocument('locations', id)
+  }
+
+  /**
+   * Get a location document by ID
+   * @param id - Location document ID
+   * @returns Promise resolving to the location data or null if not found
+   * @throws Error if retrieval fails
+   */
+  async getLocation(id: string): Promise<Location | null> {
+    return this.getDocument<Location>('locations', id)
+  }
+
+  /**
+   * Get all locations for a specific organization, ordered by name
+   * @param organizationId - Organization document ID
+   * @returns Promise resolving to array of locations
+   * @throws Error if retrieval fails
+   */
+  async getLocationsForOrganization(organizationId: string): Promise<Location[]> {
+    return this.getDocuments<Location>('locations', [
+      where('organizationId', '==', organizationId),
+      orderBy('name'),
+    ])
   }
 }
 

@@ -15,7 +15,7 @@ import {
   type QueryConstraint,
 } from 'firebase/firestore'
 import { db } from './config'
-import type { User, Run, SignUp, Pairing } from '@/types/models'
+import type { User, Run, SignUp, Location, Organization } from '@/types/models'
 
 /**
  * Firestore service wrapper with type-safe collection operations
@@ -225,23 +225,50 @@ export class FirestoreService {
     ])
   }
 
-  // Pairing-specific methods
-  async createPairing(pairingData: Omit<Pairing, 'id'>): Promise<string> {
-    return this.addDocument<Pairing>('pairings', pairingData)
+  // Organization-specific methods
+  async createOrganization(orgData: Omit<Organization, 'id'>): Promise<string> {
+    return this.addDocument<Organization>('organizations', orgData)
   }
 
-  async updatePairing(id: string, pairingData: Partial<Omit<Pairing, 'id'>>): Promise<void> {
-    return this.updateDocument<Pairing>('pairings', id, pairingData)
+  async updateOrganization(
+    id: string,
+    orgData: Partial<Omit<Organization, 'id'>>,
+  ): Promise<void> {
+    return this.updateDocument<Organization>('organizations', id, orgData)
   }
 
-  async deletePairing(id: string): Promise<void> {
-    return this.deleteDocument('pairings', id)
+  async getOrganization(id: string): Promise<Organization | null> {
+    return this.getDocument<Organization>('organizations', id)
   }
 
-  async getPairingsForRun(runId: string): Promise<Pairing[]> {
-    return this.getDocuments<Pairing>('pairings', [
-      where('runId', '==', runId),
-      orderBy('createdAt', 'desc'),
+  async getOrganizations(): Promise<Organization[]> {
+    return this.getDocuments<Organization>('organizations', [orderBy('name')])
+  }
+
+  // Location-specific methods
+  async createLocation(locationData: Omit<Location, 'id'>): Promise<string> {
+    return this.addDocument<Location>('locations', locationData)
+  }
+
+  async updateLocation(
+    id: string,
+    locationData: Partial<Omit<Location, 'id'>>,
+  ): Promise<void> {
+    return this.updateDocument<Location>('locations', id, locationData)
+  }
+
+  async deleteLocation(id: string): Promise<void> {
+    return this.deleteDocument('locations', id)
+  }
+
+  async getLocation(id: string): Promise<Location | null> {
+    return this.getDocument<Location>('locations', id)
+  }
+
+  async getLocationsForOrganization(organizationId: string): Promise<Location[]> {
+    return this.getDocuments<Location>('locations', [
+      where('organizationId', '==', organizationId),
+      orderBy('name'),
     ])
   }
 }
