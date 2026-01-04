@@ -50,7 +50,21 @@
               </div>
 
               <div class="run-actions">
-                <AchillesButton variant="primary" size="medium" @click.stop="signUpForRun(run.id)">
+                <!-- Show "signed up!" message if user already signed up, otherwise show "Sign Up" button -->
+                <template v-if="isUserSignedUpForRun(run.id)">
+                  <div class="signup-status">
+                    <p class="signup-status__message">Signed up!</p>
+                    <a href="#" class="signup-status__link" @click.prevent.stop="editRSVP(run.id)">
+                      edit RSVP
+                    </a>
+                  </div>
+                </template>
+                <AchillesButton
+                  v-else
+                  variant="primary"
+                  size="medium"
+                  @click.stop="signUpForRun(run.id)"
+                >
                   Sign Up
                 </AchillesButton>
               </div>
@@ -78,14 +92,17 @@ import LoadingUI from '@/components/ui/LoadingUI.vue'
 import { useRunsStore } from '@/stores/runs'
 import { useLocationStore } from '@/stores/location'
 import { useSignUpsStore } from '@/stores/signups'
+import { useAuthStore } from '@/stores/auth'
 
 // Router and stores
 const router = useRouter()
 const runsStore = useRunsStore()
 const locationStore = useLocationStore()
 const signUpsStore = useSignUpsStore()
+const authStore = useAuthStore()
 
 const { runs, loading } = storeToRefs(runsStore)
+const { currentUser } = storeToRefs(authStore)
 
 // Helper function to get location name by ID
 // Returns the location name if found, otherwise returns 'Unknown Location'
@@ -131,6 +148,29 @@ async function signUpForRun(runId: string): Promise<void> {
   } catch (error) {
     console.error('Error signing up for run:', error)
   }
+}
+
+// Check if the current user has signed up for a specific run
+// Returns true if the user has an active sign-up for the run
+function isUserSignedUpForRun(runId: string): boolean {
+  // If no user is logged in, they cannot be signed up
+  if (!currentUser.value) {
+    return false
+  }
+
+  // Get all sign-ups for this run
+  const signUps = signUpsStore.getSignUpsForRun(runId)
+
+  // Check if any active sign-up belongs to the current user
+  return signUps.some(
+    (signup) => signup.userId === currentUser.value!.id && signup.status === 'active',
+  )
+}
+
+// Navigate to edit RSVP for a run
+function editRSVP(runId: string): void {
+  // Navigate to the run details page where user can edit their RSVP
+  router.push(`/runs/${runId}`)
 }
 
 // Initialize on mount
@@ -271,6 +311,39 @@ onMounted(async () => {
   border-top: 1px solid var(--color-border, #e5e7eb);
 }
 
+/* Signup status display */
+.signup-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.signup-status__message {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--color-success, #059669);
+  margin: 0;
+}
+
+.signup-status__link {
+  font-size: 0.875rem;
+  color: var(--color-primary, #0066cc);
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.2s ease-in-out;
+}
+
+.signup-status__link:hover {
+  color: var(--color-primary-hover, #0052a3);
+}
+
+.signup-status__link:focus {
+  outline: 2px solid var(--color-primary, #0066cc);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 /* Error state */
 .runs-error {
   text-align: center;
@@ -349,6 +422,16 @@ onMounted(async () => {
   border-top-color: var(--color-text, #000000);
 }
 
+.high-contrast .signup-status__message {
+  color: var(--color-success, #047857);
+}
+
+.high-contrast .signup-status__link {
+  color: var(--color-primary, #0066cc);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+
 /* Reduced motion support */
 .reduced-motion .run-card {
   transition: none;
@@ -356,6 +439,10 @@ onMounted(async () => {
 
 .reduced-motion .run-card:hover {
   transform: none;
+}
+
+.reduced-motion .signup-status__link {
+  transition: none;
 }
 
 /* Mobile responsiveness */
