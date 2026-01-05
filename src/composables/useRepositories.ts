@@ -176,6 +176,10 @@ function createLazyUserRepository(loader: RepositoryLoader<IUserRepository>): IU
       const repository = await getRepository()
       return repository.createUser(id, userData)
     },
+    async createUserWithGeneratedId(userData) {
+      const repository = await getRepository()
+      return repository.createUserWithGeneratedId(userData)
+    },
     async updateUser(id, userData) {
       const repository = await getRepository()
       return repository.updateUser(id, userData)

@@ -1,4 +1,5 @@
 import {
+  addDoc,
   collection,
   doc,
   getDoc,
@@ -31,6 +32,14 @@ export class FirebaseUserRepository implements IUserRepository {
       ...userData,
       createdAt: Timestamp.now(),
     })
+  }
+
+  async createUserWithGeneratedId(userData: Omit<User, 'id'>): Promise<string> {
+    const docRef = await addDoc(collection(this.getDb(), 'users'), {
+      ...userData,
+      createdAt: Timestamp.now(),
+    })
+    return docRef.id
   }
 
   async updateUser(id: string, userData: Partial<Omit<User, 'id'>>): Promise<void> {
