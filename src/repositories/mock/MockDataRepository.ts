@@ -10,6 +10,7 @@ import {
   setCollection,
   type CollectionName,
 } from './mockState'
+import { MockUserRepository } from './MockUserRepository'
 
 function sortByDateAscending<T extends { date?: Date }>(items: T[]): T[] {
   return [...items].sort((a, b) => {
@@ -36,6 +37,7 @@ function sortByDateDescending<T extends { timestamp?: Date; createdAt?: Date }>(
 }
 
 export class MockDataRepository implements IDataRepository {
+  private readonly userRepository = new MockUserRepository()
   async addDocument<T extends { id?: string }>(
     collectionName: string,
     data: Omit<T, 'id'>,
@@ -98,26 +100,19 @@ export class MockDataRepository implements IDataRepository {
   }
 
   async createUser(userData: Omit<User, 'id'>): Promise<string> {
-    const id = nextId('user')
-    mockState.users.push({ ...clone(userData), id })
-    return id
+    return this.userRepository.createUserWithGeneratedId(userData)
   }
 
   async updateUser(id: string, userData: Partial<Omit<User, 'id'>>): Promise<void> {
-    const index = mockState.users.findIndex((entry) => entry.id === id)
-    if (index === -1) {
-      throw new Error(`User ${id} not found`)
-    }
-    mockState.users[index] = { ...mockState.users[index], ...clone(userData) } as User
+    return this.userRepository.updateUser(id, userData)
   }
 
   async getUser(id: string): Promise<User | null> {
-    const user = mockState.users.find((entry) => entry.id === id)
-    return user ? clone(user) : null
+    return this.userRepository.getUser(id)
   }
 
   async getUsers(): Promise<User[]> {
-    return clone(mockState.users).sort((a, b) => a.displayName.localeCompare(b.displayName))
+    return this.userRepository.getUsers()
   }
 
   async createRun(runData: Omit<Run, 'id'>): Promise<string> {

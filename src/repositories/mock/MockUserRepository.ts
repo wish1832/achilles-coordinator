@@ -11,6 +11,10 @@ export class MockUserRepository implements IUserRepository {
     mockState.users.push({ ...clone(userData), id })
   }
 
+  async createUserWithGeneratedId(userData: Omit<User, 'id'>): Promise<string> {
+    return this.collectionHelper.addDocument('users', userData)
+  }
+
   async updateUser(id: string, userData: Partial<Omit<User, 'id'>>): Promise<void> {
     const index = mockState.users.findIndex((entry) => entry.id === id)
     if (index === -1) {
