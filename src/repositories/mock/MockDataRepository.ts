@@ -2,15 +2,9 @@ import type { QueryConstraint, Unsubscribe } from 'firebase/firestore'
 import type { Location, Organization, Run, SignUp, User } from '@/types/models'
 import type { IDataRepository } from '@/repositories/interfaces/IDataRepository'
 import { mockNow } from './mockData'
-import {
-  clone,
-  getCollection,
-  mockState,
-  nextId,
-  setCollection,
-  type CollectionName,
-} from './mockState'
+import { clone, getCollection, nextId, setCollection, type CollectionName } from './mockState'
 import { MockCollectionHelper } from './internal/MockCollectionHelper'
+import { MockUserRepository } from './MockUserRepository'
 
 function sortByDateAscending<T extends { date?: Date }>(items: T[]): T[] {
   return [...items].sort((a, b) => {
@@ -43,6 +37,7 @@ export class MockDataRepository implements IDataRepository {
     clone,
     nextId,
   })
+  private readonly userRepository = new MockUserRepository()
 
   async addDocument<T extends { id?: string }>(
     collectionName: string,
@@ -88,22 +83,19 @@ export class MockDataRepository implements IDataRepository {
   }
 
   async createUser(userData: Omit<User, 'id'>): Promise<string> {
-    const id = nextId('user')
-    await this.collectionHelper.setDocument('users', id, userData)
-    return id
+    return this.userRepository.createUserWithGeneratedId(userData)
   }
 
   async updateUser(id: string, userData: Partial<Omit<User, 'id'>>): Promise<void> {
-    return this.collectionHelper.updateDocument('users', id, userData)
+    return this.userRepository.updateUser(id, userData)
   }
 
   async getUser(id: string): Promise<User | null> {
-    return this.collectionHelper.getDocument('users', id)
+    return this.userRepository.getUser(id)
   }
 
   async getUsers(): Promise<User[]> {
-    const users = await this.collectionHelper.getDocuments<User>('users')
-    return users.sort((a, b) => a.displayName.localeCompare(b.displayName))
+    return this.userRepository.getUsers()
   }
 
   async createRun(runData: Omit<Run, 'id'>): Promise<string> {
