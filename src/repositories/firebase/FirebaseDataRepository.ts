@@ -13,7 +13,6 @@ import { getFirebaseDb } from '@/firebase/client'
 import type { User, Run, SignUp, Organization, Location } from '@/types/models'
 import type { IDataRepository } from '../interfaces/IDataRepository'
 import { FirestoreCollectionHelper } from './internal/FirestoreCollectionHelper'
-import { FirebaseUserRepository } from './FirebaseUserRepository'
 
 /**
  * Firebase implementation of the data repository
@@ -30,7 +29,6 @@ export class FirebaseDataRepository implements IDataRepository {
   }
 
   private readonly collectionHelper = new FirestoreCollectionHelper(() => this.getDb())
-  private readonly userRepository = new FirebaseUserRepository()
 
   // ==========================================
   // Generic CRUD operations
@@ -139,7 +137,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if user creation fails
    */
   async createUser(userData: Omit<User, 'id'>): Promise<string> {
-    return this.userRepository.createUserWithGeneratedId(userData)
+    return this.addDocument<User>('users', userData)
   }
 
   /**
@@ -150,7 +148,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if user update fails
    */
   async updateUser(id: string, userData: Partial<Omit<User, 'id'>>): Promise<void> {
-    return this.userRepository.updateUser(id, userData)
+    return this.updateDocument<User>('users', id, userData)
   }
 
   /**
@@ -160,7 +158,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getUser(id: string): Promise<User | null> {
-    return this.userRepository.getUser(id)
+    return this.getDocument<User>('users', id)
   }
 
   /**
@@ -169,7 +167,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getUsers(): Promise<User[]> {
-    return this.userRepository.getUsers()
+    return this.getDocuments<User>('users', [orderBy('displayName')])
   }
 
   // ==========================================

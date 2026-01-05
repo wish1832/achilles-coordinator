@@ -15,10 +15,6 @@ export class MockUserRepository implements IUserRepository {
     await this.collectionHelper.setDocument('users', id, userData)
   }
 
-  async createUserWithGeneratedId(userData: Omit<User, 'id'>): Promise<string> {
-    return this.collectionHelper.addDocument('users', userData)
-  }
-
   async updateUser(id: string, userData: Partial<Omit<User, 'id'>>): Promise<void> {
     await this.collectionHelper.updateDocument('users', id, userData)
   }
