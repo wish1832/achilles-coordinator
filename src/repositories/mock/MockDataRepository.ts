@@ -2,15 +2,9 @@ import type { QueryConstraint, Unsubscribe } from 'firebase/firestore'
 import type { Location, Organization, Run, SignUp, User } from '@/types/models'
 import type { IDataRepository } from '@/repositories/interfaces/IDataRepository'
 import { mockNow } from './mockData'
-import {
-  clone,
-  getCollection,
-  mockState,
-  nextId,
-  setCollection,
-  type CollectionName,
-} from './mockState'
+import { clone, getCollection, nextId, setCollection, type CollectionName } from './mockState'
 import { MockCollectionHelper } from './internal/MockCollectionHelper'
+import { MockOrganizationRepository } from './MockOrganizationRepository'
 
 function sortByDateAscending<T extends { date?: Date }>(items: T[]): T[] {
   return [...items].sort((a, b) => {
@@ -43,6 +37,7 @@ export class MockDataRepository implements IDataRepository {
     clone,
     nextId,
   })
+  private readonly organizationRepository = new MockOrganizationRepository()
   async addDocument<T extends { id?: string }>(
     collectionName: string,
     data: Omit<T, 'id'>,
@@ -162,106 +157,73 @@ export class MockDataRepository implements IDataRepository {
   }
 
   async createOrganization(organizationData: Omit<Organization, 'id'>): Promise<string> {
-    const id = nextId('org')
-    await this.collectionHelper.setDocument('organizations', id, organizationData)
-    return id
+    return this.organizationRepository.createOrganization(organizationData)
   }
 
   async updateOrganization(
     id: string,
     organizationData: Partial<Omit<Organization, 'id'>>,
   ): Promise<void> {
-    return this.collectionHelper.updateDocument('organizations', id, organizationData)
+    return this.organizationRepository.updateOrganization(id, organizationData)
   }
 
   async deleteOrganization(id: string): Promise<void> {
-    await this.collectionHelper.deleteDocument('organizations', id)
+    return this.organizationRepository.deleteOrganization(id)
   }
 
   async getOrganization(id: string): Promise<Organization | null> {
-    return this.collectionHelper.getDocument('organizations', id)
+    return this.organizationRepository.getOrganization(id)
   }
 
   async getOrganizations(): Promise<Organization[]> {
-    const organizations = await this.collectionHelper.getDocuments<Organization>('organizations')
-    return organizations.sort((a, b) => a.name.localeCompare(b.name))
+    return this.organizationRepository.getOrganizations()
   }
 
   async getUserOrganizations(userId: string): Promise<Organization[]> {
-    const organizations = await this.collectionHelper.getDocuments<Organization>('organizations')
-    return organizations.filter((org) => org.memberIds.includes(userId))
+    return this.organizationRepository.getUserOrganizations(userId)
   }
 
   async getUserAdminOrganizations(userId: string): Promise<Organization[]> {
-    const organizations = await this.collectionHelper.getDocuments<Organization>('organizations')
-    return organizations.filter((org) => org.adminIds.includes(userId))
+    return this.organizationRepository.getUserAdminOrganizations(userId)
   }
 
   async addOrganizationMember(organizationId: string, userId: string): Promise<void> {
-    const organization = mockState.organizations.find((entry) => entry.id === organizationId)
-    if (!organization) {
-      throw new Error(`Organization ${organizationId} not found`)
-    }
-    if (!organization.memberIds.includes(userId)) {
-      organization.memberIds.push(userId)
-    }
+    return this.organizationRepository.addOrganizationMember(organizationId, userId)
   }
 
   async removeOrganizationMember(organizationId: string, userId: string): Promise<void> {
-    const organization = mockState.organizations.find((entry) => entry.id === organizationId)
-    if (!organization) {
-      throw new Error(`Organization ${organizationId} not found`)
-    }
-    organization.memberIds = organization.memberIds.filter((id) => id !== userId)
-    organization.adminIds = organization.adminIds.filter((id) => id !== userId)
+    return this.organizationRepository.removeOrganizationMember(organizationId, userId)
   }
 
   async addOrganizationAdmin(organizationId: string, userId: string): Promise<void> {
-    const organization = mockState.organizations.find((entry) => entry.id === organizationId)
-    if (!organization) {
-      throw new Error(`Organization ${organizationId} not found`)
-    }
-    if (!organization.memberIds.includes(userId)) {
-      organization.memberIds.push(userId)
-    }
-    if (!organization.adminIds.includes(userId)) {
-      organization.adminIds.push(userId)
-    }
+    return this.organizationRepository.addOrganizationAdmin(organizationId, userId)
   }
 
   async removeOrganizationAdmin(organizationId: string, userId: string): Promise<void> {
-    const organization = mockState.organizations.find((entry) => entry.id === organizationId)
-    if (!organization) {
-      throw new Error(`Organization ${organizationId} not found`)
-    }
-    organization.adminIds = organization.adminIds.filter((id) => id !== userId)
+    return this.organizationRepository.removeOrganizationAdmin(organizationId, userId)
   }
 
   async createLocation(locationData: Omit<Location, 'id'>): Promise<string> {
-    const id = nextId('location')
-    await this.collectionHelper.setDocument('locations', id, locationData)
-    return id
+    return this.organizationRepository.createLocation(locationData)
   }
 
   async updateLocation(
     id: string,
     locationData: Partial<Omit<Location, 'id'>>,
   ): Promise<void> {
-    return this.collectionHelper.updateDocument('locations', id, locationData)
+    return this.organizationRepository.updateLocation(id, locationData)
   }
 
   async deleteLocation(id: string): Promise<void> {
-    await this.collectionHelper.deleteDocument('locations', id)
+    return this.organizationRepository.deleteLocation(id)
   }
 
   async getLocation(id: string): Promise<Location | null> {
-    return this.collectionHelper.getDocument('locations', id)
+    return this.organizationRepository.getLocation(id)
   }
 
   async getLocationsForOrganization(organizationId: string): Promise<Location[]> {
-    const locations = await this.collectionHelper.getDocuments<Location>('locations')
-    const entries = locations.filter((entry) => entry.organizationId === organizationId)
-    return entries.sort((a, b) => a.name.localeCompare(b.name))
+    return this.organizationRepository.getLocationsForOrganization(organizationId)
   }
 }
 
