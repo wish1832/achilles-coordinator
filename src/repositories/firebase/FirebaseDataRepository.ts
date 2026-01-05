@@ -14,6 +14,7 @@ import type { User, Run, SignUp, Organization, Location } from '@/types/models'
 import type { IDataRepository } from '../interfaces/IDataRepository'
 import { FirebaseUserRepository } from './FirebaseUserRepository'
 import { FirestoreCollectionHelper } from './internal/FirestoreCollectionHelper'
+import { FirebaseUserRepository } from './FirebaseUserRepository'
 
 /**
  * Firebase implementation of the data repository

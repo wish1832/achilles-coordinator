@@ -10,8 +10,8 @@ import {
   setCollection,
   type CollectionName,
 } from './mockState'
-import { MockUserRepository } from './MockUserRepository'
 import { MockCollectionHelper } from './internal/MockCollectionHelper'
+import { MockUserRepository } from './MockUserRepository'
 
 function sortByDateAscending<T extends { date?: Date }>(items: T[]): T[] {
   return [...items].sort((a, b) => {
