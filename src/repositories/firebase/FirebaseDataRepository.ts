@@ -1,18 +1,9 @@
-import {
-  doc,
-  where,
-  orderBy,
-  arrayUnion,
-  arrayRemove,
-  Timestamp,
-  type Firestore,
-  type Unsubscribe,
-  type QueryConstraint,
-} from 'firebase/firestore'
+import { Timestamp, type Firestore, type Unsubscribe, type QueryConstraint } from 'firebase/firestore'
 import { getFirebaseDb } from '@/firebase/client'
 import type { User, Run, SignUp, Organization, Location } from '@/types/models'
 import type { IDataRepository } from '../interfaces/IDataRepository'
 import { FirestoreCollectionHelper } from './internal/FirestoreCollectionHelper'
+import { FirebaseOrganizationRepository } from './FirebaseOrganizationRepository'
 
 /**
  * Firebase implementation of the data repository
@@ -29,6 +20,7 @@ export class FirebaseDataRepository implements IDataRepository {
   }
 
   private readonly collectionHelper = new FirestoreCollectionHelper(() => this.getDb())
+  private readonly organizationRepository = new FirebaseOrganizationRepository()
 
   // ==========================================
   // Generic CRUD operations
@@ -306,7 +298,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if organization creation fails
    */
   async createOrganization(organizationData: Omit<Organization, 'id'>): Promise<string> {
-    return this.addDocument<Organization>('organizations', organizationData)
+    return this.organizationRepository.createOrganization(organizationData)
   }
 
   /**
@@ -320,7 +312,7 @@ export class FirebaseDataRepository implements IDataRepository {
     id: string,
     organizationData: Partial<Omit<Organization, 'id'>>,
   ): Promise<void> {
-    return this.updateDocument<Organization>('organizations', id, organizationData)
+    return this.organizationRepository.updateOrganization(id, organizationData)
   }
 
   /**
@@ -330,7 +322,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if organization deletion fails
    */
   async deleteOrganization(id: string): Promise<void> {
-    return this.deleteDocument('organizations', id)
+    return this.organizationRepository.deleteOrganization(id)
   }
 
   /**
@@ -340,7 +332,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getOrganization(id: string): Promise<Organization | null> {
-    return this.getDocument<Organization>('organizations', id)
+    return this.organizationRepository.getOrganization(id)
   }
 
   /**
@@ -349,7 +341,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getOrganizations(): Promise<Organization[]> {
-    return this.getDocuments<Organization>('organizations', [orderBy('name')])
+    return this.organizationRepository.getOrganizations()
   }
 
   /**
@@ -360,10 +352,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getUserOrganizations(userId: string): Promise<Organization[]> {
-    return this.getDocuments<Organization>('organizations', [
-      where('memberIds', 'array-contains', userId),
-      orderBy('name'),
-    ])
+    return this.organizationRepository.getUserOrganizations(userId)
   }
 
   /**
@@ -374,10 +363,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getUserAdminOrganizations(userId: string): Promise<Organization[]> {
-    return this.getDocuments<Organization>('organizations', [
-      where('adminIds', 'array-contains', userId),
-      orderBy('name'),
-    ])
+    return this.organizationRepository.getUserAdminOrganizations(userId)
   }
 
   /**
@@ -389,21 +375,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if update fails
    */
   async addOrganizationMember(organizationId: string, userId: string): Promise<void> {
-    try {
-      // Get reference to the organization document
-      const orgRef = doc(this.getDb(), 'organizations', organizationId)
-      // Use arrayUnion to add the userId to memberIds (avoids duplicates)
-      await updateDoc(orgRef, {
-        memberIds: arrayUnion(userId),
-        updatedAt: Timestamp.now(),
-      })
-    } catch (error) {
-      console.error(
-        `Error adding member ${userId} to organization ${organizationId}:`,
-        error,
-      )
-      throw error
-    }
+    return this.organizationRepository.addOrganizationMember(organizationId, userId)
   }
 
   /**
@@ -415,22 +387,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if update fails
    */
   async removeOrganizationMember(organizationId: string, userId: string): Promise<void> {
-    try {
-      // Get reference to the organization document
-      const orgRef = doc(this.getDb(), 'organizations', organizationId)
-      // Use arrayRemove to remove the userId from both arrays
-      await updateDoc(orgRef, {
-        memberIds: arrayRemove(userId),
-        adminIds: arrayRemove(userId),
-        updatedAt: Timestamp.now(),
-      })
-    } catch (error) {
-      console.error(
-        `Error removing member ${userId} from organization ${organizationId}:`,
-        error,
-      )
-      throw error
-    }
+    return this.organizationRepository.removeOrganizationMember(organizationId, userId)
   }
 
   /**
@@ -443,20 +400,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if update fails
    */
   async addOrganizationAdmin(organizationId: string, userId: string): Promise<void> {
-    try {
-      // Get reference to the organization document
-      const orgRef = doc(this.getDb(), 'organizations', organizationId)
-      // Use arrayUnion to add the userId to both memberIds and adminIds
-      // arrayUnion automatically avoids duplicates
-      await updateDoc(orgRef, {
-        memberIds: arrayUnion(userId),
-        adminIds: arrayUnion(userId),
-        updatedAt: Timestamp.now(),
-      })
-    } catch (error) {
-      console.error(`Error adding admin ${userId} to organization ${organizationId}:`, error)
-      throw error
-    }
+    return this.organizationRepository.addOrganizationAdmin(organizationId, userId)
   }
 
   /**
@@ -468,22 +412,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if update fails
    */
   async removeOrganizationAdmin(organizationId: string, userId: string): Promise<void> {
-    try {
-      // Get reference to the organization document
-      const orgRef = doc(this.getDb(), 'organizations', organizationId)
-      // Use arrayRemove to remove the userId from adminIds only
-      // User remains in memberIds
-      await updateDoc(orgRef, {
-        adminIds: arrayRemove(userId),
-        updatedAt: Timestamp.now(),
-      })
-    } catch (error) {
-      console.error(
-        `Error removing admin status from ${userId} in organization ${organizationId}:`,
-        error,
-      )
-      throw error
-    }
+    return this.organizationRepository.removeOrganizationAdmin(organizationId, userId)
   }
 
   // ==========================================
@@ -497,7 +426,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if location creation fails
    */
   async createLocation(locationData: Omit<Location, 'id'>): Promise<string> {
-    return this.addDocument<Location>('locations', locationData)
+    return this.organizationRepository.createLocation(locationData)
   }
 
   /**
@@ -511,7 +440,7 @@ export class FirebaseDataRepository implements IDataRepository {
     id: string,
     locationData: Partial<Omit<Location, 'id'>>,
   ): Promise<void> {
-    return this.updateDocument<Location>('locations', id, locationData)
+    return this.organizationRepository.updateLocation(id, locationData)
   }
 
   /**
@@ -521,7 +450,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if location deletion fails
    */
   async deleteLocation(id: string): Promise<void> {
-    return this.deleteDocument('locations', id)
+    return this.organizationRepository.deleteLocation(id)
   }
 
   /**
@@ -531,7 +460,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getLocation(id: string): Promise<Location | null> {
-    return this.getDocument<Location>('locations', id)
+    return this.organizationRepository.getLocation(id)
   }
 
   /**
@@ -541,10 +470,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getLocationsForOrganization(organizationId: string): Promise<Location[]> {
-    return this.getDocuments<Location>('locations', [
-      where('organizationId', '==', organizationId),
-      orderBy('name'),
-    ])
+    return this.organizationRepository.getLocationsForOrganization(organizationId)
   }
 }
 
