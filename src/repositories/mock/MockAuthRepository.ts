@@ -118,7 +118,6 @@ function persistUser(user: FirebaseUser | null): void {
 }
 
 // Initialize currentUser from sessionStorage at module load time
-// This works because the router guard now waits for auth initialization
 currentUser = loadPersistedUser()
 
 export class MockAuthRepository implements IAuthRepository {
