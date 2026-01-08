@@ -1,16 +1,11 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { useAuthStore } from '@/stores/auth'
 import { useAccessibilityStore } from '@/stores/accessibility'
 
 // Initialize stores
-const authStore = useAuthStore()
 const accessibilityStore = useAccessibilityStore()
 
-// Initialize authentication and accessibility on app mount
-onMounted(() => {
-  authStore.initializeAuth()
-})
+// Note: Authentication is initialized in main.ts before router navigation
+// to ensure auth state is loaded before routing decisions are made
 </script>
 
 <template>

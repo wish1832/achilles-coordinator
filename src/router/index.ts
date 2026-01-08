@@ -88,8 +88,19 @@ const router = createRouter({
 })
 
 // Navigation guards for authentication and role-based access
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
+
+  // Wait for auth to be initialized before making routing decisions
+  // This prevents redirecting to login when a valid session exists in sessionStorage
+  if (!authStore.isInitialized) {
+    // Poll for initialization with a timeout
+    const maxWaitTime = 2000 // 2 seconds max
+    const startTime = Date.now()
+    while (!authStore.isInitialized && Date.now() - startTime < maxWaitTime) {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+  }
 
   // Set page title
   if (to.meta.title) {
@@ -112,7 +123,6 @@ router.beforeEach((to, from, next) => {
       next({ name: 'Runs' })
       return
     }
-
   }
 
   // Redirect authenticated users away from login page
