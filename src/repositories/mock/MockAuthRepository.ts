@@ -80,6 +80,7 @@ const storageKey = 'mock-auth-user'
 let currentUser: FirebaseUser | null = null
 const listeners = new Set<(user: FirebaseUser | null) => void>()
 let idCounter = 100
+let isInitialized = false
 
 function notifyListeners(user: FirebaseUser | null) {
   for (const listener of listeners) {
@@ -117,10 +118,20 @@ function persistUser(user: FirebaseUser | null): void {
   sessionStorage.setItem(storageKey, JSON.stringify(user))
 }
 
-currentUser = loadPersistedUser()
+// Initialize currentUser from sessionStorage synchronously
+// This ensures the persisted user is loaded before any auth state listeners are called
+function initializeCurrentUser(): void {
+  if (!isInitialized) {
+    currentUser = loadPersistedUser()
+    isInitialized = true
+  }
+}
 
 export class MockAuthRepository implements IAuthRepository {
   async signIn(email: string, password: string): Promise<FirebaseUser> {
+    // Ensure we've loaded any persisted session before signing in
+    initializeCurrentUser()
+
     const user = mockUsers.find((entry) => entry.email === email)
     if (!user || user.password !== password) {
       throw new Error('Invalid email or password')
@@ -133,6 +144,9 @@ export class MockAuthRepository implements IAuthRepository {
   }
 
   async signOut(): Promise<void> {
+    // Ensure we've loaded any persisted session before signing out
+    initializeCurrentUser()
+
     currentUser = null
     persistUser(currentUser)
     notifyListeners(currentUser)
@@ -144,6 +158,9 @@ export class MockAuthRepository implements IAuthRepository {
     displayName: string,
     role: UserRole,
   ): Promise<FirebaseUser> {
+    // Ensure we've loaded any persisted session before creating a user
+    initializeCurrentUser()
+
     const existing = mockUsers.find((entry) => entry.email === email)
     if (existing) {
       throw new Error('User already exists')
@@ -165,10 +182,17 @@ export class MockAuthRepository implements IAuthRepository {
   }
 
   getCurrentUser(): FirebaseUser | null {
+    // Ensure we've loaded any persisted session before returning current user
+    initializeCurrentUser()
     return currentUser
   }
 
   onAuthStateChanged(callback: (user: FirebaseUser | null) => void): () => void {
+    // CRITICAL: Initialize currentUser from sessionStorage BEFORE calling the callback
+    // This fixes the race condition where the lazy-loaded repository would call
+    // the callback with null before the persisted session was loaded
+    initializeCurrentUser()
+
     listeners.add(callback)
     callback(currentUser)
     return () => {
