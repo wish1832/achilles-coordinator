@@ -117,6 +117,7 @@ function persistUser(user: FirebaseUser | null): void {
   sessionStorage.setItem(storageKey, JSON.stringify(user))
 }
 
+// Initialize currentUser from sessionStorage at module load time
 currentUser = loadPersistedUser()
 
 export class MockAuthRepository implements IAuthRepository {

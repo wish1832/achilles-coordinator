@@ -19,6 +19,7 @@ export const useAuthStore = defineStore('auth', () => {
   const currentUser = ref<User | null>(null)
   const loading = ref<LoadingState>('idle')
   const error = ref<string | null>(null)
+  const isInitialized = ref<boolean>(false)
 
   // Getters (computed properties)
   const isAuthenticated = computed(() => !!currentUser.value)
@@ -165,6 +166,12 @@ export const useAuthStore = defineStore('auth', () => {
       } else {
         currentUser.value = null
       }
+
+      // Mark auth as initialized after first callback
+      // This allows the router to wait for initial auth state
+      if (!isInitialized.value) {
+        isInitialized.value = true
+      }
     })
   }
 
@@ -190,6 +197,7 @@ export const useAuthStore = defineStore('auth', () => {
     currentUser,
     loading,
     error,
+    isInitialized,
 
     // Getters
     isAuthenticated,
