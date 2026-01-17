@@ -13,7 +13,7 @@
 
     <!-- Main content -->
     <main id="main-content" class="run-main">
-      <div class="run-container">
+      <div class="run-content">
         <!-- Loading state -->
         <LoadingUI
           v-if="loading === 'loading'"
@@ -25,7 +25,7 @@
         <!-- Error state -->
         <div v-else-if="loading === 'error'" class="run-error">
           <h2>Unable to load run details</h2>
-          <p>{{ error || 'There was an error loading the run details. Please try again.' }}</p>
+          <p>{{ 'Please try again and contact us if the problem persists.' }}</p>
           <AchillesButton @click="loadRunData">Try Again</AchillesButton>
         </div>
 
@@ -318,20 +318,22 @@ onMounted(() => {
   padding: 2rem 0;
 }
 
-.run-container {
+/* Run content shows run details, loading state, or error state */
+.run-content {
   max-width: 800px;
   margin: 0 auto;
   padding: 0 1rem;
 }
 
-/* Details card */
-.run-details-card {
-  padding: 2rem;
+/* Run details */
+/* Containing element for run details card */
+.run-details-container {
+  padding: 1rem;
 }
 
 /* Detail sections */
 .detail-section {
-  margin-bottom: 2rem;
+  margin-bottom: 0.5rem;
 }
 
 .detail-section:last-of-type {
@@ -341,7 +343,7 @@ onMounted(() => {
 .subsection-title {
   font-size: 1.25rem;
   font-weight: 600;
-  margin: 0 0 1rem 0;
+  margin: 0 0 0.5rem 0;
   color: var(--color-text, #111827);
 }
 
@@ -349,7 +351,7 @@ onMounted(() => {
 .detail-row {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
   line-height: 1.6;
 }
 
@@ -385,7 +387,6 @@ onMounted(() => {
 }
 
 .admin-item {
-  padding: 0.5rem 0;
   color: var(--color-text-muted, #6b7280);
 }
 
@@ -398,7 +399,7 @@ onMounted(() => {
 
 /* Sign-up Actions */
 .run-actions {
-  margin-top: 2rem;
+  margin-top: 1.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--color-border, #e5e7eb);
 }
@@ -529,7 +530,7 @@ onMounted(() => {
     padding: 1.5rem 0;
   }
 
-  .run-container {
+  .run-content {
     padding: 0 0.5rem;
   }
 

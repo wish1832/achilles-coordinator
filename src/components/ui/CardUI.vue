@@ -125,19 +125,6 @@ const cardClasses = computed(() => {
   box-shadow: 0 0 0 1px var(--color-primary, #0066cc);
 }
 
-/* Size variants */
-.card--small {
-  padding: 1rem;
-}
-
-.card--medium {
-  padding: 1.5rem;
-}
-
-.card--large {
-  padding: 2rem;
-}
-
 /* Visual variants */
 .card--default {
   /* Uses base styles */
@@ -162,8 +149,8 @@ const cardClasses = computed(() => {
 }
 
 /* Card sections */
+/* Header extends to full width without negative margins */
 .card__header {
-  margin: -1.5rem -1.5rem 1rem -1.5rem;
   padding: 1rem 1.5rem;
   background: linear-gradient(
     135deg,
@@ -172,14 +159,12 @@ const cardClasses = computed(() => {
   );
 }
 
-/* Adjust header margins for different card sizes */
+/* Adjust header padding for different card sizes */
 .card--small .card__header {
-  margin: -1rem -1rem 1rem -1rem;
   padding: 0.75rem 1rem;
 }
 
 .card--large .card__header {
-  margin: -2rem -2rem 1rem -2rem;
   padding: 1.25rem 2rem;
 }
 
@@ -198,16 +183,49 @@ const cardClasses = computed(() => {
   line-height: 1.4;
 }
 
+/* Content section - padding depends on card size and whether header exists */
 .card__content {
   flex: 1;
+  padding: 1.5rem;
   color: var(--color-text, #111827);
   line-height: 1.6;
 }
 
+/* If header exists, reduce top padding of content */
+.card__header + .card__content {
+  padding-top: 1rem;
+}
+
+/* Size-specific content padding */
+.card--small .card__content {
+  padding: 1rem;
+}
+
+.card--small .card__header + .card__content {
+  padding-top: 1rem;
+}
+
+.card--large .card__content {
+  padding: 2rem;
+}
+
+.card--large .card__header + .card__content {
+  padding-top: 1rem;
+}
+
+/* Footer section */
 .card__footer {
-  margin-top: 1rem;
-  padding-top: 0.75rem;
+  padding: 0 1.5rem 1.5rem 1.5rem;
   border-top: 1px solid var(--color-card-border, #e5e7eb);
+}
+
+/* Size-specific footer padding */
+.card--small .card__footer {
+  padding: 0 1rem 1rem 1rem;
+}
+
+.card--large .card__footer {
+  padding: 0 2rem 2rem 2rem;
 }
 
 /* Text size support */
