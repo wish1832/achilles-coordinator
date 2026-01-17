@@ -44,10 +44,11 @@ export const seedData: SeedData = {
       id: 'location-city-park',
       organizationId: 'org-denver',
       name: 'City Park Loop',
-      address: '2001 Colorado Blvd',
+      address: '701 S Franklin St',
       city: 'Denver',
       state: 'CO',
-      notes: 'Popular urban park with a 2.3 mile loop around the lake',
+      notes:
+        'Meet at the Washington Park Rec Center. Athletes may run on two courses: the inner loop which is on road and is 2.3 miles, and the outer loop which is on trails and is 2.5 miles. Athletes commonly do one lap or two.',
       createdAt: daysFromNow(-15),
     },
     {

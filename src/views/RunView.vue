@@ -14,7 +14,12 @@
     <main id="main-content" class="run-main">
       <div class="run-container">
         <!-- Loading state -->
-        <LoadingUI v-if="loading === 'loading'" type="spinner" text="Loading run details..." centered />
+        <LoadingUI
+          v-if="loading === 'loading'"
+          type="spinner"
+          text="Loading run details..."
+          centered
+        />
 
         <!-- Error state -->
         <div v-else-if="loading === 'error'" class="run-error">
@@ -25,13 +30,7 @@
 
         <!-- Run details -->
         <div v-else-if="runsStore.currentRun" class="run-details-container">
-          <CardUI class="run-details-card">
-            <!-- Location and Organization -->
-            <div class="detail-section">
-              <h2 class="section-title">{{ locationName }}</h2>
-              <p class="organization-name">{{ organizationName }}</p>
-            </div>
-
+          <CardUI class="run-details-card" :title="locationName" :subtitle="organizationName">
             <!-- Date and Time -->
             <div class="detail-section">
               <div class="detail-row">
@@ -46,19 +45,22 @@
 
             <!-- Run Admins -->
             <div class="detail-section">
-              <h3 class="subsection-title">Run Admins</h3>
+              <h3 class="subsection-title">Run Organizers:</h3>
               <ul v-if="adminNames.length > 0" class="admin-list">
                 <li v-for="(name, index) in adminNames" :key="index" class="admin-item">
                   {{ name }}
                 </li>
               </ul>
-              <p v-else class="no-data">No admins assigned</p>
+              <p v-else class="no-data">No organizers assigned</p>
             </div>
 
             <!-- Location Details -->
             <div class="detail-section">
               <h3 class="subsection-title">Location Details</h3>
               <div v-if="location" class="location-details">
+                <div v-if="location.notes" class="detail-row location-notes">
+                  <span class="detail-value">{{ location.notes }}</span>
+                </div>
                 <div v-if="location.address" class="detail-row">
                   <span class="detail-label">Address:</span>
                   <span class="detail-value">{{ location.address }}</span>
@@ -66,12 +68,9 @@
                 <div v-if="location.city || location.state" class="detail-row">
                   <span class="detail-label">Location:</span>
                   <span class="detail-value">
-                    {{ location.city }}<template v-if="location.city && location.state">, </template>{{ location.state }}
+                    {{ location.city }}<template v-if="location.city && location.state">, </template
+                    >{{ location.state }}
                   </span>
-                </div>
-                <div v-if="location.notes" class="detail-row location-notes">
-                  <span class="detail-label">Notes:</span>
-                  <span class="detail-value">{{ location.notes }}</span>
                 </div>
               </div>
               <p v-else class="no-data">Location information not available</p>
@@ -83,17 +82,10 @@
               <template v-if="isUserSignedUp">
                 <div class="signup-status">
                   <p class="signup-status__message">Signed up!</p>
-                  <a href="#" class="signup-status__link" @click.prevent="editRSVP">
-                    edit RSVP
-                  </a>
+                  <a href="#" class="signup-status__link" @click.prevent="editRSVP"> edit RSVP </a>
                 </div>
               </template>
-              <AchillesButton
-                v-else
-                variant="primary"
-                size="medium"
-                @click="signUpForRun"
-              >
+              <AchillesButton v-else variant="primary" size="medium" @click="signUpForRun">
                 Sign Up
               </AchillesButton>
             </div>
@@ -331,26 +323,10 @@ onMounted(() => {
 /* Detail sections */
 .detail-section {
   margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--color-border, #e5e7eb);
 }
 
 .detail-section:last-of-type {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.section-title {
-  font-size: 1.75rem;
-  font-weight: 600;
-  margin: 0 0 0.5rem 0;
-  color: var(--color-text, #111827);
-}
-
-.organization-name {
-  font-size: 1.125rem;
-  color: var(--color-text-muted, #6b7280);
-  margin: 0;
+  margin-bottom: 0;
 }
 
 .subsection-title {
@@ -476,33 +452,17 @@ onMounted(() => {
   font-size: 2rem;
 }
 
-.text-size-small .section-title {
-  font-size: 1.5rem;
-}
-
 .text-size-large .run-title {
   font-size: 3rem;
-}
-
-.text-size-large .section-title {
-  font-size: 2rem;
 }
 
 .text-size-extra-large .run-title {
   font-size: 3.5rem;
 }
 
-.text-size-extra-large .section-title {
-  font-size: 2.25rem;
-}
-
 /* High contrast mode */
 .high-contrast .run-header {
   background: var(--color-primary, #000000);
-}
-
-.high-contrast .detail-section {
-  border-bottom-color: var(--color-text, #000000);
 }
 
 .high-contrast .run-actions {
@@ -528,10 +488,6 @@ onMounted(() => {
 @media (max-width: 768px) {
   .run-title {
     font-size: 2rem;
-  }
-
-  .section-title {
-    font-size: 1.5rem;
   }
 
   .run-details-card {

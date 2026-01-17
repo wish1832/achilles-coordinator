@@ -163,23 +163,38 @@ const cardClasses = computed(() => {
 
 /* Card sections */
 .card__header {
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--color-card-border, #e5e7eb);
+  margin: -1.5rem -1.5rem 1rem -1.5rem;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(
+    135deg,
+    var(--color-primary, #0066cc) 0%,
+    var(--color-primary-hover, #0052a3) 100%
+  );
+}
+
+/* Adjust header margins for different card sizes */
+.card--small .card__header {
+  margin: -1rem -1rem 1rem -1rem;
+  padding: 0.75rem 1rem;
+}
+
+.card--large .card__header {
+  margin: -2rem -2rem 1rem -2rem;
+  padding: 1.25rem 2rem;
 }
 
 .card__title {
   margin: 0 0 0.25rem 0;
   font-size: 1.25rem;
   font-weight: 600;
-  color: var(--color-text, #111827);
+  color: #ffffff;
   line-height: 1.4;
 }
 
 .card__subtitle {
   margin: 0;
   font-size: 0.875rem;
-  color: var(--color-text-muted, #6b7280);
+  color: rgba(255, 255, 255, 0.9);
   line-height: 1.4;
 }
 
@@ -237,7 +252,15 @@ const cardClasses = computed(() => {
 }
 
 .high-contrast .card__header {
-  border-bottom-color: var(--color-text, #000000);
+  background: var(--color-primary, #000000);
+}
+
+.high-contrast .card__title {
+  color: #ffffff;
+}
+
+.high-contrast .card__subtitle {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .high-contrast .card__footer {
