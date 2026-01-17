@@ -6,7 +6,8 @@
     <!-- Header -->
     <header class="run-header">
       <div class="run-header__content">
-        <h1 class="run-title">Run Details</h1>
+        <h1 class="run-title">{{ locationName }}</h1>
+        <p v-if="organizationName" class="run-subtitle">{{ organizationName }}</p>
       </div>
     </header>
 
@@ -30,7 +31,7 @@
 
         <!-- Run details -->
         <div v-else-if="runsStore.currentRun" class="run-details-container">
-          <CardUI class="run-details-card" :title="locationName" :subtitle="organizationName">
+          <CardUI class="run-details-card" title="Run Details">
             <!-- Date and Time -->
             <div class="detail-section">
               <div class="detail-row">
@@ -304,6 +305,14 @@ onMounted(() => {
   line-height: 1.2;
 }
 
+.run-subtitle {
+  font-size: 1.25rem;
+  font-weight: 400;
+  margin: 0.5rem 0 0 0;
+  line-height: 1.4;
+  opacity: 0.95;
+}
+
 /* Main content */
 .run-main {
   padding: 2rem 0;
@@ -452,12 +461,24 @@ onMounted(() => {
   font-size: 2rem;
 }
 
+.text-size-small .run-subtitle {
+  font-size: 1.125rem;
+}
+
 .text-size-large .run-title {
   font-size: 3rem;
 }
 
+.text-size-large .run-subtitle {
+  font-size: 1.375rem;
+}
+
 .text-size-extra-large .run-title {
   font-size: 3.5rem;
+}
+
+.text-size-extra-large .run-subtitle {
+  font-size: 1.5rem;
 }
 
 /* High contrast mode */
@@ -488,6 +509,10 @@ onMounted(() => {
 @media (max-width: 768px) {
   .run-title {
     font-size: 2rem;
+  }
+
+  .run-subtitle {
+    font-size: 1.125rem;
   }
 
   .run-details-card {
