@@ -44,10 +44,11 @@ export const seedData: SeedData = {
       id: 'location-city-park',
       organizationId: 'org-denver',
       name: 'City Park Loop',
-      address: '2001 Colorado Blvd',
+      address: '701 S Franklin St',
       city: 'Denver',
       state: 'CO',
-      notes: 'Popular urban park with a 2.3 mile loop around the lake',
+      notes:
+        'Meet at the Washington Park Rec Center. Athletes may run on two courses: the inner loop which is on road and is 2.3 miles, and the outer loop which is on trails and is 2.5 miles. Athletes commonly do one lap or two.',
       createdAt: daysFromNow(-15),
     },
     {
@@ -208,6 +209,8 @@ export const seedData: SeedData = {
     },
   ],
   signUps: [
+    // Run 1 sign-ups - City Park Loop
+    // Regular athletes (signing up for both runs)
     {
       id: 'signup-1',
       runId: 'run-1',
@@ -219,9 +222,107 @@ export const seedData: SeedData = {
     {
       id: 'signup-2',
       runId: 'run-1',
+      userId: 'user-athlete-2',
+      role: 'athlete',
+      timestamp: daysFromNow(-1),
+      status: 'active',
+    },
+    // One-time athletes for run 1
+    {
+      id: 'signup-3',
+      runId: 'run-1',
+      userId: 'user-athlete-3',
+      role: 'athlete',
+      timestamp: daysFromNow(-1),
+      status: 'active',
+    },
+
+    // Regular guides (signing up for both runs)
+    {
+      id: 'signup-4',
+      runId: 'run-1',
       userId: 'user-guide-1',
       role: 'guide',
       timestamp: daysFromNow(-1),
+      status: 'active',
+    },
+    {
+      id: 'signup-5',
+      runId: 'run-1',
+      userId: 'user-guide-2',
+      role: 'guide',
+      timestamp: daysFromNow(-1),
+      status: 'active',
+    },
+    {
+      id: 'signup-6',
+      runId: 'run-1',
+      userId: 'user-admin-1',
+      role: 'guide',
+      timestamp: daysFromNow(-1),
+      status: 'active',
+    },
+    // One-time guides for run 1
+    {
+      id: 'signup-7',
+      runId: 'run-1',
+      userId: 'user-guide-3',
+      role: 'guide',
+      timestamp: daysFromNow(-1),
+      status: 'active',
+    },
+
+    // Run 2 sign-ups - River Trail
+    // Regular athletes (both runs)
+    {
+      id: 'signup-8',
+      runId: 'run-2',
+      userId: 'user-athlete-1',
+      role: 'athlete',
+      timestamp: daysFromNow(-2),
+      status: 'active',
+    },
+    {
+      id: 'signup-9',
+      runId: 'run-2',
+      userId: 'user-athlete-2',
+      role: 'athlete',
+      timestamp: daysFromNow(-2),
+      status: 'active',
+    },
+    // One-time athlete for run 2 only
+    {
+      id: 'signup-10',
+      runId: 'run-2',
+      userId: 'user-athlete-4',
+      role: 'athlete',
+      timestamp: daysFromNow(-2),
+      status: 'active',
+    },
+
+    // Regular guides (both runs)
+    {
+      id: 'signup-11',
+      runId: 'run-2',
+      userId: 'user-guide-1',
+      role: 'guide',
+      timestamp: daysFromNow(-2),
+      status: 'active',
+    },
+    {
+      id: 'signup-12',
+      runId: 'run-2',
+      userId: 'user-guide-2',
+      role: 'guide',
+      timestamp: daysFromNow(-2),
+      status: 'active',
+    },
+    {
+      id: 'signup-13',
+      runId: 'run-2',
+      userId: 'user-admin-1',
+      role: 'guide',
+      timestamp: daysFromNow(-2),
       status: 'active',
     },
   ],
