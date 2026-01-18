@@ -8,7 +8,7 @@
     <!-- Optional header section -->
     <header v-if="$slots.header || title" class="card__header">
       <slot name="header">
-        <h3 v-if="title" :id="titleId" class="card__title">{{ title }}</h3>
+        <h2 v-if="title" :id="titleId" class="card__title">{{ title }}</h2>
         <p v-if="subtitle" class="card__subtitle">{{ subtitle }}</p>
       </slot>
     </header>
@@ -125,19 +125,6 @@ const cardClasses = computed(() => {
   box-shadow: 0 0 0 1px var(--color-primary, #0066cc);
 }
 
-/* Size variants */
-.card--small {
-  padding: 1rem;
-}
-
-.card--medium {
-  padding: 1.5rem;
-}
-
-.card--large {
-  padding: 2rem;
-}
-
 /* Visual variants */
 .card--default {
   /* Uses base styles */
@@ -162,37 +149,83 @@ const cardClasses = computed(() => {
 }
 
 /* Card sections */
+/* Header extends to full width without negative margins */
 .card__header {
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--color-card-border, #e5e7eb);
+  padding: 1rem 1.5rem;
+  background: linear-gradient(
+    135deg,
+    var(--color-primary, #0066cc) 0%,
+    var(--color-primary-hover, #0052a3) 100%
+  );
+}
+
+/* Adjust header padding for different card sizes */
+.card--small .card__header {
+  padding: 0.75rem 1rem;
+}
+
+.card--large .card__header {
+  padding: 1.25rem 2rem;
 }
 
 .card__title {
   margin: 0 0 0.25rem 0;
   font-size: 1.25rem;
   font-weight: 600;
-  color: var(--color-text, #111827);
+  color: #ffffff;
   line-height: 1.4;
 }
 
 .card__subtitle {
   margin: 0;
   font-size: 0.875rem;
-  color: var(--color-text-muted, #6b7280);
+  color: rgba(255, 255, 255, 0.9);
   line-height: 1.4;
 }
 
+/* Content section - padding depends on card size and whether header exists */
 .card__content {
   flex: 1;
+  padding: 1.5rem;
   color: var(--color-text, #111827);
   line-height: 1.6;
 }
 
+/* If header exists, reduce top padding of content */
+.card__header + .card__content {
+  padding-top: 1rem;
+}
+
+/* Size-specific content padding */
+.card--small .card__content {
+  padding: 1rem;
+}
+
+.card--small .card__header + .card__content {
+  padding-top: 1rem;
+}
+
+.card--large .card__content {
+  padding: 2rem;
+}
+
+.card--large .card__header + .card__content {
+  padding-top: 1rem;
+}
+
+/* Footer section */
 .card__footer {
-  margin-top: 1rem;
-  padding-top: 0.75rem;
+  padding: 0 1.5rem 1.5rem 1.5rem;
   border-top: 1px solid var(--color-card-border, #e5e7eb);
+}
+
+/* Size-specific footer padding */
+.card--small .card__footer {
+  padding: 0 1rem 1rem 1rem;
+}
+
+.card--large .card__footer {
+  padding: 0 2rem 2rem 2rem;
 }
 
 /* Text size support */
@@ -237,7 +270,15 @@ const cardClasses = computed(() => {
 }
 
 .high-contrast .card__header {
-  border-bottom-color: var(--color-text, #000000);
+  background: var(--color-primary, #000000);
+}
+
+.high-contrast .card__title {
+  color: #ffffff;
+}
+
+.high-contrast .card__subtitle {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .high-contrast .card__footer {

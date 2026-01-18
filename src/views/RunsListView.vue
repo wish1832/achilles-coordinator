@@ -7,7 +7,6 @@
     <header class="runs-header">
       <div class="runs-header__content">
         <h1 class="runs-title">Upcoming Runs</h1>
-        <p class="runs-subtitle">Sign up for upcoming Achilles International runs</p>
       </div>
     </header>
 
@@ -29,7 +28,7 @@
             v-for="run in runs"
             :key="run.id"
             class="run-card"
-            :title="run.locationId"
+            :title="getLocationName(run.locationId)"
             :subtitle="formatRunDate(run.date, run.time)"
             clickable
             @click="viewRun(run.id)"
@@ -40,10 +39,32 @@
               <div class="run-details">
                 <div class="run-detail"><strong>Date:</strong> {{ formatDate(run.date) }}</div>
                 <div class="run-detail"><strong>Time:</strong> {{ run.time }}</div>
+                <div class="run-detail run-signup-counts">
+                  <span class="signup-count">
+                    <strong>Athletes:</strong> {{ signUpsStore.getSignUpCounts(run.id).athletes }}
+                  </span>
+                  <span class="signup-count">
+                    <strong>Guides:</strong> {{ signUpsStore.getSignUpCounts(run.id).guides }}
+                  </span>
+                </div>
               </div>
 
               <div class="run-actions">
-                <AchillesButton variant="primary" size="medium" @click.stop="signUpForRun(run.id)">
+                <!-- Show "signed up!" message if user already signed up, otherwise show "Sign Up" button -->
+                <template v-if="isUserSignedUpForRun(run.id)">
+                  <div class="signup-status">
+                    <p class="signup-status__message">Signed up!</p>
+                    <a href="#" class="signup-status__link" @click.prevent.stop="editRSVP(run.id)">
+                      edit RSVP
+                    </a>
+                  </div>
+                </template>
+                <AchillesButton
+                  v-else
+                  variant="primary"
+                  size="medium"
+                  @click.stop="signUpForRun(run.id)"
+                >
                   Sign Up
                 </AchillesButton>
               </div>
@@ -69,12 +90,26 @@ import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import { useRunsStore } from '@/stores/runs'
+import { useLocationStore } from '@/stores/location'
+import { useSignUpsStore } from '@/stores/signups'
+import { useAuthStore } from '@/stores/auth'
 
 // Router and stores
 const router = useRouter()
 const runsStore = useRunsStore()
+const locationStore = useLocationStore()
+const signUpsStore = useSignUpsStore()
+const authStore = useAuthStore()
 
 const { runs, loading } = storeToRefs(runsStore)
+const { currentUser } = storeToRefs(authStore)
+
+// Helper function to get location name by ID
+// Returns the location name if found, otherwise returns 'Unknown Location'
+function getLocationName(locationId: string): string {
+  const location = locationStore.getLocationById(locationId)
+  return location ? location.name : 'Unknown Location'
+}
 
 // Format run date and time for display
 function formatRunDate(date: Date, time: string): string {
@@ -115,9 +150,51 @@ async function signUpForRun(runId: string): Promise<void> {
   }
 }
 
+// Check if the current user has signed up for a specific run
+// Returns true if the user has an active sign-up for the run
+function isUserSignedUpForRun(runId: string): boolean {
+  // If no user is logged in, they cannot be signed up
+  if (!currentUser.value) {
+    return false
+  }
+
+  // Get all sign-ups for this run
+  const signUps = signUpsStore.getSignUpsForRun(runId)
+
+  // Check if any active sign-up belongs to the current user
+  return signUps.some(
+    (signup) => signup.userId === currentUser.value!.id && signup.status === 'active',
+  )
+}
+
+// Navigate to edit RSVP for a run
+function editRSVP(runId: string): void {
+  // Navigate to the run details page where user can edit their RSVP
+  router.push(`/runs/${runId}`)
+}
+
 // Initialize on mount
-onMounted(() => {
-  runsStore.loadUpcomingRuns()
+// Load runs, locations, and sign-ups when the component mounts
+onMounted(async () => {
+  // First, load the upcoming runs
+  await runsStore.loadUpcomingRuns()
+
+  // Then, load locations for all organizations that have runs
+  // Extract unique organization IDs from the loaded runs
+  const organizationIds = new Set(runs.value.map((run) => run.organizationId))
+
+  // Load locations for each unique organization
+  // This ensures we have location data to display location names
+  for (const orgId of organizationIds) {
+    await locationStore.loadLocationsForOrganization(orgId)
+  }
+
+  // Load sign-ups for all runs
+  // This allows us to display athlete and guide counts for each run
+  const runIds = runs.value.map((run) => run.id)
+  if (runIds.length > 0) {
+    await signUpsStore.loadSignUpsForRuns(runIds)
+  }
 })
 </script>
 
@@ -216,10 +293,55 @@ onMounted(() => {
   line-height: 1.4;
 }
 
+.run-signup-counts {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.25rem;
+}
+
+.signup-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
 .run-actions {
   margin-top: auto;
   padding-top: 1rem;
   border-top: 1px solid var(--color-border, #e5e7eb);
+}
+
+/* Signup status display */
+.signup-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.signup-status__message {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--color-success, #059669);
+  margin: 0;
+}
+
+.signup-status__link {
+  font-size: 0.875rem;
+  color: var(--color-primary, #0066cc);
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.2s ease-in-out;
+}
+
+.signup-status__link:hover {
+  color: var(--color-primary-hover, #0052a3);
+}
+
+.signup-status__link:focus {
+  outline: 2px solid var(--color-primary, #0066cc);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 /* Error state */
@@ -300,6 +422,16 @@ onMounted(() => {
   border-top-color: var(--color-text, #000000);
 }
 
+.high-contrast .signup-status__message {
+  color: var(--color-success, #047857);
+}
+
+.high-contrast .signup-status__link {
+  color: var(--color-primary, #0066cc);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+
 /* Reduced motion support */
 .reduced-motion .run-card {
   transition: none;
@@ -307,6 +439,10 @@ onMounted(() => {
 
 .reduced-motion .run-card:hover {
   transform: none;
+}
+
+.reduced-motion .signup-status__link {
+  transition: none;
 }
 
 /* Mobile responsiveness */

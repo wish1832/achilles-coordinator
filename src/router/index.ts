@@ -30,6 +30,16 @@ const router = createRouter({
       },
     },
     {
+      path: '/runs/:id',
+      name: 'Run',
+      component: () => import('@/views/RunView.vue'),
+      meta: {
+        requiresAuth: true,
+        roles: ['athlete', 'guide'],
+        title: 'Run Details - Achilles Run Coordinator',
+      },
+    },
+    {
       path: '/admin',
       name: 'Admin',
       component: () => import('@/views/admin/AdminDashboard.vue'),

@@ -36,3 +36,7 @@ Agents: read this file for style guidance before making UI changes.
 - Write in a calm, supportive tone that is clear and action-oriented.
 - Use descriptive button labels (e.g., "Create Run" instead of "Submit").
 - Avoid jargon where possible; prefer everyday language.
+
+## Error Reporting
+
+- When informing the users, use the following pattern: "Unable to {replace with attempted action}. Please try again and contact us if the problem persists". Don't show end users the error, but do log it to the console.
