@@ -106,7 +106,7 @@ export interface Run {
   maxGuides?: number
   notes?: string // Additional information for the run
   pairings?: {
-    [athleteId: string]: string // Maps athlete user ID to guide user ID
+    [athleteId: string]: string[] // Maps athlete user ID to array of guide user IDs
   }
 }
 

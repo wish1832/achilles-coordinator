@@ -40,3 +40,7 @@ Agents: read this file for style guidance before making UI changes.
 ## Error Reporting
 
 - When informing the users, use the following pattern: "Unable to {replace with attempted action}. Please try again and contact us if the problem persists". Don't show end users the error, but do log it to the console.
+
+## Naming of functions and variables
+
+- When making changes, look for asymmetric naming patterns in functions. Report these to the user and ask for re-naming to address this.

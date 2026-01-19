@@ -35,6 +35,7 @@ Achilles Run Coordinator is a web application for coordinating sign-ups for Achi
 
 2. **Pairing System**
    - Admins manually pair athletes with guides for each run
+   - Multiple guides can be paired with a single athlete
    - Keyboard-accessible pairing interface
    - View and manage existing pairings
    - Admin-only pairing notes to explain pairing decisions (not visible to users)
@@ -207,7 +208,7 @@ interface Run {
   maxGuides?: number
   notes?: string
   pairings?: {
-    [athleteId: string]: string // Maps athlete user ID to guide user ID
+    [athleteId: string]: string[] // Maps athlete user ID to array of guide user IDs (can have multiple guides per athlete)
   }
 }
 ```
@@ -459,7 +460,7 @@ All UI components in `src/components/ui/` are built with accessibility as a core
 5. **PairingView** (`/admin/organizations/:orgId/runs/:runId/pairings`)
 
 - Interactive dashboard admins use to pair athletes and guides
-- Two columns: athletes, guides. In the athletes tab athletes are shown along with any guides they are paired with. In the guides tab unpaired guides are shown.
+- Two columns: athletes, guides. In the athletes column, athletes are shown along with any guides they are paired with (multiple guides per athlete supported). In the guides column, unpaired guides are shown.
 
 6. **LocationsView** (`/admin/organizations/:orgId/locations`)
 

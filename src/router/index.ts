@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useOrganizationStore } from '@/stores/organization'
 import type { UserRole } from '@/types/models'
 import LoginView from '@/views/LoginView.vue'
 
@@ -46,6 +47,16 @@ const router = createRouter({
       meta: {
         requiresAuth: true,
         title: 'Admin Dashboard - Achilles Run Coordinator',
+      },
+    },
+    {
+      path: '/admin/organizations/:orgId/runs/:runId/pairings',
+      name: 'AdminPairings',
+      component: () => import('@/views/admin/PairingView.vue'),
+      meta: {
+        requiresAuth: true,
+        requiresOrgAdmin: true,
+        title: 'Manage Pairings - Achilles Run Coordinator',
       },
     },
     // {
@@ -122,6 +133,43 @@ router.beforeEach(async (to, _from, next) => {
     if (requiredRoles?.length && !authStore.hasPermission(requiredRoles)) {
       next({ name: 'Runs' })
       return
+    }
+
+    // Check organization admin access for routes that require it
+    if (to.meta.requiresOrgAdmin) {
+      const orgId = to.params.orgId as string
+      if (!orgId) {
+        next({ name: 'Admin' })
+        return
+      }
+
+      const organizationStore = useOrganizationStore()
+
+      // Load organization if not in cache
+      let org = organizationStore.getOrganizationById(orgId)
+      if (!org) {
+        try {
+          await organizationStore.loadOrganization(orgId)
+          org = organizationStore.getOrganizationById(orgId)
+        } catch {
+          // Organization not found or error loading, redirect to admin dashboard
+          next({ name: 'Admin' })
+          return
+        }
+      }
+
+      // Check if current user is admin of this organization
+      if (!org) {
+        next({ name: 'Admin' })
+        return
+      }
+
+      const isAdmin = organizationStore.isUserOrgAdmin(orgId, authStore.currentUser!.id)
+      if (!isAdmin) {
+        // User is not admin of this organization, redirect to admin dashboard
+        next({ name: 'Admin' })
+        return
+      }
     }
   }
 

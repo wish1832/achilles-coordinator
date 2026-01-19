@@ -193,7 +193,7 @@ export const seedData: SeedData = {
       createdAt: daysFromNow(-1),
       status: 'upcoming',
       pairings: {
-        'user-athlete-1': 'user-guide-1',
+        'user-athlete-1': ['user-guide-1'],
       },
     },
     {
