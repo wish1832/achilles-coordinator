@@ -193,7 +193,23 @@ export const seedData: SeedData = {
       createdAt: daysFromNow(-1),
       status: 'upcoming',
       pairings: {
-        'user-athlete-1': ['user-guide-1'],
+        // Athlete 1 paired with one guide
+        'user-athlete-1': {
+          guides: ['user-guide-1'],
+          athletes: [],
+        },
+        // Athlete 2 paired with two guides (multiple guides scenario)
+        'user-athlete-2': {
+          guides: ['user-guide-2', 'user-admin-1'],
+          athletes: [],
+        },
+        // Athlete 3 paired with athlete 4 (athlete-athlete pairing scenario)
+        // This demonstrates the case where multiple athletes share one guide
+        'user-athlete-3': {
+          guides: ['user-guide-3'],
+          athletes: ['user-athlete-4'],
+        },
+        // Note: user-athlete-4 does not have their own entry since they're paired with athlete-3
       },
     },
     {
@@ -206,6 +222,14 @@ export const seedData: SeedData = {
       createdBy: 'user-admin-1',
       createdAt: daysFromNow(-2),
       status: 'upcoming',
+      pairings: {
+        // Example of athlete-athlete pairing without a guide
+        'user-athlete-1': {
+          guides: [],
+          athletes: ['user-athlete-2'],
+        },
+        // Note: user-athlete-2 does not have their own entry since they're paired with athlete-1
+      },
     },
   ],
   signUps: [
@@ -236,10 +260,18 @@ export const seedData: SeedData = {
       timestamp: daysFromNow(-1),
       status: 'active',
     },
+    {
+      id: 'signup-4',
+      runId: 'run-1',
+      userId: 'user-athlete-4',
+      role: 'athlete',
+      timestamp: daysFromNow(-1),
+      status: 'active',
+    },
 
     // Regular guides (signing up for both runs)
     {
-      id: 'signup-4',
+      id: 'signup-5',
       runId: 'run-1',
       userId: 'user-guide-1',
       role: 'guide',
@@ -247,7 +279,7 @@ export const seedData: SeedData = {
       status: 'active',
     },
     {
-      id: 'signup-5',
+      id: 'signup-6',
       runId: 'run-1',
       userId: 'user-guide-2',
       role: 'guide',
@@ -255,7 +287,7 @@ export const seedData: SeedData = {
       status: 'active',
     },
     {
-      id: 'signup-6',
+      id: 'signup-7',
       runId: 'run-1',
       userId: 'user-admin-1',
       role: 'guide',
@@ -264,7 +296,7 @@ export const seedData: SeedData = {
     },
     // One-time guides for run 1
     {
-      id: 'signup-7',
+      id: 'signup-8',
       runId: 'run-1',
       userId: 'user-guide-3',
       role: 'guide',
@@ -275,7 +307,7 @@ export const seedData: SeedData = {
     // Run 2 sign-ups - River Trail
     // Regular athletes (both runs)
     {
-      id: 'signup-8',
+      id: 'signup-9',
       runId: 'run-2',
       userId: 'user-athlete-1',
       role: 'athlete',
@@ -283,7 +315,7 @@ export const seedData: SeedData = {
       status: 'active',
     },
     {
-      id: 'signup-9',
+      id: 'signup-10',
       runId: 'run-2',
       userId: 'user-athlete-2',
       role: 'athlete',
@@ -292,7 +324,7 @@ export const seedData: SeedData = {
     },
     // One-time athlete for run 2 only
     {
-      id: 'signup-10',
+      id: 'signup-11',
       runId: 'run-2',
       userId: 'user-athlete-4',
       role: 'athlete',
@@ -302,7 +334,7 @@ export const seedData: SeedData = {
 
     // Regular guides (both runs)
     {
-      id: 'signup-11',
+      id: 'signup-12',
       runId: 'run-2',
       userId: 'user-guide-1',
       role: 'guide',
@@ -310,7 +342,7 @@ export const seedData: SeedData = {
       status: 'active',
     },
     {
-      id: 'signup-12',
+      id: 'signup-13',
       runId: 'run-2',
       userId: 'user-guide-2',
       role: 'guide',
@@ -318,7 +350,7 @@ export const seedData: SeedData = {
       status: 'active',
     },
     {
-      id: 'signup-13',
+      id: 'signup-14',
       runId: 'run-2',
       userId: 'user-admin-1',
       role: 'guide',

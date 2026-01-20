@@ -44,3 +44,7 @@ Agents: read this file for style guidance before making UI changes.
 ## Naming of functions and variables
 
 - When making changes, look for asymmetric naming patterns in functions. Report these to the user and ask for re-naming to address this.
+
+## Other
+
+- Please avoid the term "buddy" when describing athletes that have been paired with other athletes.

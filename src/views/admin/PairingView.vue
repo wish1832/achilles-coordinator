@@ -37,16 +37,45 @@
           <section class="pairing-instructions" aria-labelledby="instructions-heading">
             <h2 id="instructions-heading">How to Pair</h2>
             <CardUI>
-              <ol class="instructions-list">
-                <li>Click or press Enter/Space on an athlete, then click a guide to create a pairing</li>
-                <li>Or, click or press Enter/Space on a guide, then click an athlete to create a pairing</li>
-                <li>Athletes can be paired with multiple guides</li>
-                <li>Press Escape to clear your selection</li>
-                <li>Use Arrow Up/Down to navigate between cards in a column</li>
-                <li>Use Home/End to jump to the first or last card in a column</li>
-                <li>Click "Unpair" on a guide sub-card to remove that specific pairing</li>
-                <li>Click "Save Pairings" to save your changes</li>
-              </ol>
+              <div class="instructions-content">
+                <h3 class="instructions-subheading">Pairing Athletes with Guides</h3>
+                <ol class="instructions-list">
+                  <li>Click or press Enter/Space on an athlete, then click a guide to create a pairing</li>
+                  <li>Or, click or press Enter/Space on a guide, then click an athlete to create a pairing</li>
+                  <li>Athletes can be paired with multiple guides</li>
+                </ol>
+
+                <h3 class="instructions-subheading">Pairing Athletes Together</h3>
+                <p class="instructions-paragraph">
+                  When guide availability is limited, multiple athletes may need to share one guide. To
+                  represent this, you can pair athletes together. The second athlete will be shown under the
+                  first athlete's pairings.
+                </p>
+                <p class="instructions-paragraph"><strong>To pair athletes together:</strong></p>
+                <ul class="instructions-list">
+                  <li>
+                    <strong>With mouse:</strong> Click the first athlete (who will keep their own pairing
+                    entry), then click the second athlete (who will move under the first athlete's card)
+                  </li>
+                  <li>
+                    <strong>With keyboard:</strong> Press Enter or Space on the first athlete, then press
+                    Enter or Space on the second athlete
+                  </li>
+                </ul>
+                <p class="instructions-paragraph">
+                  Athletes may also be paired together without a guide. You are responsible for determining
+                  whether such pairings are appropriate for the run.
+                </p>
+
+                <h3 class="instructions-subheading">Navigation & Actions</h3>
+                <ul class="instructions-list">
+                  <li>Press Escape to clear your selection</li>
+                  <li>Use Arrow Up/Down to navigate between cards in a column</li>
+                  <li>Use Home/End to jump to the first or last card in a column</li>
+                  <li>Click "Unpair" on a sub-card to remove that specific pairing</li>
+                  <li>Click "Save Pairings" to save your changes</li>
+                </ul>
+              </div>
             </CardUI>
           </section>
 
@@ -94,18 +123,21 @@
                     class="person-card-wrapper athlete-card-wrapper"
                     :class="{
                       'is-selected': selectedAthleteId === athlete.id,
-                      'is-paired': getPairedGuides(athlete.id).length > 0,
+                      'is-paired': getPairedUsers(athlete.id).length > 0,
                     }"
                     role="button"
                     tabindex="0"
-                    :aria-label="`Athlete: ${athlete.displayName}${getPairedGuides(athlete.id).length > 0 ? `, paired with ${getPairedGuides(athlete.id).length} guide${getPairedGuides(athlete.id).length > 1 ? 's' : ''}` : ', not paired'}${selectedAthleteId === athlete.id ? ', selected' : ''}`"
+                    :aria-label="`Athlete: ${athlete.displayName}${getPairedUsers(athlete.id).length > 0 ? `, paired with ${getPairedUsers(athlete.id).length} user${getPairedUsers(athlete.id).length > 1 ? 's' : ''}` : ', not paired'}${selectedAthleteId === athlete.id ? ', selected' : ''}`"
                     @click="selectAthlete(athlete.id)"
                     @keydown="handleAthleteKeydown($event, athlete.id, index)"
                   >
                     <CardUI class="person-card athlete-card">
                       <div class="person-card__content">
                         <div class="person-info">
-                          <h4 class="person-name">{{ athlete.displayName }}</h4>
+                          <div class="person-name-wrapper">
+                            <h4 class="person-name">{{ athlete.displayName }}</h4>
+                            <span class="role-badge role-badge--athlete">Athlete</span>
+                          </div>
                           <p v-if="athlete.profileDetails.preferredPace" class="person-detail">
                             Pace: {{ athlete.profileDetails.preferredPace }} min/mile
                           </p>
@@ -116,48 +148,53 @@
 
                         <!-- Pairing status -->
                         <div class="pairing-status">
-                          <!-- Paired guides section -->
-                          <div v-if="getPairedGuides(athlete.id).length > 0" class="paired-guides-section">
+                          <!-- Paired users section -->
+                          <div v-if="getPairedUsers(athlete.id).length > 0" class="paired-guides-section">
                             <span class="paired-label">Paired with:</span>
 
-                            <!-- Individual guide sub-cards -->
+                            <!-- Individual user sub-cards (guides and athletes) -->
                             <div class="paired-guides-list">
                               <div
-                                v-for="guide in getPairedGuides(athlete.id)"
-                                :key="guide.id"
+                                v-for="user in getPairedUsers(athlete.id)"
+                                :key="user.id"
                                 class="paired-guide-card"
                               >
                                 <div class="paired-guide-header">
-                                  <h5 class="paired-guide-name">{{ guide.displayName }}</h5>
+                                  <div class="paired-guide-name-wrapper">
+                                    <h5 class="paired-guide-name">{{ user.displayName }}</h5>
+                                    <span class="role-badge" :class="`role-badge--${user.role}`">
+                                      {{ user.role === 'guide' ? 'Guide' : 'Athlete' }}
+                                    </span>
+                                  </div>
                                   <ButtonUI
                                     variant="danger"
                                     size="small"
-                                    :aria-label="`Unpair ${athlete.displayName} from ${guide.displayName}`"
-                                    @click.stop="unpairGuideFromAthlete(athlete.id, guide.id)"
-                                    @keydown="handleUnpairKeydown($event, athlete.id, guide.id)"
+                                    :aria-label="`Unpair ${athlete.displayName} from ${user.role} ${user.displayName}`"
+                                    @click.stop="unpairUserFromAthlete(athlete.id, user.id)"
+                                    @keydown="handleUnpairKeydown($event, athlete.id, user.id)"
                                   >
                                     Unpair
                                   </ButtonUI>
                                 </div>
                                 <div class="paired-guide-info">
                                   <p
-                                    v-if="guide.profileDetails.preferredPace"
+                                    v-if="user.profileDetails.preferredPace"
                                     class="paired-guide-detail"
                                   >
-                                    Pace: {{ guide.profileDetails.preferredPace }} min/mile
+                                    Pace: {{ user.profileDetails.preferredPace }} min/mile
                                   </p>
                                   <p
-                                    v-if="guide.profileDetails?.activities?.length"
+                                    v-if="user.profileDetails?.activities?.length"
                                     class="paired-guide-detail"
                                   >
-                                    Activities: {{ guide.profileDetails?.activities?.join(', ') }}
+                                    Activities: {{ user.profileDetails?.activities?.join(', ') }}
                                   </p>
                                   <p
-                                    v-if="guide.profileDetails?.certifications?.length"
+                                    v-if="user.profileDetails?.certifications?.length"
                                     class="paired-guide-detail certification"
                                   >
                                     <span class="certification-badge">✓</span>
-                                    {{ guide.profileDetails?.certifications?.join(', ') }}
+                                    {{ user.profileDetails?.certifications?.join(', ') }}
                                   </p>
                                 </div>
                               </div>
@@ -214,7 +251,10 @@
                     <CardUI class="person-card guide-card">
                       <div class="person-card__content">
                         <div class="person-info">
-                          <h4 class="person-name">{{ guide.displayName }}</h4>
+                          <div class="person-name-wrapper">
+                            <h4 class="person-name">{{ guide.displayName }}</h4>
+                            <span class="role-badge role-badge--guide">Guide</span>
+                          </div>
                           <p v-if="guide.profileDetails.preferredPace" class="person-detail">
                             Pace: {{ guide.profileDetails.preferredPace }} min/mile
                           </p>
@@ -301,8 +341,8 @@ const savingPairings = ref(false)
 // originalPairings: The saved state from the database, used to detect unsaved changes
 const selectedAthleteId = ref<string | null>(null)
 const selectedGuideId = ref<string | null>(null)
-const pairings = ref<Record<string, string[]>>({}) // athleteId -> array of guideIds mapping
-const originalPairings = ref<Record<string, string[]>>({})
+const pairings = ref<Record<string, { guides: string[]; athletes: string[] }>>({})
+const originalPairings = ref<Record<string, { guides: string[]; athletes: string[] }>>({})
 
 
 // Screen reader announcement
@@ -357,15 +397,27 @@ const run = computed(() => runsStore.currentRun)
 /**
  * Get athletes who signed up for the run
  * Filters sign-ups for active athlete sign-ups and maps to User objects
+ * Excludes athletes who are paired with other athletes (appearing in someone else's athletes array)
  */
 const athletes = computed(() => {
   const athleteSignUps = signupsStore
     .getSignUpsForRun(runId.value)
     .filter((s) => s.role === 'athlete' && s.status === 'active')
 
-  return athleteSignUps
+  const allAthletes = athleteSignUps
     .map((s) => usersStore.getUserById(s.userId))
     .filter((u) => u !== undefined) as User[]
+
+  // Get set of athlete IDs that are paired with other athletes
+  const pairedAthleteIds = new Set<string>()
+  for (const pairing of Object.values(pairings.value)) {
+    for (const athleteId of pairing.athletes) {
+      pairedAthleteIds.add(athleteId)
+    }
+  }
+
+  // Filter out athletes who have been paired with other athletes
+  return allAthletes.filter((athlete) => !pairedAthleteIds.has(athlete.id))
 })
 
 /**
@@ -399,13 +451,17 @@ const hasUnsavedChanges = computed(
 )
 
 /**
- * Get all guides paired with a specific athlete
+ * Get all users (guides and athletes) paired with a specific athlete
  * Returns empty array if athlete is not paired
  */
-function getPairedGuides(athleteId: string): User[] {
-  const guideIds = pairings.value[athleteId] || []
-  return guideIds
-    .map((guideId) => usersStore.getUserById(guideId))
+function getPairedUsers(athleteId: string): User[] {
+  const pairing = pairings.value[athleteId]
+  if (!pairing) return []
+
+  // Combine both guides and athletes arrays
+  const allUserIds = [...pairing.guides, ...pairing.athletes]
+  return allUserIds
+    .map((userId) => usersStore.getUserById(userId))
     .filter((user) => user !== undefined) as User[]
 }
 
@@ -413,22 +469,9 @@ function getPairedGuides(athleteId: string): User[] {
  * Check if a guide is currently paired with any athlete
  */
 function isGuidePaired(guideId: string): boolean {
-  return Object.values(pairings.value).some((guideIds) => guideIds.includes(guideId))
+  return Object.values(pairings.value).some((pairing) => pairing.guides.includes(guideId))
 }
 
-/**
- * Get all athletes paired with a specific guide
- * Returns array of athletes (can be multiple with new system)
- */
-function getAthletesForGuide(guideId: string): User[] {
-  const athleteIds = Object.keys(pairings.value).filter((athleteId) => {
-    const guides = pairings.value[athleteId]
-    return guides && guides.includes(guideId)
-  })
-  return athleteIds
-    .map((athleteId) => usersStore.getUserById(athleteId))
-    .filter((user) => user !== undefined) as User[]
-}
 
 // ==========================================
 // Data Loading
@@ -487,6 +530,7 @@ async function loadData(): Promise<void> {
 /**
  * Select an athlete
  * If a guide is already selected, creates the pairing immediately
+ * If another athlete is already selected, creates an athlete-athlete pairing
  * Otherwise, marks the athlete as selected
  */
 function selectAthlete(athleteId: string): void {
@@ -496,10 +540,20 @@ function selectAthlete(athleteId: string): void {
     return
   }
 
+  // If another athlete is already selected, create athlete-athlete pairing
+  // The currently clicked athlete (athleteId) keeps their own card in the main list
+  // The previously selected athlete (selectedAthleteId.value) appears under this athlete's pairings
+  if (selectedAthleteId.value && selectedAthleteId.value !== athleteId) {
+    createPairing(athleteId, selectedAthleteId.value)
+    return
+  }
+
   // Otherwise, select the athlete
   selectedAthleteId.value = athleteId
   const athleteName = usersStore.getUserById(athleteId)?.displayName
-  announceToScreenReader(`Selected athlete: ${athleteName}. Now select a guide to create pairing.`)
+  announceToScreenReader(
+    `Selected athlete: ${athleteName}. Now select a guide or another athlete to create pairing.`,
+  )
 }
 
 /**
@@ -521,29 +575,102 @@ function selectGuide(guideId: string): void {
 }
 
 /**
- * Create a pairing between an athlete and guide
- * Adds guide to athlete's array of guides
+ * Validate if two users can be paired
+ * Handles validation for both athlete-guide and athlete-athlete pairings
  */
-function createPairing(athleteId: string, guideId: string): void {
-  // Initialize array if athlete has no pairings yet
-  if (!pairings.value[athleteId]) {
-    pairings.value[athleteId] = []
+function canPairUsers(
+  athleteId: string,
+  userId: string,
+): { allowed: boolean; reason?: string } {
+  // Prevent self-pairing
+  if (athleteId === userId) {
+    return { allowed: false, reason: 'Cannot pair athlete with themselves' }
+  }
+
+  // Get the user being paired
+  const user = usersStore.getUserById(userId)
+  if (!user) {
+    return { allowed: false, reason: 'User not found' }
   }
 
   // Check if this specific pairing already exists
-  if (pairings.value[athleteId].includes(guideId)) {
-    announceToScreenReader('This pairing already exists')
+  const athletePairing = pairings.value[athleteId]
+  if (athletePairing) {
+    if (
+      athletePairing.guides.includes(userId) ||
+      athletePairing.athletes.includes(userId)
+    ) {
+      return { allowed: false, reason: 'This pairing already exists' }
+    }
+  }
+
+  // If userId is a guide, allow pairing (existing behavior)
+  if (user.role === 'guide') {
+    return { allowed: true }
+  }
+
+  // userId is an athlete - check if they have actual pairings (not just an empty entry)
+  const userPairing = pairings.value[userId]
+  if (userPairing && (userPairing.guides.length > 0 || userPairing.athletes.length > 0)) {
+    return { allowed: false, reason: 'This athlete already has their own pairings' }
+  }
+
+  // Check if userId appears in any other athlete's pairings
+  for (const [otherId, pairing] of Object.entries(pairings.value)) {
+    if (otherId !== athleteId) {
+      if (pairing.athletes.includes(userId) || pairing.guides.includes(userId)) {
+        return { allowed: false, reason: 'This athlete is already paired with another athlete' }
+      }
+    }
+  }
+
+  return { allowed: true }
+}
+
+/**
+ * Create a pairing between an athlete and another user (guide or athlete)
+ * Handles both athlete-guide and athlete-athlete pairings
+ */
+function createPairing(athleteId: string, userId: string): void {
+  // Validate the pairing
+  const validation = canPairUsers(athleteId, userId)
+  if (!validation.allowed) {
+    announceToScreenReader(validation.reason || 'Cannot create pairing')
     selectedAthleteId.value = null
     selectedGuideId.value = null
     return
   }
 
-  // Add the guide to the athlete's pairings
-  pairings.value[athleteId].push(guideId)
+  // Initialize pairing structure if athlete has no pairings yet
+  if (!pairings.value[athleteId]) {
+    pairings.value[athleteId] = { guides: [], athletes: [] }
+  }
+
+  // Get the user being paired
+  const user = usersStore.getUserById(userId)
+  if (!user) {
+    announceToScreenReader('User not found')
+    selectedAthleteId.value = null
+    selectedGuideId.value = null
+    return
+  }
+
+  // If pairing with an athlete, clear their existing pairings
+  if (user.role === 'athlete' && userId in pairings.value) {
+    delete pairings.value[userId]
+  }
+
+  // Add the user to the appropriate array based on their role
+  if (user.role === 'guide') {
+    pairings.value[athleteId].guides.push(userId)
+  } else {
+    pairings.value[athleteId].athletes.push(userId)
+  }
 
   const athleteName = usersStore.getUserById(athleteId)?.displayName
-  const guideName = usersStore.getUserById(guideId)?.displayName
-  announceToScreenReader(`Paired ${athleteName} with ${guideName}`)
+  const userName = user.displayName
+  const userRoleLabel = user.role === 'guide' ? 'guide' : 'athlete'
+  announceToScreenReader(`Paired athlete ${athleteName} with ${userRoleLabel} ${userName}`)
 
   // Clear both selections after successful pairing
   selectedAthleteId.value = null
@@ -551,27 +678,43 @@ function createPairing(athleteId: string, guideId: string): void {
 }
 
 /**
- * Remove a specific guide from an athlete's pairings
+ * Remove a specific user (guide or athlete) from an athlete's pairings
  */
-function unpairGuideFromAthlete(athleteId: string, guideId: string): void {
+function unpairUserFromAthlete(athleteId: string, userId: string): void {
   // Get the current pairings for this athlete
-  const guidesArray = pairings.value[athleteId]
-  if (!guidesArray) return
+  const pairing = pairings.value[athleteId]
+  if (!pairing) return
 
-  // Remove the specific guide from the array
-  const index = guidesArray.indexOf(guideId)
-  if (index > -1) {
-    guidesArray.splice(index, 1)
+  // Get the user to determine their role
+  const user = usersStore.getUserById(userId)
+  if (!user) return
+
+  // Remove the user from the appropriate array
+  if (user.role === 'guide') {
+    const index = pairing.guides.indexOf(userId)
+    if (index > -1) {
+      pairing.guides.splice(index, 1)
+    }
+  } else {
+    // Athlete - remove from athletes array
+    const index = pairing.athletes.indexOf(userId)
+    if (index > -1) {
+      pairing.athletes.splice(index, 1)
+    }
+
+    // Restore the athlete's own empty pairing entry
+    pairings.value[userId] = { guides: [], athletes: [] }
   }
 
-  // If no more guides for this athlete, remove the entry entirely
-  if (guidesArray.length === 0) {
+  // If no more guides or athletes for this athlete, remove the entry entirely
+  if (pairing.guides.length === 0 && pairing.athletes.length === 0) {
     delete pairings.value[athleteId]
   }
 
   const athleteName = usersStore.getUserById(athleteId)?.displayName
-  const guideName = usersStore.getUserById(guideId)?.displayName
-  announceToScreenReader(`Unpaired ${athleteName} from ${guideName}`)
+  const userName = user.displayName
+  const userRoleLabel = user.role === 'guide' ? 'guide' : 'athlete'
+  announceToScreenReader(`Unpaired athlete ${athleteName} from ${userRoleLabel} ${userName}`)
 }
 
 /**
@@ -602,7 +745,8 @@ async function savePairings(): Promise<void> {
     })
 
     // Update original pairings to mark as saved
-    originalPairings.value = { ...pairings.value }
+    // Use deep copy to properly track changes since pairings contains nested arrays
+    originalPairings.value = JSON.parse(JSON.stringify(pairings.value))
 
     announceToScreenReader('Pairings saved successfully')
   } catch (err) {
@@ -757,14 +901,14 @@ function handleGuideKeydown(event: KeyboardEvent, guideId: string, currentIndex:
 
 /**
  * Handle keyboard events on unpair buttons
- * Enter/Space: Unpair specific guide from athlete
+ * Enter/Space: Unpair specific user from athlete
  * Stops propagation to prevent triggering the parent card's click handler
  */
-function handleUnpairKeydown(event: KeyboardEvent, athleteId: string, guideId: string): void {
+function handleUnpairKeydown(event: KeyboardEvent, athleteId: string, userId: string): void {
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
     event.stopPropagation()
-    unpairGuideFromAthlete(athleteId, guideId)
+    unpairUserFromAthlete(athleteId, userId)
   }
 }
 
@@ -939,10 +1083,32 @@ onMounted(() => {
   margin: 0 0 1rem 0;
 }
 
+.instructions-content {
+  padding: 1rem;
+}
+
+.instructions-subheading {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text, #111827);
+  margin: 1rem 0 0.5rem 0;
+}
+
+.instructions-subheading:first-child {
+  margin-top: 0;
+}
+
+.instructions-paragraph {
+  font-size: 1rem;
+  color: var(--color-text, #111827);
+  line-height: 1.6;
+  margin: 0 0 0.75rem 0;
+}
+
 .instructions-list {
-  margin: 0;
-  padding: 1rem 1rem 1rem 2.5rem;
-  list-style-type: decimal;
+  margin: 0 0 0.75rem 0;
+  padding: 0 0 0 1.5rem;
+  list-style-type: disc;
 }
 
 .instructions-list li {
@@ -1083,12 +1249,42 @@ onMounted(() => {
   gap: 0.25rem;
 }
 
+.person-name-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .person-name {
   font-size: 1.125rem;
   font-weight: 600;
   color: var(--color-text, #111827);
   margin: 0;
   line-height: 1.3;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  border-radius: 0.25rem;
+  line-height: 1.5;
+}
+
+.role-badge--athlete {
+  background-color: var(--color-info-light, #e3f2fd);
+  color: var(--color-info-dark, #0d47a1);
+  border: 1px solid var(--color-info, #2196f3);
+}
+
+.role-badge--guide {
+  background-color: var(--color-success-light, #f0f9f4);
+  color: var(--color-success-dark, #155724);
+  border: 1px solid var(--color-success, #28a745);
 }
 
 .person-detail {
@@ -1172,6 +1368,14 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+.paired-guide-name-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex: 1;
 }
 
 .paired-guide-name {
