@@ -610,11 +610,20 @@ async function loadData(): Promise<void> {
 
 /**
  * Select an athlete
+ * If the same athlete is already selected, deselects them
  * If a guide is already selected, creates the pairing immediately
  * If another athlete is already selected, creates an athlete-athlete pairing
  * Otherwise, marks the athlete as selected
  */
 function selectAthlete(athleteId: string): void {
+  // If clicking the same athlete that's already selected, deselect them
+  if (selectedAthleteId.value === athleteId) {
+    selectedAthleteId.value = null
+    const athleteName = usersStore.getUserById(athleteId)?.displayName
+    announceToScreenReader(`Deselected athlete: ${athleteName}`)
+    return
+  }
+
   // If a guide is already selected, create the pairing
   if (selectedGuideId.value) {
     createPairing(athleteId, selectedGuideId.value)
@@ -639,10 +648,19 @@ function selectAthlete(athleteId: string): void {
 
 /**
  * Select a guide
+ * If the same guide is already selected, deselects them
  * If an athlete is already selected, creates the pairing immediately
  * Otherwise, marks the guide as selected
  */
 function selectGuide(guideId: string): void {
+  // If clicking the same guide that's already selected, deselect them
+  if (selectedGuideId.value === guideId) {
+    selectedGuideId.value = null
+    const guideName = usersStore.getUserById(guideId)?.displayName
+    announceToScreenReader(`Deselected guide: ${guideName}`)
+    return
+  }
+
   // If an athlete is already selected, create the pairing
   if (selectedAthleteId.value) {
     createPairing(selectedAthleteId.value, guideId)
