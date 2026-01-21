@@ -11,9 +11,12 @@
     <!-- Header -->
     <header class="pairing-header">
       <div class="pairing-header__content">
-        <h1 class="pairing-title">Manage Pairings</h1>
+        <h1 class="pairing-title">Manage Pairing Groups</h1>
         <p v-if="organization && run" class="pairing-subtitle">
-          {{ organization.name }} - {{ formatRunDate(run.date) }} at {{ run.time }}
+          {{ organization.name }}
+        </p>
+        <p v-if="organization && run" class="pairing-subtitle">
+          <b>{{ formatRunDate(run.date) }} at {{ run.time }}</b>
         </p>
       </div>
     </header>
@@ -22,7 +25,12 @@
     <main id="main-content" class="pairing-main">
       <div class="pairing-container">
         <!-- Loading state -->
-        <LoadingUI v-if="loading === 'loading'" type="spinner" centered text="Loading pairing data..." />
+        <LoadingUI
+          v-if="loading === 'loading'"
+          type="spinner"
+          centered
+          text="Loading pairing data..."
+        />
 
         <!-- Error state -->
         <div v-else-if="loading === 'error'" class="error-state">
@@ -40,31 +48,37 @@
               <div class="instructions-content">
                 <h3 class="instructions-subheading">Pairing Athletes with Guides</h3>
                 <ol class="instructions-list">
-                  <li>Click or press Enter/Space on an athlete, then click a guide to create a pairing</li>
-                  <li>Or, click or press Enter/Space on a guide, then click an athlete to create a pairing</li>
+                  <li>
+                    Click or press Enter/Space on an athlete, then click a guide to create a pairing
+                  </li>
+                  <li>
+                    Or, click or press Enter/Space on a guide, then click an athlete to create a
+                    pairing
+                  </li>
                   <li>Athletes can be paired with multiple guides</li>
                 </ol>
 
                 <h3 class="instructions-subheading">Pairing Athletes Together</h3>
                 <p class="instructions-paragraph">
-                  When guide availability is limited, multiple athletes may need to share one guide. To
-                  represent this, you can pair athletes together. The second athlete will be shown under the
-                  first athlete's pairings.
+                  When guide availability is limited, multiple athletes may need to share one guide.
+                  To represent this, you can pair athletes together. The second athlete will be
+                  shown under the first athlete's pairings.
                 </p>
                 <p class="instructions-paragraph"><strong>To pair athletes together:</strong></p>
                 <ul class="instructions-list">
                   <li>
-                    <strong>With mouse:</strong> Click the first athlete (who will keep their own pairing
-                    entry), then click the second athlete (who will move under the first athlete's card)
+                    <strong>With mouse:</strong> Click the first athlete (who will keep their own
+                    pairing entry), then click the second athlete (who will move under the first
+                    athlete's card)
                   </li>
                   <li>
-                    <strong>With keyboard:</strong> Press Enter or Space on the first athlete, then press
-                    Enter or Space on the second athlete
+                    <strong>With keyboard:</strong> Press Enter or Space on the first athlete, then
+                    press Enter or Space on the second athlete
                   </li>
                 </ul>
                 <p class="instructions-paragraph">
-                  Athletes may also be paired together without a guide. You are responsible for determining
-                  whether such pairings are appropriate for the run.
+                  Athletes may also be paired together without a guide. You are responsible for
+                  determining whether such pairings are appropriate for the run.
                 </p>
 
                 <h3 class="instructions-subheading">Navigation & Actions</h3>
@@ -84,9 +98,7 @@
             <h2 id="actions-heading" class="sr-only">Actions</h2>
             <div class="actions-bar">
               <div class="actions-status">
-                <span v-if="hasUnsavedChanges" class="unsaved-indicator">
-                  Unsaved changes
-                </span>
+                <span v-if="hasUnsavedChanges" class="unsaved-indicator"> Unsaved changes </span>
                 <span v-else class="saved-indicator">All changes saved</span>
               </div>
               <ButtonUI
@@ -149,7 +161,10 @@
                         <!-- Pairing status -->
                         <div class="pairing-status">
                           <!-- Paired users section -->
-                          <div v-if="getPairedUsers(athlete.id).length > 0" class="paired-guides-section">
+                          <div
+                            v-if="getPairedUsers(athlete.id).length > 0"
+                            class="paired-guides-section"
+                          >
                             <span class="paired-label">Paired with:</span>
 
                             <!-- Individual user sub-cards (guides and athletes) -->
@@ -289,7 +304,6 @@
         </div>
       </div>
     </main>
-
   </div>
 </template>
 
@@ -343,7 +357,6 @@ const selectedAthleteId = ref<string | null>(null)
 const selectedGuideId = ref<string | null>(null)
 const pairings = ref<Record<string, { guides: string[]; athletes: string[] }>>({})
 const originalPairings = ref<Record<string, { guides: string[]; athletes: string[] }>>({})
-
 
 // Screen reader announcement
 // This string is announced to screen readers via an ARIA live region
@@ -472,7 +485,6 @@ function isGuidePaired(guideId: string): boolean {
   return Object.values(pairings.value).some((pairing) => pairing.guides.includes(guideId))
 }
 
-
 // ==========================================
 // Data Loading
 // ==========================================
@@ -578,10 +590,7 @@ function selectGuide(guideId: string): void {
  * Validate if two users can be paired
  * Handles validation for both athlete-guide and athlete-athlete pairings
  */
-function canPairUsers(
-  athleteId: string,
-  userId: string,
-): { allowed: boolean; reason?: string } {
+function canPairUsers(athleteId: string, userId: string): { allowed: boolean; reason?: string } {
   // Prevent self-pairing
   if (athleteId === userId) {
     return { allowed: false, reason: 'Cannot pair athlete with themselves' }
@@ -596,10 +605,7 @@ function canPairUsers(
   // Check if this specific pairing already exists
   const athletePairing = pairings.value[athleteId]
   if (athletePairing) {
-    if (
-      athletePairing.guides.includes(userId) ||
-      athletePairing.athletes.includes(userId)
-    ) {
+    if (athletePairing.guides.includes(userId) || athletePairing.athletes.includes(userId)) {
       return { allowed: false, reason: 'This pairing already exists' }
     }
   }
