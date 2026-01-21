@@ -209,7 +209,7 @@
                                     v-if="user.profileDetails.preferredPace"
                                     class="paired-guide-detail"
                                   >
-                                    Pace: {{ user.profileDetails.preferredPace }} min/mile
+                                    {{ user.role === 'guide' ? 'Max pace' : 'Pace' }}: {{ user.profileDetails.preferredPace }} min/mile
                                   </p>
                                   <p
                                     v-if="user.profileDetails?.activities?.length"
@@ -284,7 +284,7 @@
                             <span class="role-badge role-badge--guide">Guide</span>
                           </div>
                           <p v-if="guide.profileDetails.preferredPace" class="person-detail">
-                            Pace: {{ guide.profileDetails.preferredPace }} min/mile
+                            Max pace: {{ guide.profileDetails.preferredPace }} min/mile
                           </p>
                           <p v-if="guide.profileDetails.activities?.length" class="person-detail">
                             Activities: {{ guide.profileDetails.activities.join(', ') }}
