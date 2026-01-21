@@ -116,6 +116,19 @@
           <section class="pairing-columns-section" aria-labelledby="pairings-heading">
             <h2 id="pairings-heading" class="sr-only">Athletes and Guides</h2>
 
+            <!-- Sort controls -->
+            <div class="sort-controls">
+              <ButtonUI
+                variant="secondary"
+                :aria-label="`Sort by pace, currently ${sortDirection === 'asc' ? 'slowest to fastest' : 'fastest to slowest'}. Click to toggle.`"
+                @click="toggleSortDirection"
+              >
+                Pace
+                <PhCaretUp v-if="sortDirection === 'asc'" :size="32" weight="duotone" />
+                <PhCaretDown v-else :size="32" weight="duotone" />
+              </ButtonUI>
+            </div>
+
             <div class="pairing-columns">
               <!-- Athletes column -->
               <div class="pairing-column athletes-column">
@@ -327,6 +340,9 @@ import CardUI from '@/components/ui/CardUI.vue'
 import ButtonUI from '@/components/ui/ButtonUI.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 
+// Phosphor Icons
+import { PhCaretUp, PhCaretDown } from '@phosphor-icons/vue'
+
 // Route access
 const route = useRoute()
 
@@ -357,6 +373,12 @@ const selectedAthleteId = ref<string | null>(null)
 const selectedGuideId = ref<string | null>(null)
 const pairings = ref<Record<string, { guides: string[]; athletes: string[] }>>({})
 const originalPairings = ref<Record<string, { guides: string[]; athletes: string[] }>>({})
+
+// Sorting state
+// sortDirection: 'asc' means slowest to fastest (ascending pace values)
+//                'desc' means fastest to slowest (descending pace values)
+// Default to descending (fastest to slowest)
+const sortDirection = ref<'asc' | 'desc'>('desc')
 
 // Screen reader announcement
 // This string is announced to screen readers via an ARIA live region
@@ -411,6 +433,7 @@ const run = computed(() => runsStore.currentRun)
  * Get athletes who signed up for the run
  * Filters sign-ups for active athlete sign-ups and maps to User objects
  * Excludes athletes who are paired with other athletes (appearing in someone else's athletes array)
+ * Results are sorted by pace according to current sortDirection
  */
 const athletes = computed(() => {
   const athleteSignUps = signupsStore
@@ -430,21 +453,28 @@ const athletes = computed(() => {
   }
 
   // Filter out athletes who have been paired with other athletes
-  return allAthletes.filter((athlete) => !pairedAthleteIds.has(athlete.id))
+  const filteredAthletes = allAthletes.filter((athlete) => !pairedAthleteIds.has(athlete.id))
+
+  // Sort by pace
+  return sortByPace(filteredAthletes)
 })
 
 /**
  * Get guides who signed up for the run
  * Filters sign-ups for active guide sign-ups and maps to User objects
+ * Results are sorted by pace according to current sortDirection
  */
 const guides = computed(() => {
   const guideSignUps = signupsStore
     .getSignUpsForRun(runId.value)
     .filter((s) => s.role === 'guide' && s.status === 'active')
 
-  return guideSignUps
+  const allGuides = guideSignUps
     .map((s) => usersStore.getUserById(s.userId))
     .filter((u) => u !== undefined) as User[]
+
+  // Sort by pace
+  return sortByPace(allGuides)
 })
 
 /**
@@ -483,6 +513,45 @@ function getPairedUsers(athleteId: string): User[] {
  */
 function isGuidePaired(guideId: string): boolean {
   return Object.values(pairings.value).some((pairing) => pairing.guides.includes(guideId))
+}
+
+/**
+ * Toggle the sort direction between ascending and descending
+ * Ascending: slowest to fastest (higher pace numbers first)
+ * Descending: fastest to slowest (lower pace numbers first)
+ */
+function toggleSortDirection(): void {
+  sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+  const direction = sortDirection.value === 'asc' ? 'slowest to fastest' : 'fastest to slowest'
+  announceToScreenReader(`Sorted by pace, ${direction}`)
+}
+
+/**
+ * Sort users by their preferred pace
+ * Users without a pace are placed at the end of the list
+ */
+function sortByPace<T extends User>(users: T[]): T[] {
+  return [...users].sort((a, b) => {
+    const paceA = a.profileDetails.preferredPace
+    const paceB = b.profileDetails.preferredPace
+
+    // Users without pace go to the end
+    if (!paceA && !paceB) return 0
+    if (!paceA) return 1
+    if (!paceB) return -1
+
+    // Parse pace values as numbers for comparison
+    const numA = parseFloat(String(paceA))
+    const numB = parseFloat(String(paceB))
+
+    // Ascending: slowest first (higher numbers first)
+    // Descending: fastest first (lower numbers first)
+    if (sortDirection.value === 'asc') {
+      return numB - numA
+    } else {
+      return numA - numB
+    }
+  })
 }
 
 // ==========================================
@@ -1132,10 +1201,6 @@ onMounted(() => {
    Actions Bar (Save section)
    ========================================== */
 
-.pairing-actions {
-  /* Contained by actions-bar */
-}
-
 .actions-bar {
   display: flex;
   align-items: center;
@@ -1161,11 +1226,20 @@ onMounted(() => {
 }
 
 /* ==========================================
-   Pairing Columns
+   Sort Controls
    ========================================== */
 
-.pairing-columns-section {
-  /* Container for columns */
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.sort-controls :deep(.button__content) {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .pairing-columns {
