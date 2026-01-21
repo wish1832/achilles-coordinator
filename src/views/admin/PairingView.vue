@@ -272,11 +272,11 @@
                     }"
                     role="button"
                     tabindex="0"
-                    :aria-label="`Guide: ${guide.displayName}, available${selectedGuideId === guide.id ? ', selected' : ''}. ${selectedAthleteId ? 'Press Enter or Space to pair with selected athlete' : ''}`"
+                    :aria-label="`Guide: ${guide.displayName}, available${getGuideCompatibilityLabel(guide.id)}${selectedGuideId === guide.id ? ', selected' : ''}. ${selectedAthleteId ? 'Press Enter or Space to pair with selected athlete' : ''}`"
                     @click="selectGuide(guide.id)"
                     @keydown="handleGuideKeydown($event, guide.id, index)"
                   >
-                    <CardUI class="person-card guide-card">
+                    <CardUI class="person-card guide-card" :style="getGuideCardStyle(guide.id)">
                       <div class="person-card__content">
                         <div class="person-info">
                           <div class="person-name-wrapper">
@@ -1003,6 +1003,176 @@ function handleUnpairKeydown(event: KeyboardEvent, athleteId: string, userId: st
     event.stopPropagation()
     unpairUserFromAthlete(athleteId, userId)
   }
+}
+
+// ==========================================
+// Pace Compatibility Functions
+// ==========================================
+
+// Severity levels for pace compatibility
+// 'none' = no mismatch, 'slight' = minor concern, 'significant' = major concern
+type PaceCompatibilitySeverity = 'none' | 'slight' | 'significant'
+
+/**
+ * Determines the severity of pace incompatibility between an athlete and a guide.
+ *
+ * The logic varies based on the athlete's pace:
+ * - For paces faster than or equal to 10 min/mile:
+ *   - 'slight' if guide's max pace is 30 seconds to under 1 minute slower
+ *   - 'significant' if guide's max pace is 1 minute or more slower
+ * - For paces slower than 10 min/mile:
+ *   - 'slight' if guide's max pace is 1 minute to under 2 minutes slower
+ *   - 'significant' if guide's max pace is 2 minutes or more slower
+ *
+ * @param athletePace - The athlete's preferred pace (e.g., "8", "10.5", "12")
+ * @param guidePace - The guide's max pace (e.g., "9", "11", "14")
+ * @returns The severity level of the pace incompatibility
+ */
+function getPaceCompatibilitySeverity(
+  athletePace: string | number | undefined,
+  guidePace: string | number | undefined,
+): PaceCompatibilitySeverity {
+  // If either pace is not defined, no mismatch can be determined
+  if (athletePace === undefined || guidePace === undefined) {
+    return 'none'
+  }
+
+  // Parse pace values as numbers (in minutes per mile)
+  const athletePaceNum = parseFloat(String(athletePace))
+  const guidePaceNum = parseFloat(String(guidePace))
+
+  // If parsing fails, no mismatch can be determined
+  if (isNaN(athletePaceNum) || isNaN(guidePaceNum)) {
+    return 'none'
+  }
+
+  // Calculate how much slower the guide is compared to the athlete
+  // A positive value means the guide is slower (higher pace number = slower)
+  const paceDifference = guidePaceNum - athletePaceNum
+
+  // If guide is not slower than athlete, no mismatch
+  if (paceDifference <= 0) {
+    return 'none'
+  }
+
+  // Apply different thresholds based on athlete's pace
+  // Threshold is 10 min/mile
+  if (athletePaceNum <= 10) {
+    // For faster paces (10 min/mile or faster):
+    // 'slight' if guide is 0.5 to under 1 minute slower
+    // 'significant' if guide is 1 minute or more slower
+    if (paceDifference >= 1) {
+      return 'significant'
+    } else if (paceDifference >= 0.5) {
+      return 'slight'
+    }
+  } else {
+    // For slower paces (slower than 10 min/mile):
+    // 'slight' if guide is 1 to under 2 minutes slower
+    // 'significant' if guide is 2 minutes or more slower
+    if (paceDifference >= 2) {
+      return 'significant'
+    } else if (paceDifference >= 1) {
+      return 'slight'
+    }
+  }
+
+  // No mismatch - guide's pace is close enough to athlete's pace
+  return 'none'
+}
+
+/**
+ * Maps a pace compatibility severity to a background color for visual highlighting.
+ *
+ * @param severity - The pace compatibility severity level
+ * @returns The background color hex code, or null if no highlight should be applied
+ */
+function getPaceCompatibilityColor(severity: PaceCompatibilitySeverity): string | null {
+  switch (severity) {
+    case 'significant':
+      return '#FFCDBE' // Red highlight
+    case 'slight':
+      return '#FDFFDC' // Yellow highlight
+    default:
+      return null
+  }
+}
+
+/**
+ * Maps a pace compatibility severity to a screen reader label.
+ *
+ * @param severity - The pace compatibility severity level
+ * @returns A string describing the pace compatibility for screen readers
+ */
+function getPaceCompatibilityScreenReaderLabel(severity: PaceCompatibilitySeverity): string {
+  switch (severity) {
+    case 'significant':
+      return ', pace mismatch'
+    case 'slight':
+      return ', slight pace mismatch'
+    default:
+      return ''
+  }
+}
+
+/**
+ * Gets the pace compatibility severity for a guide relative to the currently selected athlete.
+ *
+ * @param guideId - The ID of the guide
+ * @returns The pace compatibility severity level
+ */
+function getGuideCompatibilitySeverity(guideId: string): PaceCompatibilitySeverity {
+  // Only check compatibility if an athlete is selected
+  if (!selectedAthleteId.value) {
+    return 'none'
+  }
+
+  // Get the selected athlete's pace
+  const selectedAthlete = usersStore.getUserById(selectedAthleteId.value)
+  if (!selectedAthlete) {
+    return 'none'
+  }
+
+  // Get the guide's pace
+  const guide = usersStore.getUserById(guideId)
+  if (!guide) {
+    return 'none'
+  }
+
+  return getPaceCompatibilitySeverity(
+    selectedAthlete.profileDetails.preferredPace,
+    guide.profileDetails.preferredPace,
+  )
+}
+
+/**
+ * Gets the inline style object for a guide card based on pace compatibility
+ * with the currently selected athlete.
+ *
+ * @param guideId - The ID of the guide
+ * @returns An object with backgroundColor property if highlighting is needed, empty object otherwise
+ */
+function getGuideCardStyle(guideId: string): Record<string, string> {
+  const severity = getGuideCompatibilitySeverity(guideId)
+  const backgroundColor = getPaceCompatibilityColor(severity)
+
+  if (backgroundColor) {
+    return { backgroundColor }
+  }
+
+  return {}
+}
+
+/**
+ * Gets the screen reader label for a guide's pace compatibility
+ * with the currently selected athlete.
+ *
+ * @param guideId - The ID of the guide
+ * @returns A string to append to the aria-label describing pace compatibility
+ */
+function getGuideCompatibilityLabel(guideId: string): string {
+  const severity = getGuideCompatibilitySeverity(guideId)
+  return getPaceCompatibilityScreenReaderLabel(severity)
 }
 
 // ==========================================
