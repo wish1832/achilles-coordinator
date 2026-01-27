@@ -11,6 +11,7 @@ import {
   type CollectionName,
 } from './mockState'
 import { MockCollectionHelper } from './internal/MockCollectionHelper'
+import { MockUserRepository } from './MockUserRepository'
 
 function sortByDateAscending<T extends { date?: Date }>(items: T[]): T[] {
   return [...items].sort((a, b) => {
@@ -43,6 +44,7 @@ export class MockDataRepository implements IDataRepository {
     clone,
     nextId,
   })
+  private readonly userRepository = new MockUserRepository()
   async addDocument<T extends { id?: string }>(
     collectionName: string,
     data: Omit<T, 'id'>,
@@ -93,16 +95,15 @@ export class MockDataRepository implements IDataRepository {
   }
 
   async updateUser(id: string, userData: Partial<Omit<User, 'id'>>): Promise<void> {
-    return this.collectionHelper.updateDocument('users', id, userData)
+    return this.userRepository.updateUser(id, userData)
   }
 
   async getUser(id: string): Promise<User | null> {
-    return this.collectionHelper.getDocument('users', id)
+    return this.userRepository.getUser(id)
   }
 
   async getUsers(): Promise<User[]> {
-    const users = await this.collectionHelper.getDocuments<User>('users')
-    return users.sort((a, b) => a.displayName.localeCompare(b.displayName))
+    return this.userRepository.getUsers()
   }
 
   async createRun(runData: Omit<Run, 'id'>): Promise<string> {

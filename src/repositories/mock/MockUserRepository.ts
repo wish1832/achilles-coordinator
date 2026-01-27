@@ -20,7 +20,7 @@ export class MockUserRepository implements IUserRepository {
   }
 
   async getUser(id: string): Promise<User | null> {
-    return this.collectionHelper.getDocument('users', id)
+    return this.collectionHelper.getDocument<User>('users', id)
   }
 
   async getUsers(): Promise<User[]> {
