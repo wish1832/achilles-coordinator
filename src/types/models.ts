@@ -6,6 +6,26 @@
 // User roles in the system
 export type UserRole = 'athlete' | 'guide'
 
+// Invitation status options
+export type OrganizationInviteStatus = 'pending' | 'accepted' | 'revoked'
+
+/**
+ * Organization invite
+ * Represents an invite for a user to join an organization by email
+ */
+export interface OrganizationInvite {
+  id: string
+  organizationId: string
+  email: string
+  role: UserRole
+  invitedByUserId: string
+  status: OrganizationInviteStatus
+  createdAt: Date
+  acceptedAt?: Date
+  userId?: string
+  displayName?: string
+}
+
 /**
  * Organization (Achilles chapter)
  * Represents a local Achilles chapter (e.g., Denver, Boulder)
@@ -24,23 +44,6 @@ export interface Organization {
     defaultMaxGuides?: number
     timezone?: string
   }
-}
-
-/**
- * Organization invite
- * Represents an invitation for a user to join an organization.
- * This is intentionally minimal on this branch so mock repositories can type-check cleanly.
- */
-export interface OrganizationInvite {
-  id: string
-  organizationId: string
-  email: string
-  role: UserRole
-  invitedBy: string
-  createdAt: Date
-  status?: 'pending' | 'accepted' | 'expired' | 'revoked'
-  acceptedAt?: Date
-  expiresAt?: Date
 }
 
 // Run status options
