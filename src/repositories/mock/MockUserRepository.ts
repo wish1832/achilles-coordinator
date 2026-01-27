@@ -1,6 +1,6 @@
 import type { User } from '@/types/models'
 import type { IUserRepository } from '@/repositories/interfaces/IUserRepository'
-import { clone, mockState } from './mockState'
+import { clone, mockState, nextId } from './mockState'
 
 export class MockUserRepository implements IUserRepository {
   async createUser(id: string, userData: Omit<User, 'id'>): Promise<void> {
@@ -12,7 +12,9 @@ export class MockUserRepository implements IUserRepository {
   }
 
   async createUserWithGeneratedId(userData: Omit<User, 'id'>): Promise<string> {
-    return this.collectionHelper.addDocument('users', userData)
+    const id = nextId('user')
+    mockState.users.push({ ...clone(userData), id })
+    return id
   }
 
   async updateUser(id: string, userData: Partial<Omit<User, 'id'>>): Promise<void> {
