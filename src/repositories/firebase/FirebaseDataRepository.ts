@@ -4,6 +4,7 @@ import {
   orderBy,
   arrayUnion,
   arrayRemove,
+  updateDoc,
   Timestamp,
   type Firestore,
   type Unsubscribe,

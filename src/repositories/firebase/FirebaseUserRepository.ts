@@ -28,15 +28,15 @@ export class FirebaseUserRepository implements IUserRepository {
   }
 
   async getUser(id: string): Promise<User | null> {
-    return this.collectionHelper.getDocument('users', id)
+    return this.collectionHelper.getDocument<User>('users', id)
   }
 
   async getUsers(): Promise<User[]> {
-    return this.collectionHelper.getDocuments('users', [orderBy('displayName')])
+    return this.collectionHelper.getDocuments<User>('users', [orderBy('displayName')])
   }
 
   async getUserByEmail(email: string): Promise<User | null> {
-    const matches = await this.collectionHelper.getDocuments('users', [
+    const matches = await this.collectionHelper.getDocuments<User>('users', [
       where('email', '==', email),
       limit(1),
     ])
