@@ -61,7 +61,9 @@ export class FirebaseOrganizationRepository implements IOrganizationRepository {
       'organizations',
       organizationId,
       {
-        memberIds: arrayUnion(userId),
+        // Firestore arrayUnion returns a FieldValue, which is valid at runtime but
+        // narrower than our Organization.memberIds type. Cast to the expected type.
+        memberIds: arrayUnion(userId) as unknown as Organization['memberIds'],
       },
       { includeUpdatedAt: true },
     )
@@ -72,8 +74,9 @@ export class FirebaseOrganizationRepository implements IOrganizationRepository {
       'organizations',
       organizationId,
       {
-        memberIds: arrayRemove(userId),
-        adminIds: arrayRemove(userId),
+        // arrayRemove is also a FieldValue; cast to satisfy the repository typing.
+        memberIds: arrayRemove(userId) as unknown as Organization['memberIds'],
+        adminIds: arrayRemove(userId) as unknown as Organization['adminIds'],
       },
       { includeUpdatedAt: true },
     )
@@ -84,8 +87,9 @@ export class FirebaseOrganizationRepository implements IOrganizationRepository {
       'organizations',
       organizationId,
       {
-        memberIds: arrayUnion(userId),
-        adminIds: arrayUnion(userId),
+        // Cast FieldValue results to the corresponding array fields.
+        memberIds: arrayUnion(userId) as unknown as Organization['memberIds'],
+        adminIds: arrayUnion(userId) as unknown as Organization['adminIds'],
       },
       { includeUpdatedAt: true },
     )
@@ -96,7 +100,8 @@ export class FirebaseOrganizationRepository implements IOrganizationRepository {
       'organizations',
       organizationId,
       {
-        adminIds: arrayRemove(userId),
+        // Cast FieldValue to match the expected adminIds array type.
+        adminIds: arrayRemove(userId) as unknown as Organization['adminIds'],
       },
       { includeUpdatedAt: true },
     )
