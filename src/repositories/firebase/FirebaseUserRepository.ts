@@ -1,21 +1,8 @@
-import {
-  addDoc,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  setDoc,
-  updateDoc,
-  where,
-  Timestamp,
-  type Firestore,
-} from 'firebase/firestore'
+import { limit, orderBy, where, type Firestore } from 'firebase/firestore'
 import { getFirebaseDb } from '@/firebase/client'
 import type { User } from '@/types/models'
 import type { IUserRepository } from '../interfaces/IUserRepository'
+import { FirestoreCollectionHelper } from './internal/FirestoreCollectionHelper'
 
 /**
  * Firebase implementation of the user repository.
@@ -26,57 +13,35 @@ export class FirebaseUserRepository implements IUserRepository {
     return getFirebaseDb()
   }
 
-  async createUser(id: string, userData: Omit<User, 'id'>): Promise<void> {
-    const docRef = doc(this.getDb(), 'users', id)
-    await setDoc(docRef, {
-      ...userData,
-      createdAt: Timestamp.now(),
-    })
-  }
+  private readonly collectionHelper = new FirestoreCollectionHelper(() => this.getDb())
 
-  async createUserWithGeneratedId(userData: Omit<User, 'id'>): Promise<string> {
-    const docRef = await addDoc(collection(this.getDb(), 'users'), {
-      ...userData,
-      createdAt: Timestamp.now(),
+  async createUser(id: string, userData: Omit<User, 'id'>): Promise<void> {
+    await this.collectionHelper.setDocument('users', id, userData, {
+      includeCreatedAt: true,
     })
-    return docRef.id
   }
 
   async updateUser(id: string, userData: Partial<Omit<User, 'id'>>): Promise<void> {
-    const docRef = doc(this.getDb(), 'users', id)
-    await updateDoc(docRef, {
-      ...userData,
-      updatedAt: Timestamp.now(),
+    await this.collectionHelper.updateDocument('users', id, userData, {
+      includeUpdatedAt: true,
     })
   }
 
   async getUser(id: string): Promise<User | null> {
-    const docRef = doc(this.getDb(), 'users', id)
-    const docSnap = await getDoc(docRef)
-    if (!docSnap.exists()) {
-      return null
-    }
-    return { id: docSnap.id, ...docSnap.data() } as User
+    return this.collectionHelper.getDocument<User>('users', id)
   }
 
   async getUsers(): Promise<User[]> {
-    const q = query(collection(this.getDb(), 'users'), orderBy('displayName'))
-    const snapshot = await getDocs(q)
-    return snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })) as User[]
+    return this.collectionHelper.getDocuments<User>('users', [orderBy('displayName')])
   }
 
   async getUserByEmail(email: string): Promise<User | null> {
-    const q = query(
-      collection(this.getDb(), 'users'),
+    const matches = await this.collectionHelper.getDocuments<User>('users', [
       where('email', '==', email),
       limit(1),
-    )
-    const snapshot = await getDocs(q)
-    const docSnap = snapshot.docs[0]
-    if (!docSnap) {
-      return null
-    }
-    return { id: docSnap.id, ...docSnap.data() } as User
+    ])
+
+    return matches[0] ?? null
   }
 }
 
