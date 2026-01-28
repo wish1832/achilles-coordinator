@@ -26,6 +26,23 @@ export interface Organization {
   }
 }
 
+/**
+ * Organization invite
+ * Represents an invitation for a user to join an organization.
+ * This is intentionally minimal on this branch so mock repositories can type-check cleanly.
+ */
+export interface OrganizationInvite {
+  id: string
+  organizationId: string
+  email: string
+  role: UserRole
+  invitedBy: string
+  createdAt: Date
+  status?: 'pending' | 'accepted' | 'expired' | 'revoked'
+  acceptedAt?: Date
+  expiresAt?: Date
+}
+
 // Run status options
 export type RunStatus = 'upcoming' | 'completed' | 'cancelled'
 

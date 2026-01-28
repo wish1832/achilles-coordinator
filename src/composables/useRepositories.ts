@@ -1,5 +1,6 @@
 import type { IAuthRepository } from '@/repositories/interfaces/IAuthRepository'
 import type { IDataRepository } from '@/repositories/interfaces/IDataRepository'
+import type { IUserRepository } from '@/repositories/interfaces/IUserRepository'
 
 /**
  * Composable for repository dependency injection
@@ -36,8 +37,10 @@ function useEmulator(): boolean {
 
 let cachedFirebaseAuthRepository: Promise<IAuthRepository> | null = null
 let cachedFirebaseDataRepository: Promise<IDataRepository> | null = null
+let cachedFirebaseUserRepository: Promise<IUserRepository> | null = null
 let cachedMockAuthRepository: Promise<IAuthRepository> | null = null
 let cachedMockDataRepository: Promise<IDataRepository> | null = null
+let cachedMockUserRepository: Promise<IUserRepository> | null = null
 
 function loadFirebaseAuthRepository(): Promise<IAuthRepository> {
   if (!cachedFirebaseAuthRepository) {
@@ -59,6 +62,16 @@ function loadFirebaseDataRepository(): Promise<IDataRepository> {
   return cachedFirebaseDataRepository
 }
 
+function loadFirebaseUserRepository(): Promise<IUserRepository> {
+  if (!cachedFirebaseUserRepository) {
+    cachedFirebaseUserRepository = import('@/repositories/firebase').then(
+      (module) => module.firebaseUserRepository,
+    )
+  }
+
+  return cachedFirebaseUserRepository
+}
+
 function loadMockAuthRepository(): Promise<IAuthRepository> {
   if (!cachedMockAuthRepository) {
     cachedMockAuthRepository = import('@/repositories/mock').then(
@@ -77,6 +90,16 @@ function loadMockDataRepository(): Promise<IDataRepository> {
   }
 
   return cachedMockDataRepository
+}
+
+function loadMockUserRepository(): Promise<IUserRepository> {
+  if (!cachedMockUserRepository) {
+    cachedMockUserRepository = import('@/repositories/mock').then(
+      (module) => module.mockUserRepository,
+    )
+  }
+
+  return cachedMockUserRepository
 }
 
 function createLazyAuthRepository(loader: RepositoryLoader<IAuthRepository>): IAuthRepository {
@@ -104,9 +127,9 @@ function createLazyAuthRepository(loader: RepositoryLoader<IAuthRepository>): IA
       const repository = await getRepository()
       return repository.signOut()
     },
-    async createUser(email, password, displayName, role) {
+    async createUser(email, password, displayName) {
       const repository = await getRepository()
-      return repository.createUser(email, password, displayName, role)
+      return repository.createUser(email, password, displayName)
     },
     getCurrentUser() {
       // Avoid forcing Firebase init just to read currentUser.
@@ -128,6 +151,50 @@ function createLazyAuthRepository(loader: RepositoryLoader<IAuthRepository>): IA
         cancelled = true
         if (unsubscribe) unsubscribe()
       }
+    },
+  }
+}
+
+function createLazyUserRepository(loader: RepositoryLoader<IUserRepository>): IUserRepository {
+  let resolvedRepository: IUserRepository | null = null
+  let loadingRepository: Promise<IUserRepository> | null = null
+
+  const getRepository = async (): Promise<IUserRepository> => {
+    if (resolvedRepository) return resolvedRepository
+    if (!loadingRepository) {
+      loadingRepository = loader().then((repository) => {
+        resolvedRepository = repository
+        return repository
+      })
+    }
+
+    return loadingRepository
+  }
+
+  return {
+    async createUser(id, userData) {
+      const repository = await getRepository()
+      return repository.createUser(id, userData)
+    },
+    async createUserWithGeneratedId(userData) {
+      const repository = await getRepository()
+      return repository.createUserWithGeneratedId(userData)
+    },
+    async updateUser(id, userData) {
+      const repository = await getRepository()
+      return repository.updateUser(id, userData)
+    },
+    async getUser(id) {
+      const repository = await getRepository()
+      return repository.getUser(id)
+    },
+    async getUsers() {
+      const repository = await getRepository()
+      return repository.getUsers()
+    },
+    async getUserByEmail(email) {
+      const repository = await getRepository()
+      return repository.getUserByEmail(email)
     },
   }
 }
@@ -327,6 +394,21 @@ export function useAuthRepository(): IAuthRepository {
   }
 
   return createLazyAuthRepository(loadFirebaseAuthRepository)
+}
+
+/**
+ * Get the user repository for the current environment
+ * @returns IUserRepository implementation (Firebase or Mock)
+ */
+export function useUserRepository(): IUserRepository {
+  const backend = getBackend()
+  if (backend === 'mock') return createLazyUserRepository(loadMockUserRepository)
+
+  if (useEmulator()) {
+    // same note as above
+  }
+
+  return createLazyUserRepository(loadFirebaseUserRepository)
 }
 
 /**
