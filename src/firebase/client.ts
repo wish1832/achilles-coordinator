@@ -1,12 +1,14 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app'
 import { getAuth, type Auth } from 'firebase/auth'
 import { getFirestore, type Firestore } from 'firebase/firestore'
+import { getFunctions, type Functions } from 'firebase/functions'
 import { getAnalytics, isSupported as analyticsIsSupported, type Analytics } from 'firebase/analytics'
 
 type FirebaseClient = {
   app: FirebaseApp
   auth: Auth
   db: Firestore
+  functions: Functions
   analytics: Analytics | null
 }
 
@@ -66,8 +68,9 @@ export function getFirebase(): FirebaseClient {
 
   const auth = getAuth(app)
   const db = getFirestore(app)
+  const functions = getFunctions(app)
 
-  cached = { app, auth, db, analytics: null }
+  cached = { app, auth, db, functions, analytics: null }
 
   // Fire-and-forget analytics init (non-blocking) exactly like you had
   if (!analyticsInitStarted) {
@@ -93,6 +96,9 @@ export function getFirebaseAuth(): Auth {
 }
 export function getFirebaseDb(): Firestore {
   return getFirebase().db
+}
+export function getFirebaseFunctions(): Functions {
+  return getFirebase().functions
 }
 export function getFirebaseAnalytics(): Analytics | null {
   return getFirebase().analytics
