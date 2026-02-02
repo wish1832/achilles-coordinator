@@ -346,10 +346,9 @@ import { PhCaretUp, PhCaretDown } from '@phosphor-icons/vue'
 // Route access
 const route = useRoute()
 
-// Extract route parameters as computed properties
-// These represent the organization ID and run ID from the URL
-const orgId = computed(() => route.params.orgId as string)
-const runId = computed(() => route.params.runId as string)
+// Extract run ID from route parameters
+// The organization ID is derived from the loaded run data rather than the URL
+const runId = computed(() => route.params.id as string)
 
 // Initialize stores
 const organizationStore = useOrganizationStore()
@@ -419,9 +418,12 @@ function setGuideCardRef(el: unknown, index: number): void {
 
 /**
  * Get the current organization from the store
- * The organization should be loaded by the router guard before reaching this component
+ * The organization ID is derived from the loaded run, rather than a URL parameter
  */
-const organization = computed(() => organizationStore.getOrganizationById(orgId.value))
+const organization = computed(() => {
+  if (!run.value) return undefined
+  return organizationStore.getOrganizationById(run.value.organizationId)
+})
 
 /**
  * Get the current run from the store
@@ -567,17 +569,17 @@ async function loadData(): Promise<void> {
     loading.value = 'loading'
     error.value = null
 
-    // Load organization (should already be cached from router guard)
-    if (!organization.value) {
-      await organizationStore.loadOrganization(orgId.value)
-    }
-
-    // Load the run details
+    // Load the run details first so we can derive the organization ID
     await runsStore.loadRun(runId.value)
 
-    // Verify run belongs to organization (security check)
-    if (run.value?.organizationId !== orgId.value) {
-      throw new Error('Run does not belong to this organization')
+    if (!run.value) {
+      throw new Error('Run not found')
+    }
+
+    // Load the organization using the run's organizationId
+    // May already be cached from the router guard
+    if (!organization.value) {
+      await organizationStore.loadOrganization(run.value.organizationId)
     }
 
     // Load all sign-ups for this run

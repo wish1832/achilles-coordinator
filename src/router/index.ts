@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useOrganizationStore } from '@/stores/organization'
+import { useRunsStore } from '@/stores/runs'
 import type { UserRole } from '@/types/models'
 import LoginView from '@/views/LoginView.vue'
 
@@ -50,12 +51,12 @@ const router = createRouter({
       },
     },
     {
-      path: '/admin/organizations/:orgId/runs/:runId/pairings',
-      name: 'AdminPairings',
-      component: () => import('@/views/admin/PairingView.vue'),
+      path: '/runs/:id/pairing',
+      name: 'RunPairing',
+      component: () => import('@/views/PairingView.vue'),
       meta: {
         requiresAuth: true,
-        requiresOrgAdmin: true,
+        requiresRunAdmin: true,
         title: 'Manage Pairings - Achilles Run Coordinator',
       },
     },
@@ -168,6 +169,58 @@ router.beforeEach(async (to, _from, next) => {
       if (!isAdmin) {
         // User is not admin of this organization, redirect to admin dashboard
         next({ name: 'Admin' })
+        return
+      }
+    }
+
+    // Check run admin access for routes that require it
+    // Run admins are either org admins or users listed in run.runAdminIds
+    if (to.meta.requiresRunAdmin) {
+      const runId = to.params.id as string
+      if (!runId) {
+        next({ name: 'Runs' })
+        return
+      }
+
+      const runsStore = useRunsStore()
+      const organizationStore = useOrganizationStore()
+
+      // Load the run to check admin status
+      try {
+        await runsStore.loadRun(runId)
+      } catch {
+        next({ name: 'Runs' })
+        return
+      }
+
+      const run = runsStore.currentRun
+      if (!run) {
+        next({ name: 'Runs' })
+        return
+      }
+
+      // Load organization so we can check org admin status
+      let org = organizationStore.getOrganizationById(run.organizationId)
+      if (!org) {
+        try {
+          await organizationStore.loadOrganization(run.organizationId)
+          org = organizationStore.getOrganizationById(run.organizationId)
+        } catch {
+          next({ name: 'Runs' })
+          return
+        }
+      }
+
+      // Check if user is an org admin or a run-specific admin
+      const userId = authStore.currentUser!.id
+      const isOrgAdmin = org
+        ? organizationStore.isUserOrgAdmin(run.organizationId, userId)
+        : false
+      const isRunAdmin = run.runAdminIds?.includes(userId) ?? false
+
+      if (!isOrgAdmin && !isRunAdmin) {
+        // User is not authorized to manage this run
+        next({ name: 'Run', params: { id: runId } })
         return
       }
     }
