@@ -285,6 +285,15 @@ interface SignUp {
 4. User data and organization permissions stored in Pinia `auth` store
 5. Router guards check authentication status, organization membership, and admin status for route access
 
+### Invitation Flow (Admin-Only)
+
+1. Admin creates an organization invite record (`organizationInvites`).
+2. Backend callable `sendOrganizationInvite`:
+   - Looks up or creates the Firebase Auth user by email.
+   - Generates a password setup link (Admin SDK `generatePasswordResetLink`).
+   - Sends the invite email with organization context and link.
+3. Invitee signs in, and the app accepts the invite to create/update the user profile and add org membership.
+
 ### Authorization Rules
 
 - **All Authenticated Users**: Can access `/runs` route (view runs for their organizations)

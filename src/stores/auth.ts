@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { useAuthRepository } from '@/composables/useRepositories'
-import { useDataRepository } from '@/composables/useRepositories'
-import type { User, UserRole, LoadingState } from '@/types'
+import { useAuthRepository, useDataRepository, useUserRepository } from '@/composables/useRepositories'
+import { useInvitationService } from '@/composables/useInvitationService'
+import type { OrganizationInvite, User, UserRole, LoadingState } from '@/types'
 
 /**
  * Authentication store using Pinia
@@ -14,6 +14,8 @@ export const useAuthStore = defineStore('auth', () => {
   // This allows for easy testing with mock implementations
   const authRepository = useAuthRepository()
   const dataRepository = useDataRepository()
+  const userRepository = useUserRepository()
+  const invitationService = useInvitationService()
 
   // State
   const currentUser = ref<User | null>(null)
@@ -42,7 +44,17 @@ export const useAuthStore = defineStore('auth', () => {
       const firebaseUser = await authRepository.signIn(email, password)
 
       // Get user data from Firestore via repository
-      const userData = await dataRepository.getUser(firebaseUser.uid)
+      let userData = await userRepository.getUser(firebaseUser.uid)
+
+      if (!userData) {
+        // If this is a first-time sign-in after an invite, try to accept the invite
+        // and create the profile automatically.
+        const pendingInvite = await findPendingInviteForEmail(email)
+        if (pendingInvite) {
+          await acceptOrganizationInvite(pendingInvite.id)
+          userData = await userRepository.getUser(firebaseUser.uid)
+        }
+      }
 
       if (!userData) {
         throw new Error('User data not found. Please contact an administrator.')
@@ -77,6 +89,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   /**
    * Create a new user account
+   * Creates the Firebase Auth user and the Firestore profile document.
    * Permission should be enforced by the caller and Firestore rules.
    * @param email - User's email address
    * @param password - User's password
@@ -99,8 +112,8 @@ export const useAuthStore = defineStore('auth', () => {
         throw new Error('No user logged in')
       }
 
-      // Create Firebase user via repository
-      await authRepository.createUser(email, password, displayName, role)
+      // Create Firebase user via repository and keep the uid for the profile document.
+      const firebaseUser = await authRepository.createUser(email, password, displayName)
 
       // Create user document in Firestore via repository
       const userData: Omit<User, 'id'> = {
@@ -114,7 +127,7 @@ export const useAuthStore = defineStore('auth', () => {
         },
       }
 
-      await dataRepository.createUser(userData)
+      await userRepository.createUser(firebaseUser.uid, userData)
       loading.value = 'success'
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'User creation failed'
@@ -136,7 +149,7 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = 'loading'
       error.value = null
 
-      await dataRepository.updateUser(currentUser.value.id, updates)
+      await userRepository.updateUser(currentUser.value.id, updates)
 
       // Update local state
       currentUser.value = { ...currentUser.value, ...updates }
@@ -157,7 +170,7 @@ export const useAuthStore = defineStore('auth', () => {
       if (firebaseUser) {
         try {
           // Get user data from Firestore via repository
-          const userData = await dataRepository.getUser(firebaseUser.uid)
+          const userData = await userRepository.getUser(firebaseUser.uid)
           currentUser.value = userData
         } catch (err) {
           console.error('Error loading user data:', err)
@@ -180,6 +193,169 @@ export const useAuthStore = defineStore('auth', () => {
    */
   function clearError(): void {
     error.value = null
+  }
+
+  /**
+   * Invite a user to join an organization by email.
+   * Invitations are stored separately so membership can be granted on acceptance.
+   * @param organizationId - Organization ID to invite into
+   * @param email - Email address to invite
+   * @param role - User role for the invite
+   * @param displayName - Optional display name for pre-fill
+   * @returns New invitation document ID
+   */
+  async function inviteUserToOrganization(
+    organizationId: string,
+    email: string,
+    role: UserRole,
+    displayName?: string,
+  ): Promise<string> {
+    try {
+      loading.value = 'loading'
+      error.value = null
+
+      if (!currentUser.value) {
+        throw new Error('No user logged in')
+      }
+
+      // Check for an existing profile so we can associate the invite.
+      const existingUser = await userRepository.getUserByEmail(email)
+
+      const inviteData: Omit<OrganizationInvite, 'id'> = {
+        organizationId,
+        email,
+        role,
+        invitedByUserId: currentUser.value.id,
+        status: 'pending',
+        createdAt: new Date(),
+        userId: existingUser?.id,
+        displayName,
+      }
+
+      const inviteId = await dataRepository.addDocument<OrganizationInvite>(
+        'organizationInvites',
+        inviteData,
+      )
+
+      await invitationService.sendOrganizationInvite({
+        id: inviteId,
+        ...inviteData,
+      })
+
+      loading.value = 'success'
+      return inviteId
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Invite failed'
+      loading.value = 'error'
+      throw err
+    }
+  }
+
+  /**
+   * Find a pending organization invite by email address.
+   * This supports first-time sign-ins where the profile is created on acceptance.
+   * @param email - Email address to search for
+   */
+  async function findPendingInviteForEmail(
+    email: string,
+  ): Promise<OrganizationInvite | null> {
+    const invites = await dataRepository.getDocuments<OrganizationInvite>('organizationInvites')
+    const normalizedEmail = email.trim().toLowerCase()
+
+    return (
+      invites.find(
+        (invite) =>
+          invite.status === 'pending' &&
+          invite.email.trim().toLowerCase() === normalizedEmail,
+      ) ?? null
+    )
+  }
+
+  /**
+   * Accept an organization invite for the current authenticated user.
+   * Ensures the user is added to the organization and the invite is marked accepted.
+   * @param inviteId - Invitation document ID
+   */
+  async function acceptOrganizationInvite(inviteId: string): Promise<void> {
+    try {
+      loading.value = 'loading'
+      error.value = null
+
+      const authUser = authRepository.getCurrentUser()
+      const effectiveUserId = currentUser.value?.id ?? authUser?.uid
+      const effectiveEmail = currentUser.value?.email ?? authUser?.email ?? ''
+
+      if (!effectiveUserId || !effectiveEmail) {
+        throw new Error('No user logged in')
+      }
+
+      const invite = await dataRepository.getDocument<OrganizationInvite>(
+        'organizationInvites',
+        inviteId,
+      )
+
+      if (!invite) {
+        throw new Error('Invite not found')
+      }
+
+      if (invite.status !== 'pending') {
+        throw new Error('Invite is no longer active')
+      }
+
+      if (invite.email.toLowerCase() !== effectiveEmail.toLowerCase()) {
+        throw new Error('Invite email does not match the current user')
+      }
+
+      if (invite.userId && invite.userId !== effectiveUserId) {
+        throw new Error('Invite is already associated with a different user')
+      }
+
+      let profile = await userRepository.getUser(effectiveUserId)
+
+      if (profile && profile.role !== invite.role) {
+        throw new Error('Invite role does not match the current user profile')
+      }
+
+      const updatedOrganizationIds = profile
+        ? Array.from(new Set([...profile.organizationIds, invite.organizationId]))
+        : [invite.organizationId]
+
+      if (!profile) {
+        const displayName =
+          authUser?.displayName ?? invite.displayName ?? currentUser.value?.displayName ?? ''
+
+        const userData: Omit<User, 'id'> = {
+          email: effectiveEmail,
+          displayName,
+          role: invite.role,
+          organizationIds: updatedOrganizationIds,
+          createdAt: new Date(),
+          profileDetails: {},
+        }
+
+        await userRepository.createUser(effectiveUserId, userData)
+        profile = { id: effectiveUserId, ...userData }
+      } else {
+        await userRepository.updateUser(effectiveUserId, {
+          organizationIds: updatedOrganizationIds,
+        })
+        profile = { ...profile, organizationIds: updatedOrganizationIds }
+      }
+
+      await dataRepository.addOrganizationMember(invite.organizationId, effectiveUserId)
+      await dataRepository.updateDocument<OrganizationInvite>('organizationInvites', inviteId, {
+        status: 'accepted',
+        acceptedAt: new Date(),
+        userId: effectiveUserId,
+      })
+
+      currentUser.value = profile
+      loading.value = 'success'
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Invite acceptance failed'
+      loading.value = 'error'
+      throw err
+    }
   }
 
   /**
@@ -214,5 +390,7 @@ export const useAuthStore = defineStore('auth', () => {
     initializeAuth,
     clearError,
     hasPermission,
+    inviteUserToOrganization,
+    acceptOrganizationInvite,
   }
 })

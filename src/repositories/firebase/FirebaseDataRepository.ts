@@ -1,18 +1,4 @@
 import {
-  collection,
-  doc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  getDoc,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  arrayUnion,
-  arrayRemove,
-  Timestamp,
   type Firestore,
   type Unsubscribe,
   type QueryConstraint,
@@ -20,6 +6,10 @@ import {
 import { getFirebaseDb } from '@/firebase/client'
 import type { User, Run, SignUp, Organization, Location } from '@/types/models'
 import type { IDataRepository } from '../interfaces/IDataRepository'
+import { FirestoreCollectionHelper } from './internal/FirestoreCollectionHelper'
+import { FirebaseUserRepository } from './FirebaseUserRepository'
+import { FirebaseRunRepository } from './FirebaseRunRepository'
+import { FirebaseOrganizationRepository } from './FirebaseOrganizationRepository'
 
 /**
  * Firebase implementation of the data repository
@@ -35,6 +25,10 @@ export class FirebaseDataRepository implements IDataRepository {
     return getFirebaseDb()
   }
 
+  private readonly collectionHelper = new FirestoreCollectionHelper(() => this.getDb())
+  private readonly userRepository = new FirebaseUserRepository()
+  private readonly runRepository = new FirebaseRunRepository()
+  private readonly organizationRepository = new FirebaseOrganizationRepository()
   // ==========================================
   // Generic CRUD operations
   // ==========================================
@@ -51,18 +45,9 @@ export class FirebaseDataRepository implements IDataRepository {
     collectionName: string,
     data: Omit<T, 'id'>,
   ): Promise<string> {
-    try {
-      // Add the document to Firestore with a createdAt timestamp
-      const docRef = await addDoc(collection(this.getDb(), collectionName), {
-        ...data,
-        createdAt: Timestamp.now(),
-      })
-      // Return the auto-generated document ID
-      return docRef.id
-    } catch (error) {
-      console.error(`Error adding document to ${collectionName}:`, error)
-      throw error
-    }
+    return this.collectionHelper.addDocument(collectionName, data, {
+      includeCreatedAt: true,
+    })
   }
 
   /**
@@ -79,18 +64,9 @@ export class FirebaseDataRepository implements IDataRepository {
     id: string,
     data: Partial<Omit<T, 'id'>>,
   ): Promise<void> {
-    try {
-      // Get a reference to the document
-      const docRef = doc(this.getDb(), collectionName, id)
-      // Update the document with the new data and an updatedAt timestamp
-      await updateDoc(docRef, {
-        ...data,
-        updatedAt: Timestamp.now(),
-      })
-    } catch (error) {
-      console.error(`Error updating document ${id} in ${collectionName}:`, error)
-      throw error
-    }
+    return this.collectionHelper.updateDocument(collectionName, id, data, {
+      includeUpdatedAt: true,
+    })
   }
 
   /**
@@ -101,14 +77,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if document deletion fails
    */
   async deleteDocument(collectionName: string, id: string): Promise<void> {
-    try {
-      // Get a reference to the document and delete it
-      const docRef = doc(this.getDb(), collectionName, id)
-      await deleteDoc(docRef)
-    } catch (error) {
-      console.error(`Error deleting document ${id} from ${collectionName}:`, error)
-      throw error
-    }
+    return this.collectionHelper.deleteDocument(collectionName, id)
   }
 
   /**
@@ -122,23 +91,7 @@ export class FirebaseDataRepository implements IDataRepository {
     collectionName: string,
     id: string,
   ): Promise<T | null> {
-    try {
-      // Get a reference to the document
-      const docRef = doc(this.getDb(), collectionName, id)
-      // Fetch the document snapshot
-      const docSnap = await getDoc(docRef)
-
-      // Check if the document exists
-      if (docSnap.exists()) {
-        // Return the document data with the id field
-        return { id: docSnap.id, ...docSnap.data() } as T
-      }
-      // Return null if the document doesn't exist
-      return null
-    } catch (error) {
-      console.error(`Error getting document ${id} from ${collectionName}:`, error)
-      throw error
-    }
+    return this.collectionHelper.getDocument(collectionName, id)
   }
 
   /**
@@ -152,21 +105,7 @@ export class FirebaseDataRepository implements IDataRepository {
     collectionName: string,
     constraints: QueryConstraint[] = [],
   ): Promise<T[]> {
-    try {
-      // Build the query with the provided constraints
-      const q = query(collection(this.getDb(), collectionName), ...constraints)
-      // Execute the query
-      const querySnapshot = await getDocs(q)
-
-      // Map the results to include the document ID
-      return querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as T[]
-    } catch (error) {
-      console.error(`Error getting documents from ${collectionName}:`, error)
-      throw error
-    }
+    return this.collectionHelper.getDocuments(collectionName, constraints)
   }
 
   /**
@@ -183,19 +122,7 @@ export class FirebaseDataRepository implements IDataRepository {
     callback: (docs: T[]) => void,
     constraints: QueryConstraint[] = [],
   ): Unsubscribe {
-    // Build the query with the provided constraints
-    const q = query(collection(this.getDb(), collectionName), ...constraints)
-
-    // Set up the real-time listener
-    return onSnapshot(q, (querySnapshot) => {
-      // Map the results to include the document ID
-      const docs = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as T[]
-      // Invoke the callback with the updated data
-      callback(docs)
-    })
+    return this.collectionHelper.onCollectionChange(collectionName, callback, constraints)
   }
 
   // ==========================================
@@ -209,7 +136,9 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if user creation fails
    */
   async createUser(userData: Omit<User, 'id'>): Promise<string> {
-    return this.addDocument<User>('users', userData)
+    return this.collectionHelper.addDocument<User>('users', userData, {
+      includeCreatedAt: true,
+    })
   }
 
   /**
@@ -220,7 +149,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if user update fails
    */
   async updateUser(id: string, userData: Partial<Omit<User, 'id'>>): Promise<void> {
-    return this.updateDocument<User>('users', id, userData)
+    return this.userRepository.updateUser(id, userData)
   }
 
   /**
@@ -230,7 +159,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getUser(id: string): Promise<User | null> {
-    return this.getDocument<User>('users', id)
+    return this.userRepository.getUser(id)
   }
 
   /**
@@ -239,7 +168,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getUsers(): Promise<User[]> {
-    return this.getDocuments<User>('users', [orderBy('displayName')])
+    return this.userRepository.getUsers()
   }
 
   // ==========================================
@@ -253,7 +182,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if run creation fails
    */
   async createRun(runData: Omit<Run, 'id'>): Promise<string> {
-    return this.addDocument<Run>('runs', runData)
+    return this.runRepository.createRun(runData)
   }
 
   /**
@@ -264,7 +193,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if run update fails
    */
   async updateRun(id: string, runData: Partial<Omit<Run, 'id'>>): Promise<void> {
-    return this.updateDocument<Run>('runs', id, runData)
+    return this.runRepository.updateRun(id, runData)
   }
 
   /**
@@ -274,7 +203,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if run deletion fails
    */
   async deleteRun(id: string): Promise<void> {
-    return this.deleteDocument('runs', id)
+    return this.runRepository.deleteRun(id)
   }
 
   /**
@@ -284,7 +213,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getRun(id: string): Promise<Run | null> {
-    return this.getDocument<Run>('runs', id)
+    return this.runRepository.getRun(id)
   }
 
   /**
@@ -293,7 +222,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getRuns(): Promise<Run[]> {
-    return this.getDocuments<Run>('runs', [orderBy('date', 'asc')])
+    return this.runRepository.getRuns()
   }
 
   /**
@@ -302,8 +231,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getUpcomingRuns(): Promise<Run[]> {
-    const now = Timestamp.now()
-    return this.getDocuments<Run>('runs', [where('date', '>=', now), orderBy('date', 'asc')])
+    return this.runRepository.getUpcomingRuns()
   }
 
   // ==========================================
@@ -317,7 +245,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if sign-up creation fails
    */
   async createSignUp(signUpData: Omit<SignUp, 'id'>): Promise<string> {
-    return this.addDocument<SignUp>('signups', signUpData)
+    return this.runRepository.createSignUp(signUpData)
   }
 
   /**
@@ -328,7 +256,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if sign-up update fails
    */
   async updateSignUp(id: string, signUpData: Partial<Omit<SignUp, 'id'>>): Promise<void> {
-    return this.updateDocument<SignUp>('signups', id, signUpData)
+    return this.runRepository.updateSignUp(id, signUpData)
   }
 
   /**
@@ -338,7 +266,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if sign-up deletion fails
    */
   async deleteSignUp(id: string): Promise<void> {
-    return this.deleteDocument('signups', id)
+    return this.runRepository.deleteSignUp(id)
   }
 
   /**
@@ -348,10 +276,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getSignUpsForRun(runId: string): Promise<SignUp[]> {
-    return this.getDocuments<SignUp>('signups', [
-      where('runId', '==', runId),
-      orderBy('timestamp', 'desc'),
-    ])
+    return this.runRepository.getSignUpsForRun(runId)
   }
 
   /**
@@ -361,10 +286,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getUserSignUps(userId: string): Promise<SignUp[]> {
-    return this.getDocuments<SignUp>('signups', [
-      where('userId', '==', userId),
-      orderBy('timestamp', 'desc'),
-    ])
+    return this.runRepository.getSignUpsForUser(userId)
   }
 
   // ==========================================
@@ -378,7 +300,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if organization creation fails
    */
   async createOrganization(organizationData: Omit<Organization, 'id'>): Promise<string> {
-    return this.addDocument<Organization>('organizations', organizationData)
+    return this.organizationRepository.createOrganization(organizationData)
   }
 
   /**
@@ -392,7 +314,7 @@ export class FirebaseDataRepository implements IDataRepository {
     id: string,
     organizationData: Partial<Omit<Organization, 'id'>>,
   ): Promise<void> {
-    return this.updateDocument<Organization>('organizations', id, organizationData)
+    return this.organizationRepository.updateOrganization(id, organizationData)
   }
 
   /**
@@ -402,7 +324,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if organization deletion fails
    */
   async deleteOrganization(id: string): Promise<void> {
-    return this.deleteDocument('organizations', id)
+    return this.organizationRepository.deleteOrganization(id)
   }
 
   /**
@@ -412,7 +334,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getOrganization(id: string): Promise<Organization | null> {
-    return this.getDocument<Organization>('organizations', id)
+    return this.organizationRepository.getOrganization(id)
   }
 
   /**
@@ -421,7 +343,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getOrganizations(): Promise<Organization[]> {
-    return this.getDocuments<Organization>('organizations', [orderBy('name')])
+    return this.organizationRepository.getOrganizations()
   }
 
   /**
@@ -432,10 +354,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getUserOrganizations(userId: string): Promise<Organization[]> {
-    return this.getDocuments<Organization>('organizations', [
-      where('memberIds', 'array-contains', userId),
-      orderBy('name'),
-    ])
+    return this.organizationRepository.getUserOrganizations(userId)
   }
 
   /**
@@ -446,10 +365,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getUserAdminOrganizations(userId: string): Promise<Organization[]> {
-    return this.getDocuments<Organization>('organizations', [
-      where('adminIds', 'array-contains', userId),
-      orderBy('name'),
-    ])
+    return this.organizationRepository.getUserAdminOrganizations(userId)
   }
 
   /**
@@ -461,21 +377,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if update fails
    */
   async addOrganizationMember(organizationId: string, userId: string): Promise<void> {
-    try {
-      // Get reference to the organization document
-      const orgRef = doc(this.getDb(), 'organizations', organizationId)
-      // Use arrayUnion to add the userId to memberIds (avoids duplicates)
-      await updateDoc(orgRef, {
-        memberIds: arrayUnion(userId),
-        updatedAt: Timestamp.now(),
-      })
-    } catch (error) {
-      console.error(
-        `Error adding member ${userId} to organization ${organizationId}:`,
-        error,
-      )
-      throw error
-    }
+    return this.organizationRepository.addOrganizationMember(organizationId, userId)
   }
 
   /**
@@ -487,22 +389,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if update fails
    */
   async removeOrganizationMember(organizationId: string, userId: string): Promise<void> {
-    try {
-      // Get reference to the organization document
-      const orgRef = doc(this.getDb(), 'organizations', organizationId)
-      // Use arrayRemove to remove the userId from both arrays
-      await updateDoc(orgRef, {
-        memberIds: arrayRemove(userId),
-        adminIds: arrayRemove(userId),
-        updatedAt: Timestamp.now(),
-      })
-    } catch (error) {
-      console.error(
-        `Error removing member ${userId} from organization ${organizationId}:`,
-        error,
-      )
-      throw error
-    }
+    return this.organizationRepository.removeOrganizationMember(organizationId, userId)
   }
 
   /**
@@ -515,20 +402,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if update fails
    */
   async addOrganizationAdmin(organizationId: string, userId: string): Promise<void> {
-    try {
-      // Get reference to the organization document
-      const orgRef = doc(this.getDb(), 'organizations', organizationId)
-      // Use arrayUnion to add the userId to both memberIds and adminIds
-      // arrayUnion automatically avoids duplicates
-      await updateDoc(orgRef, {
-        memberIds: arrayUnion(userId),
-        adminIds: arrayUnion(userId),
-        updatedAt: Timestamp.now(),
-      })
-    } catch (error) {
-      console.error(`Error adding admin ${userId} to organization ${organizationId}:`, error)
-      throw error
-    }
+    return this.organizationRepository.addOrganizationAdmin(organizationId, userId)
   }
 
   /**
@@ -540,22 +414,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if update fails
    */
   async removeOrganizationAdmin(organizationId: string, userId: string): Promise<void> {
-    try {
-      // Get reference to the organization document
-      const orgRef = doc(this.getDb(), 'organizations', organizationId)
-      // Use arrayRemove to remove the userId from adminIds only
-      // User remains in memberIds
-      await updateDoc(orgRef, {
-        adminIds: arrayRemove(userId),
-        updatedAt: Timestamp.now(),
-      })
-    } catch (error) {
-      console.error(
-        `Error removing admin status from ${userId} in organization ${organizationId}:`,
-        error,
-      )
-      throw error
-    }
+    return this.organizationRepository.removeOrganizationAdmin(organizationId, userId)
   }
 
   // ==========================================
@@ -569,7 +428,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if location creation fails
    */
   async createLocation(locationData: Omit<Location, 'id'>): Promise<string> {
-    return this.addDocument<Location>('locations', locationData)
+    return this.organizationRepository.createLocation(locationData)
   }
 
   /**
@@ -583,7 +442,7 @@ export class FirebaseDataRepository implements IDataRepository {
     id: string,
     locationData: Partial<Omit<Location, 'id'>>,
   ): Promise<void> {
-    return this.updateDocument<Location>('locations', id, locationData)
+    return this.organizationRepository.updateLocation(id, locationData)
   }
 
   /**
@@ -593,7 +452,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if location deletion fails
    */
   async deleteLocation(id: string): Promise<void> {
-    return this.deleteDocument('locations', id)
+    return this.organizationRepository.deleteLocation(id)
   }
 
   /**
@@ -603,7 +462,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getLocation(id: string): Promise<Location | null> {
-    return this.getDocument<Location>('locations', id)
+    return this.organizationRepository.getLocation(id)
   }
 
   /**
@@ -613,10 +472,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getLocationsForOrganization(organizationId: string): Promise<Location[]> {
-    return this.getDocuments<Location>('locations', [
-      where('organizationId', '==', organizationId),
-      orderBy('name'),
-    ])
+    return this.organizationRepository.getLocationsForOrganization(organizationId)
   }
 }
 
