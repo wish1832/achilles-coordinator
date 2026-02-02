@@ -83,6 +83,41 @@ export const useRunsStore = defineStore('runs', () => {
     currentRun.value = run
   }
 
+  /**
+   * Check if a user is an admin for a specific run.
+   * Fetches the run from the repository to ensure up-to-date data,
+   * then checks if the user's ID is in the run's runAdminIds array.
+   * Note: Organization admins are implicit run admins per DESIGN.md,
+   * but that check is handled separately by the organization store.
+   * @param runId - Run ID to check
+   * @param userId - User ID to check
+   * @returns True if user is listed in the run's runAdminIds
+   */
+  async function isUserRunAdmin(runId: string, userId: string): Promise<boolean> {
+    // Prefer runs already loaded in the store before hitting the repository
+    let run: Run | null | undefined = null
+
+    // Check currentRun first if it matches the requested runId
+    if (currentRun.value?.id === runId) {
+      run = currentRun.value
+    } else {
+      // Fall back to searching in the loaded runs
+      run = getRunById(runId) ?? null
+    }
+
+    // If not found locally, fetch from the repository
+    if (!run) {
+      run = await dataRepository.getRun(runId)
+    }
+
+    if (!run) {
+      return false
+    }
+
+    // Check if the user is in the run's runAdminIds array
+    return run.runAdminIds?.includes(userId) ?? false
+  }
+
   function clearError(): void {
     error.value = null
   }
@@ -96,6 +131,7 @@ export const useRunsStore = defineStore('runs', () => {
     loadRun,
     getRunById,
     setCurrentRun,
+    isUserRunAdmin,
     clearError,
   }
 })
