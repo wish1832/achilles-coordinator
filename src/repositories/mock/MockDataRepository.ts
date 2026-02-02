@@ -1,34 +1,10 @@
 import type { QueryConstraint, Unsubscribe } from 'firebase/firestore'
 import type { Location, Organization, Run, SignUp, User } from '@/types/models'
 import type { IDataRepository } from '@/repositories/interfaces/IDataRepository'
-import { mockNow } from './mockData'
 import { clone, getCollection, nextId, setCollection, type CollectionName } from './mockState'
 import { MockCollectionHelper } from './internal/MockCollectionHelper'
+import { MockRunRepository } from './MockRunRepository'
 import { MockOrganizationRepository } from './MockOrganizationRepository'
-
-function sortByDateAscending<T extends { date?: Date }>(items: T[]): T[] {
-  return [...items].sort((a, b) => {
-    const aTime = a.date ? new Date(a.date).getTime() : 0
-    const bTime = b.date ? new Date(b.date).getTime() : 0
-    return aTime - bTime
-  })
-}
-
-function sortByDateDescending<T extends { timestamp?: Date; createdAt?: Date }>(items: T[]): T[] {
-  return [...items].sort((a, b) => {
-    const aTime = a.timestamp
-      ? new Date(a.timestamp).getTime()
-      : a.createdAt
-        ? new Date(a.createdAt).getTime()
-        : 0
-    const bTime = b.timestamp
-      ? new Date(b.timestamp).getTime()
-      : b.createdAt
-        ? new Date(b.createdAt).getTime()
-        : 0
-    return bTime - aTime
-  })
-}
 
 export class MockDataRepository implements IDataRepository {
   private readonly collectionHelper = new MockCollectionHelper({
@@ -37,6 +13,7 @@ export class MockDataRepository implements IDataRepository {
     clone,
     nextId,
   })
+  private readonly runRepository = new MockRunRepository()
   private readonly organizationRepository = new MockOrganizationRepository()
   async addDocument<T extends { id?: string }>(
     collectionName: string,
@@ -101,59 +78,47 @@ export class MockDataRepository implements IDataRepository {
   }
 
   async createRun(runData: Omit<Run, 'id'>): Promise<string> {
-    const id = nextId('run')
-    await this.collectionHelper.setDocument('runs', id, runData)
-    return id
+    return this.runRepository.createRun(runData)
   }
 
   async updateRun(id: string, runData: Partial<Omit<Run, 'id'>>): Promise<void> {
-    return this.collectionHelper.updateDocument('runs', id, runData)
+    return this.runRepository.updateRun(id, runData)
   }
 
   async deleteRun(id: string): Promise<void> {
-    await this.collectionHelper.deleteDocument('runs', id)
+    return this.runRepository.deleteRun(id)
   }
 
   async getRun(id: string): Promise<Run | null> {
-    return this.collectionHelper.getDocument('runs', id)
+    return this.runRepository.getRun(id)
   }
 
   async getRuns(): Promise<Run[]> {
-    const runs = await this.collectionHelper.getDocuments<Run>('runs')
-    return sortByDateAscending(runs)
+    return this.runRepository.getRuns()
   }
 
   async getUpcomingRuns(): Promise<Run[]> {
-    const now = mockNow.getTime()
-    const runs = await this.collectionHelper.getDocuments<Run>('runs')
-    const upcoming = runs.filter((entry) => new Date(entry.date).getTime() >= now)
-    return sortByDateAscending(upcoming)
+    return this.runRepository.getUpcomingRuns()
   }
 
   async createSignUp(signUpData: Omit<SignUp, 'id'>): Promise<string> {
-    const id = nextId('signup')
-    await this.collectionHelper.setDocument('signups', id, signUpData)
-    return id
+    return this.runRepository.createSignUp(signUpData)
   }
 
   async updateSignUp(id: string, signUpData: Partial<Omit<SignUp, 'id'>>): Promise<void> {
-    return this.collectionHelper.updateDocument('signups', id, signUpData)
+    return this.runRepository.updateSignUp(id, signUpData)
   }
 
   async deleteSignUp(id: string): Promise<void> {
-    await this.collectionHelper.deleteDocument('signups', id)
+    return this.runRepository.deleteSignUp(id)
   }
 
   async getSignUpsForRun(runId: string): Promise<SignUp[]> {
-    const signups = await this.collectionHelper.getDocuments<SignUp>('signups')
-    const entries = signups.filter((entry) => entry.runId === runId)
-    return sortByDateDescending(entries)
+    return this.runRepository.getSignUpsForRun(runId)
   }
 
   async getUserSignUps(userId: string): Promise<SignUp[]> {
-    const signups = await this.collectionHelper.getDocuments<SignUp>('signups')
-    const entries = signups.filter((entry) => entry.userId === userId)
-    return sortByDateDescending(entries)
+    return this.runRepository.getSignUpsForUser(userId)
   }
 
   async createOrganization(organizationData: Omit<Organization, 'id'>): Promise<string> {

@@ -1,7 +1,5 @@
 import {
-  where,
   orderBy,
-  Timestamp,
   type Firestore,
   type Unsubscribe,
   type QueryConstraint,
@@ -10,6 +8,7 @@ import { getFirebaseDb } from '@/firebase/client'
 import type { User, Run, SignUp, Organization, Location } from '@/types/models'
 import type { IDataRepository } from '../interfaces/IDataRepository'
 import { FirestoreCollectionHelper } from './internal/FirestoreCollectionHelper'
+import { FirebaseRunRepository } from './FirebaseRunRepository'
 import { FirebaseOrganizationRepository } from './FirebaseOrganizationRepository'
 
 /**
@@ -27,6 +26,7 @@ export class FirebaseDataRepository implements IDataRepository {
   }
 
   private readonly collectionHelper = new FirestoreCollectionHelper(() => this.getDb())
+  private readonly runRepository = new FirebaseRunRepository()
   private readonly organizationRepository = new FirebaseOrganizationRepository()
   // ==========================================
   // Generic CRUD operations
@@ -179,7 +179,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if run creation fails
    */
   async createRun(runData: Omit<Run, 'id'>): Promise<string> {
-    return this.addDocument<Run>('runs', runData)
+    return this.runRepository.createRun(runData)
   }
 
   /**
@@ -190,7 +190,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if run update fails
    */
   async updateRun(id: string, runData: Partial<Omit<Run, 'id'>>): Promise<void> {
-    return this.updateDocument<Run>('runs', id, runData)
+    return this.runRepository.updateRun(id, runData)
   }
 
   /**
@@ -200,7 +200,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if run deletion fails
    */
   async deleteRun(id: string): Promise<void> {
-    return this.deleteDocument('runs', id)
+    return this.runRepository.deleteRun(id)
   }
 
   /**
@@ -210,7 +210,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getRun(id: string): Promise<Run | null> {
-    return this.getDocument<Run>('runs', id)
+    return this.runRepository.getRun(id)
   }
 
   /**
@@ -219,7 +219,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getRuns(): Promise<Run[]> {
-    return this.getDocuments<Run>('runs', [orderBy('date', 'asc')])
+    return this.runRepository.getRuns()
   }
 
   /**
@@ -228,8 +228,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getUpcomingRuns(): Promise<Run[]> {
-    const now = Timestamp.now()
-    return this.getDocuments<Run>('runs', [where('date', '>=', now), orderBy('date', 'asc')])
+    return this.runRepository.getUpcomingRuns()
   }
 
   // ==========================================
@@ -243,7 +242,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if sign-up creation fails
    */
   async createSignUp(signUpData: Omit<SignUp, 'id'>): Promise<string> {
-    return this.addDocument<SignUp>('signups', signUpData)
+    return this.runRepository.createSignUp(signUpData)
   }
 
   /**
@@ -254,7 +253,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if sign-up update fails
    */
   async updateSignUp(id: string, signUpData: Partial<Omit<SignUp, 'id'>>): Promise<void> {
-    return this.updateDocument<SignUp>('signups', id, signUpData)
+    return this.runRepository.updateSignUp(id, signUpData)
   }
 
   /**
@@ -264,7 +263,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if sign-up deletion fails
    */
   async deleteSignUp(id: string): Promise<void> {
-    return this.deleteDocument('signups', id)
+    return this.runRepository.deleteSignUp(id)
   }
 
   /**
@@ -274,10 +273,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getSignUpsForRun(runId: string): Promise<SignUp[]> {
-    return this.getDocuments<SignUp>('signups', [
-      where('runId', '==', runId),
-      orderBy('timestamp', 'desc'),
-    ])
+    return this.runRepository.getSignUpsForRun(runId)
   }
 
   /**
@@ -287,10 +283,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getUserSignUps(userId: string): Promise<SignUp[]> {
-    return this.getDocuments<SignUp>('signups', [
-      where('userId', '==', userId),
-      orderBy('timestamp', 'desc'),
-    ])
+    return this.runRepository.getSignUpsForUser(userId)
   }
 
   // ==========================================
