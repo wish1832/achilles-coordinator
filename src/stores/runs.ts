@@ -94,8 +94,21 @@ export const useRunsStore = defineStore('runs', () => {
    * @returns True if user is listed in the run's runAdminIds
    */
   async function isUserRunAdmin(runId: string, userId: string): Promise<boolean> {
-    // Fetch the run from the repository to get the latest runAdminIds
-    const run = await dataRepository.getRun(runId)
+    // Prefer runs already loaded in the store before hitting the repository
+    let run: Run | null | undefined = null
+
+    // Check currentRun first if it matches the requested runId
+    if (currentRun.value?.id === runId) {
+      run = currentRun.value
+    } else {
+      // Fall back to searching in the loaded runs
+      run = getRunById(runId) ?? null
+    }
+
+    // If not found locally, fetch from the repository
+    if (!run) {
+      run = await dataRepository.getRun(runId)
+    }
 
     if (!run) {
       return false
