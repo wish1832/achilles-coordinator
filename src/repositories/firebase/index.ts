@@ -5,4 +5,8 @@
 
 export { FirebaseAuthRepository, firebaseAuthRepository } from './FirebaseAuthRepository'
 export { FirebaseDataRepository, firebaseDataRepository } from './FirebaseDataRepository'
+export {
+  FirebaseOrganizationRepository,
+  firebaseOrganizationRepository,
+} from './FirebaseOrganizationRepository'
 export { FirebaseUserRepository, firebaseUserRepository } from './FirebaseUserRepository'
