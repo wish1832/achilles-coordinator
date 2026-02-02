@@ -15,12 +15,7 @@
     <main id="main-content" class="run-main">
       <div class="run-content">
         <!-- Loading state -->
-        <LoadingUI
-          v-if="loading === 'loading'"
-          type="spinner"
-          text="Loading run details..."
-          centered
-        />
+        <LoadingUI v-if="loading === 'loading'" type="spinner" text="Loading run details..." centered />
 
         <!-- Error state -->
         <div v-else-if="loading === 'error'" class="run-error">
@@ -69,8 +64,8 @@
                 <div v-if="location.city || location.state" class="detail-row">
                   <span class="detail-label">Location:</span>
                   <span class="detail-value">
-                    {{ location.city }}<template v-if="location.city && location.state">, </template
-                    >{{ location.state }}
+                    {{ location.city }}<template v-if="location.city && location.state">, </template>{{ location.state
+                    }}
                   </span>
                 </div>
               </div>
@@ -156,17 +151,11 @@ const organization = computed(() => {
 const organizationName = computed(() => organization.value?.name || 'Unknown Organization')
 
 // Get the list of admin IDs for this run
-// If runAdminIds is defined and not empty, use it; otherwise fall back to org admins
 const adminIds = computed(() => {
-  if (!runsStore.currentRun || !organization.value) return []
-
-  // Use run-specific admins if defined and not empty
-  if (runsStore.currentRun.runAdminIds && runsStore.currentRun.runAdminIds.length > 0) {
-    return runsStore.currentRun.runAdminIds
-  }
-
-  // Otherwise, default to organization admins
-  return organization.value.adminIds
+  return Array.from(new Set([
+    ...(runsStore.currentRun?.runAdminIds ?? []),
+    ... (organization.value?.adminIds ?? [])
+  ]))
 })
 
 // Get the display names of the admins
@@ -283,11 +272,9 @@ onMounted(() => {
 
 /* Header */
 .run-header {
-  background: linear-gradient(
-    135deg,
-    var(--color-primary, #0066cc) 0%,
-    var(--color-primary-hover, #0052a3) 100%
-  );
+  background: linear-gradient(135deg,
+      var(--color-primary, #0066cc) 0%,
+      var(--color-primary-hover, #0052a3) 100%);
   color: white;
   padding: 2rem 0;
 }
