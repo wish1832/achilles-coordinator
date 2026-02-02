@@ -5,6 +5,7 @@ import { clone, getCollection, nextId, setCollection, type CollectionName } from
 import { MockCollectionHelper } from './internal/MockCollectionHelper'
 import { MockRunRepository } from './MockRunRepository'
 import { MockOrganizationRepository } from './MockOrganizationRepository'
+import { MockUserRepository } from './MockUserRepository'
 
 export class MockDataRepository implements IDataRepository {
   private readonly collectionHelper = new MockCollectionHelper({
@@ -13,6 +14,7 @@ export class MockDataRepository implements IDataRepository {
     clone,
     nextId,
   })
+  private readonly userRepository = new MockUserRepository()
   private readonly runRepository = new MockRunRepository()
   private readonly organizationRepository = new MockOrganizationRepository()
   async addDocument<T extends { id?: string }>(
@@ -65,16 +67,15 @@ export class MockDataRepository implements IDataRepository {
   }
 
   async updateUser(id: string, userData: Partial<Omit<User, 'id'>>): Promise<void> {
-    return this.collectionHelper.updateDocument('users', id, userData)
+    return this.userRepository.updateUser(id, userData)
   }
 
   async getUser(id: string): Promise<User | null> {
-    return this.collectionHelper.getDocument('users', id)
+    return this.userRepository.getUser(id)
   }
 
   async getUsers(): Promise<User[]> {
-    const users = await this.collectionHelper.getDocuments<User>('users')
-    return users.sort((a, b) => a.displayName.localeCompare(b.displayName))
+    return this.userRepository.getUsers()
   }
 
   async createRun(runData: Omit<Run, 'id'>): Promise<string> {

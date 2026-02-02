@@ -1,5 +1,4 @@
 import {
-  orderBy,
   type Firestore,
   type Unsubscribe,
   type QueryConstraint,
@@ -8,6 +7,7 @@ import { getFirebaseDb } from '@/firebase/client'
 import type { User, Run, SignUp, Organization, Location } from '@/types/models'
 import type { IDataRepository } from '../interfaces/IDataRepository'
 import { FirestoreCollectionHelper } from './internal/FirestoreCollectionHelper'
+import { FirebaseUserRepository } from './FirebaseUserRepository'
 import { FirebaseRunRepository } from './FirebaseRunRepository'
 import { FirebaseOrganizationRepository } from './FirebaseOrganizationRepository'
 
@@ -26,6 +26,7 @@ export class FirebaseDataRepository implements IDataRepository {
   }
 
   private readonly collectionHelper = new FirestoreCollectionHelper(() => this.getDb())
+  private readonly userRepository = new FirebaseUserRepository()
   private readonly runRepository = new FirebaseRunRepository()
   private readonly organizationRepository = new FirebaseOrganizationRepository()
   // ==========================================
@@ -135,7 +136,9 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if user creation fails
    */
   async createUser(userData: Omit<User, 'id'>): Promise<string> {
-    return this.addDocument<User>('users', userData)
+    return this.collectionHelper.addDocument<User>('users', userData, {
+      includeCreatedAt: true,
+    })
   }
 
   /**
@@ -146,7 +149,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if user update fails
    */
   async updateUser(id: string, userData: Partial<Omit<User, 'id'>>): Promise<void> {
-    return this.updateDocument<User>('users', id, userData)
+    return this.userRepository.updateUser(id, userData)
   }
 
   /**
@@ -156,7 +159,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getUser(id: string): Promise<User | null> {
-    return this.getDocument<User>('users', id)
+    return this.userRepository.getUser(id)
   }
 
   /**
@@ -165,7 +168,7 @@ export class FirebaseDataRepository implements IDataRepository {
    * @throws Error if retrieval fails
    */
   async getUsers(): Promise<User[]> {
-    return this.getDocuments<User>('users', [orderBy('displayName')])
+    return this.userRepository.getUsers()
   }
 
   // ==========================================
