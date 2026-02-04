@@ -216,7 +216,7 @@ router.beforeEach(async (to, _from, next) => {
       const isOrgAdmin = org
         ? organizationStore.isUserOrgAdmin(run.organizationId, userId)
         : false
-      const isRunAdmin = run.runAdminIds?.includes(userId) ?? false
+      const isRunAdmin = await runsStore.isUserRunAdmin(runId, userId)
 
       if (!isOrgAdmin && !isRunAdmin) {
         // User is not authorized to manage this run
