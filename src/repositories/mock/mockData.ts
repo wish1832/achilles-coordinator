@@ -19,6 +19,7 @@ export const seedData: SeedData = {
     {
       id: 'org-denver',
       name: 'Achilles Denver',
+      description: 'Denver chapter of Achilles International.',
       adminIds: ['user-admin-1'],
       memberIds: [
         'user-admin-1',

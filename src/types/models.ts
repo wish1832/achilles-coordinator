@@ -34,6 +34,7 @@ export interface OrganizationInvite {
 export interface Organization {
   id: string
   name: string
+  description?: string // Optional description of the organization
   adminIds: string[] // Array of user IDs who are admins of this organization
   memberIds: string[] // Array of user IDs who are members of this organization
   createdAt: Date
