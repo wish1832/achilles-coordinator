@@ -1,5 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useOrganizationStore } from '@/stores/organization'
+import { useRunsStore } from '@/stores/runs'
+import { useAdminCapabilities } from '@/composables/useAdminCapabilities'
 import type { UserRole } from '@/types/models'
 import LoginView from '@/views/LoginView.vue'
 
@@ -46,6 +49,16 @@ const router = createRouter({
       meta: {
         requiresAuth: true,
         title: 'Admin Dashboard - Achilles Run Coordinator',
+      },
+    },
+    {
+      path: '/runs/:id/pairing',
+      name: 'RunPairing',
+      component: () => import('@/views/PairingView.vue'),
+      meta: {
+        requiresAuth: true,
+        requiresRunAdmin: true,
+        title: 'Manage Pairings - Achilles Run Coordinator',
       },
     },
     // {
@@ -122,6 +135,91 @@ router.beforeEach(async (to, _from, next) => {
     if (requiredRoles?.length && !authStore.hasPermission(requiredRoles)) {
       next({ name: 'Runs' })
       return
+    }
+
+    // Check organization admin access for routes that require it
+    if (to.meta.requiresOrgAdmin) {
+      const orgId = to.params.orgId as string
+      if (!orgId) {
+        next({ name: 'Admin' })
+        return
+      }
+
+      const organizationStore = useOrganizationStore()
+
+      // Load organization if not in cache
+      let org = organizationStore.getOrganizationById(orgId)
+      if (!org) {
+        try {
+          await organizationStore.loadOrganization(orgId)
+          org = organizationStore.getOrganizationById(orgId)
+        } catch {
+          // Organization not found or error loading, redirect to admin dashboard
+          next({ name: 'Admin' })
+          return
+        }
+      }
+
+      // Check if current user is admin of this organization
+      if (!org) {
+        next({ name: 'Admin' })
+        return
+      }
+
+      const isAdmin = organizationStore.isUserOrgAdmin(orgId, authStore.currentUser!.id)
+      if (!isAdmin) {
+        // User is not admin of this organization, redirect to admin dashboard
+        next({ name: 'Admin' })
+        return
+      }
+    }
+
+    // Check run admin access for routes that require it
+    // Run admins are either org admins or users listed in run.runAdminIds
+    if (to.meta.requiresRunAdmin) {
+      const runId = to.params.id as string
+      if (!runId) {
+        next({ name: 'Runs' })
+        return
+      }
+
+      const runsStore = useRunsStore()
+      const organizationStore = useOrganizationStore()
+      const { canManageRun } = useAdminCapabilities()
+
+      // Load the run to check admin status
+      try {
+        await runsStore.loadRun(runId)
+      } catch {
+        next({ name: 'Runs' })
+        return
+      }
+
+      const run = runsStore.currentRun
+      if (!run) {
+        next({ name: 'Runs' })
+        return
+      }
+
+      // Load organization so we can check org admin status
+      let org = organizationStore.getOrganizationById(run.organizationId)
+      if (!org) {
+        try {
+          await organizationStore.loadOrganization(run.organizationId)
+          org = organizationStore.getOrganizationById(run.organizationId)
+        } catch {
+          next({ name: 'Runs' })
+          return
+        }
+      }
+
+      // Use the canManageRun composable to check if user can manage this run
+      // This checks both org admin status and run-specific admin status
+      if (!canManageRun(run.organizationId, run.runAdminIds)) {
+        // User is not authorized to manage this run
+        next({ name: 'Run', params: { id: runId } })
+        return
+      }
     }
   }
 

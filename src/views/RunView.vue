@@ -15,7 +15,12 @@
     <main id="main-content" class="run-main">
       <div class="run-content">
         <!-- Loading state -->
-        <LoadingUI v-if="loading === 'loading'" type="spinner" text="Loading run details..." centered />
+        <LoadingUI
+          v-if="loading === 'loading'"
+          type="spinner"
+          text="Loading run details..."
+          centered
+        />
 
         <!-- Error state -->
         <div v-else-if="loading === 'error'" class="run-error">
@@ -64,8 +69,8 @@
                 <div v-if="location.city || location.state" class="detail-row">
                   <span class="detail-label">Location:</span>
                   <span class="detail-value">
-                    {{ location.city }}<template v-if="location.city && location.state">, </template>{{ location.state
-                    }}
+                    {{ location.city }}<template v-if="location.city && location.state">, </template
+                    >{{ location.state }}
                   </span>
                 </div>
               </div>
@@ -83,6 +88,17 @@
               </template>
               <AchillesButton v-else variant="primary" size="medium" @click="signUpForRun">
                 Sign Up
+              </AchillesButton>
+
+              <!-- Manage Pairings button - only visible to run admins -->
+              <AchillesButton
+                v-if="canUserManageRun"
+                variant="secondary"
+                size="medium"
+                class="manage-pairings-button"
+                @click="navigateToPairings"
+              >
+                Manage Pairings
               </AchillesButton>
             </div>
           </CardUI>
@@ -111,6 +127,7 @@ import { useOrganizationStore } from '@/stores/organization'
 import { useSignUpsStore } from '@/stores/signups'
 import { useAuthStore } from '@/stores/auth'
 import { useUsersStore } from '@/stores/users'
+import { useAdminCapabilities } from '@/composables/useAdminCapabilities'
 import type { Location, LoadingState } from '@/types'
 
 // Router and stores
@@ -122,6 +139,7 @@ const organizationStore = useOrganizationStore()
 const signUpsStore = useSignUpsStore()
 const authStore = useAuthStore()
 const usersStore = useUsersStore()
+const { canManageRun } = useAdminCapabilities()
 
 // Local state for tracking loading and errors
 const loading = ref<LoadingState>('idle')
@@ -152,10 +170,12 @@ const organizationName = computed(() => organization.value?.name || 'Unknown Org
 
 // Get the list of admin IDs for this run
 const adminIds = computed(() => {
-  return Array.from(new Set([
-    ...(runsStore.currentRun?.runAdminIds ?? []),
-    ... (organization.value?.adminIds ?? [])
-  ]))
+  return Array.from(
+    new Set([
+      ...(runsStore.currentRun?.runAdminIds ?? []),
+      ...(organization.value?.adminIds ?? []),
+    ]),
+  )
 })
 
 // Get the display names of the admins
@@ -164,6 +184,12 @@ const adminNames = computed(() => {
     .map((id) => usersStore.getUserById(id))
     .filter((user) => user !== undefined)
     .map((user) => user!.displayName)
+})
+
+// Check if the current user can manage this run (is org admin or run admin)
+const canUserManageRun = computed(() => {
+  if (!runsStore.currentRun) return false
+  return canManageRun(runsStore.currentRun.organizationId, runsStore.currentRun.runAdminIds)
 })
 
 // Check if the current user has signed up for this run
@@ -256,6 +282,11 @@ function editRSVP(): void {
   console.log('Editing RSVP for run:', runId.value)
 }
 
+// Navigate to the pairings management page for this run
+function navigateToPairings(): void {
+  router.push(`/runs/${runId.value}/pairing`)
+}
+
 // Initialize on mount
 // Load all run data when the component mounts
 onMounted(() => {
@@ -272,9 +303,11 @@ onMounted(() => {
 
 /* Header */
 .run-header {
-  background: linear-gradient(135deg,
-      var(--color-primary, #0066cc) 0%,
-      var(--color-primary-hover, #0052a3) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--color-primary, #0066cc) 0%,
+    var(--color-primary-hover, #0052a3) 100%
+  );
   color: white;
   padding: 2rem 0;
 }
@@ -386,9 +419,19 @@ onMounted(() => {
 
 /* Sign-up Actions */
 .run-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
   margin-top: 1.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--color-border, #e5e7eb);
+}
+
+/* Manage Pairings button positioned to the right */
+.manage-pairings-button {
+  margin-left: auto;
 }
 
 /* Signup status display - matches the style from RunsListView */

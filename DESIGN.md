@@ -35,6 +35,9 @@ Achilles Run Coordinator is a web application for coordinating sign-ups for Achi
 
 2. **Pairing System**
    - Admins manually pair athletes with guides for each run
+   - Multiple guides can be paired with a single athlete
+   - Athletes can be paired with other athletes (for scenarios where multiple athletes share one guide or run together without a guide)
+   - Athlete-to-athlete pairings are one-directional: the second athlete appears under the first athlete's pairings
    - Keyboard-accessible pairing interface
    - View and manage existing pairings
    - Admin-only pairing notes to explain pairing decisions (not visible to users)
@@ -182,7 +185,7 @@ interface User {
     disabilityType?: string
     assistanceNeeded?: string
     // Guide-specific
-    certifications?: ('visually impaired guiding')[] // Array of certification types
+    certifications?: 'visually impaired guiding'[] // Array of certification types
   }
   userNotes?: string // Notes written BY user about themselves, visible to user + admins
 }
@@ -207,7 +210,10 @@ interface Run {
   maxGuides?: number
   notes?: string
   pairings?: {
-    [athleteId: string]: string // Maps athlete user ID to guide user ID
+    [athleteId: string]: {
+      guides: string[]    // Guide user IDs paired with this athlete
+      athletes: string[]  // Athlete user IDs paired with this athlete (for multi-athlete single-guide scenarios)
+    }
   }
 }
 ```
@@ -308,8 +314,8 @@ Admin status is **organization-specific**, not a global user role:
 - Admin permissions are determined by the `adminIds` array in each organization
 - A user can be an admin of one or more organizations
 - A user can be a regular member of some organizations and an admin of others
-- Athletes can be admins (e.g., an athlete who helps organize their chapter)
-- Guides can be admins (e.g., a guide who coordinates runs)
+- Athletes can be admins
+- Guides can be admins
 
 ### Route Guards
 
@@ -419,7 +425,7 @@ All UI components in `src/components/ui/` are built with accessibility as a core
    - View run details (date, time, location, description)
    - Accessible to all authenticated users
 
-3. **RunDetailView** (`/runs/:id`)
+3. **RunDetailView** (`/runs/{run_id}`)
    - Detailed view of a specific run
    - Location information
    - Sign-up button (if not already signed up)
@@ -431,53 +437,61 @@ All UI components in `src/components/ui/` are built with accessibility as a core
 **Note**: Admin pages are organization-scoped. Admins see only data for organizations they administer.
 
 1. **AdminDashboard** (`/admin`)
-   - Organization selector (if admin of multiple organizations)
-   - Quick stats for selected organization:
-     - Upcoming runs count
-     - Total athletes and guides
-     - Pending pairings count
-   - Quick action cards (Create Run, Manage Locations, View Users)
-   - Recent activity feed
+
+- Organization selector (if admin of multiple organizations)
+- Quick stats for selected organization:
+  - Upcoming runs count
+  - Total athletes and guides
+  - Pending pairings count
+- Quick action cards (Create Run, Manage Locations, View Users)
+- Recent activity feed
 
 2. **OrganizationView** (`/admin/organizations/:id`)
-   - Organization details page
-   - List of runs for this organization
-   - Manage organization settings
-   - View organization members
-   - Manage organization admins
+
+- Organization details page
+- List of runs for this organization
+- Manage organization settings
+- View organization members
+- Manage organization admins
 
 3. **RunsManagementView** (`/admin/organizations/:orgId/runs`)
-   - List all runs for the organization
-   - Create new run
-   - Edit existing runs
-   - Delete runs
-   - View sign-ups per run
-   - Quick link to pairing page for each run
+
+- List all runs for the organization
+- Create new run
+- Edit existing runs
+- Delete runs
+- View sign-ups per run
+- Quick link to pairing page for each run
 
 4. **RunDetailAdminView** (`/admin/organizations/:orgId/runs/:runId`)
-   - Detailed admin view of a specific run
-   - Edit run details
-   - View all sign-ups (athletes and guides)
-   - Create/manage pairings for this run
-   - Manual pairing interface (keyboard accessible)
-   - View existing pairings
-   - Unpair functionality
-   - Export participant list
 
-5. **LocationsView** (`/admin/organizations/:orgId/locations`)
-   - List all locations for the organization
-   - Create new location
-   - Edit existing locations
-   - Delete locations
-   - View which runs use each location
+- Detailed admin view of a specific run
+- Edit run details
+- View all sign-ups (athletes and guides)
+- Create/manage pairings for this run
+- Export participant list
 
-6. **UsersView** (`/admin/organizations/:orgId/users`)
-   - List all users in the organization
-   - Filter by role (athlete/guide)
-   - Invite new user to organization
-   - View user profiles
-   - Remove users from organization
-   - Assign/revoke admin status for the organization
+5. **PairingView** (`/admin/organizations/:orgId/runs/:runId/pairings`)
+
+- Interactive dashboard admins use to pair athletes and guides
+- Two columns: athletes, guides. In the athletes column, athletes are shown along with any guides they are paired with (multiple guides per athlete supported). In the guides column, unpaired guides are shown.
+
+6. **LocationsView** (`/admin/organizations/:orgId/locations`)
+
+- List all locations for the organization
+- Create new location
+- Edit existing locations
+- Delete locations
+- View which runs use each location
+
+7. **UsersView** (`/admin/organizations/:orgId/users`)
+
+- List all users in the organization
+- Filter by role (athlete/guide)
+- Invite new user to organization
+- View user profiles
+- Remove users from organization
+- Assign/revoke admin status for the organization
 
 ## Implementation Plan
 
