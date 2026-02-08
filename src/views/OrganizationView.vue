@@ -41,6 +41,14 @@
         <div class="organization-container">
           <!-- Runs section - only visible to members -->
           <section v-if="isMember" class="runs-section" aria-labelledby="runs-heading">
+            <!-- Create Run button - only visible to org admins -->
+            <div v-if="isUserOrgAdmin" class="runs-section__header">
+              <AchillesButton variant="primary" size="medium" @click="navigateToCreateRun">
+                <font-awesome-icon icon="circle-plus" aria-hidden="true" />
+                <span>Create Run</span>
+              </AchillesButton>
+            </div>
+
             <h2 id="runs-heading" class="section-heading">Upcoming Runs</h2>
 
             <!-- Loading runs -->
@@ -127,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onActivated, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import CardUI from '@/components/ui/CardUI.vue'
@@ -138,6 +146,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useRunsStore } from '@/stores/runs'
 import { useLocationStore } from '@/stores/location'
 import { useSignUpsStore } from '@/stores/signups'
+import { useAdminCapabilities } from '@/composables/useAdminCapabilities'
 import type { LoadingState } from '@/types'
 
 // Router and route
@@ -150,6 +159,9 @@ const authStore = useAuthStore()
 const runsStore = useRunsStore()
 const locationStore = useLocationStore()
 const signUpsStore = useSignUpsStore()
+
+// Admin capabilities for checking org admin status
+const { isOrgAdmin } = useAdminCapabilities()
 
 // Get reactive references from stores
 const { currentUser } = storeToRefs(authStore)
@@ -174,6 +186,9 @@ const isMember = computed(() => {
   return organizationStore.isUserOrgMember(orgId.value, currentUser.value.id)
 })
 
+// Check if current user is an admin of this organization
+const isUserOrgAdmin = computed(() => isOrgAdmin(orgId.value))
+
 // Filter runs for this organization
 const organizationRuns = computed(() => {
   return runs.value.filter((run) => run.organizationId === orgId.value)
@@ -197,11 +212,14 @@ async function loadOrganizationData(): Promise<void> {
  * Loads upcoming runs, locations, and sign-up counts
  */
 async function loadRunsData(): Promise<void> {
+  console.log('[OrganizationView] loadRunsData called')
   try {
     runsLoading.value = 'loading'
 
     // Load upcoming runs
     await runsStore.loadUpcomingRuns()
+    console.log('[OrganizationView] All runs from store:', runs.value)
+    console.log('[OrganizationView] Runs for this org:', organizationRuns.value)
 
     // Load locations for this organization
     await locationStore.loadLocationsForOrganization(orgId.value)
@@ -262,6 +280,14 @@ function viewRun(runId: string): void {
 }
 
 /**
+ * Navigate to the create run page
+ * Only available to organization admins
+ */
+function navigateToCreateRun(): void {
+  router.push(`/organizations/${orgId.value}/runs/create`)
+}
+
+/**
  * Check if the current user has signed up for a specific run
  * Returns true if the user has an active sign-up for the run
  */
@@ -282,6 +308,7 @@ function isUserSignedUpForRun(runId: string): boolean {
 
 // Load organization data on mount
 onMounted(async () => {
+  console.log('[OrganizationView] onMounted called')
   await loadOrganizationData()
 
   // If user is a member, also load runs data
@@ -294,6 +321,16 @@ onMounted(async () => {
 // and load runs if they become a member
 watch(isMember, async (newValue) => {
   if (newValue && runsLoading.value === 'idle') {
+    await loadRunsData()
+  }
+})
+
+// Reload runs data when component is activated (e.g., navigating back from create run page)
+// With KeepAlive, the component is cached instead of destroyed, so onMounted won't run again.
+// onActivated runs each time the cached component becomes visible.
+onActivated(async () => {
+  console.log('[OrganizationView] onActivated called')
+  if (isMember.value) {
     await loadRunsData()
   }
 })
@@ -359,6 +396,20 @@ watch(isMember, async (newValue) => {
 /* Runs section */
 .runs-section {
   margin-bottom: 2rem;
+}
+
+/* Runs section header with Create Run button */
+.runs-section__header {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 1rem;
+}
+
+/* Style the button content to have icon and text side by side */
+.runs-section__header :deep(.button) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 /* Runs list */

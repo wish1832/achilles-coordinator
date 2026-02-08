@@ -8,11 +8,49 @@ type SeedData = {
   signUps: SignUp[]
 }
 
-const mockNow = new Date('2030-01-01T09:00:00Z')
-
+/**
+ * Get a date offset from the current real date.
+ * Used for creating mock data relative to "today".
+ */
 function daysFromNow(offsetDays: number): Date {
-  return new Date(mockNow.getTime() + offsetDays * 24 * 60 * 60 * 1000)
+  const now = new Date()
+  return new Date(now.getTime() + offsetDays * 24 * 60 * 60 * 1000)
 }
+
+/**
+ * Get the next Monday from the current date.
+ * If today is Monday, returns today.
+ */
+function getNextMonday(): Date {
+  const now = new Date()
+  const dayOfWeek = now.getDay()
+  // Sunday = 0, Monday = 1, ..., Saturday = 6
+  // Calculate days until next Monday (or today if Monday)
+  const daysUntilMonday = dayOfWeek === 0 ? 1 : dayOfWeek === 1 ? 0 : 8 - dayOfWeek
+  const nextMonday = new Date(now)
+  nextMonday.setDate(now.getDate() + daysUntilMonday)
+  // Set time to 8:00 AM for run-1
+  nextMonday.setHours(8, 0, 0, 0)
+  return nextMonday
+}
+
+/**
+ * Get the Saturday after a given date.
+ */
+function getSaturdayAfter(date: Date): Date {
+  const saturday = new Date(date)
+  const dayOfWeek = saturday.getDay()
+  // Calculate days until Saturday (Saturday = 6)
+  const daysUntilSaturday = (6 - dayOfWeek + 7) % 7 || 7
+  saturday.setDate(saturday.getDate() + daysUntilSaturday)
+  // Set time to 9:00 AM for run-2
+  saturday.setHours(9, 0, 0, 0)
+  return saturday
+}
+
+// Calculate run dates relative to the current system date
+const run1Date = getNextMonday()
+const run2Date = getSaturdayAfter(run1Date)
 
 export const seedData: SeedData = {
   organizations: [
@@ -42,9 +80,9 @@ export const seedData: SeedData = {
   ],
   locations: [
     {
-      id: 'location-city-park',
+      id: 'location-wash-park',
       organizationId: 'org-denver',
-      name: 'City Park Loop',
+      name: 'Wash Park',
       address: '701 S Franklin St',
       city: 'Denver',
       state: 'CO',
@@ -186,10 +224,10 @@ export const seedData: SeedData = {
     {
       id: 'run-1',
       organizationId: 'org-denver',
-      date: daysFromNow(1),
-      time: '08:00',
-      locationId: 'location-city-park',
-      description: 'Easy pace run with coffee after.',
+      date: run1Date,
+      time: '18:00',
+      locationId: 'location-wash-park',
+      description: 'Monday night run at Wash Park.',
       createdBy: 'user-admin-1',
       createdAt: daysFromNow(-1),
       status: 'upcoming',
@@ -216,10 +254,10 @@ export const seedData: SeedData = {
     {
       id: 'run-2',
       organizationId: 'org-denver',
-      date: daysFromNow(2),
+      date: run2Date,
       time: '09:00',
       locationId: 'location-river-trail',
-      description: 'Scenic out-and-back along the river.',
+      description: 'Saturday morning run along the river.',
       createdBy: 'user-admin-1',
       createdAt: daysFromNow(-2),
       status: 'upcoming',
@@ -234,7 +272,7 @@ export const seedData: SeedData = {
     },
   ],
   signUps: [
-    // Run 1 sign-ups - City Park Loop
+    // Run 1 sign-ups - Wash Park
     // Regular athletes (signing up for both runs)
     {
       id: 'signup-1',
@@ -360,5 +398,3 @@ export const seedData: SeedData = {
     },
   ],
 }
-
-export { mockNow }

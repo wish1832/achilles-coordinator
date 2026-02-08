@@ -1,6 +1,5 @@
 import type { Run, SignUp } from '@/types/models'
 import type { IRunRepository } from '@/repositories/interfaces/IRunRepository'
-import { mockNow } from './mockData'
 import { clone, getCollection, nextId, setCollection } from './mockState'
 import { MockCollectionHelper } from './internal/MockCollectionHelper'
 
@@ -29,6 +28,7 @@ export class MockRunRepository implements IRunRepository {
   async createRun(runData: Omit<Run, 'id'>): Promise<string> {
     const id = nextId('run')
     await this.collectionHelper.setDocument('runs', id, runData)
+    console.log('[MockRunRepository] Created run, all runs now:', getCollection('runs'))
     return id
   }
 
@@ -50,9 +50,12 @@ export class MockRunRepository implements IRunRepository {
   }
 
   async getUpcomingRuns(): Promise<Run[]> {
-    const now = mockNow.getTime()
+    const now = new Date().getTime()
     const runs = await this.collectionHelper.getDocuments<Run>('runs')
+    console.log('[MockRunRepository] getUpcomingRuns - all runs:', runs)
+    console.log('[MockRunRepository] getUpcomingRuns - now:', new Date())
     const upcomingRuns = runs.filter((entry) => new Date(entry.date).getTime() >= now)
+    console.log('[MockRunRepository] getUpcomingRuns - filtered upcoming:', upcomingRuns)
     return sortByRunDateAscending(upcomingRuns)
   }
 
