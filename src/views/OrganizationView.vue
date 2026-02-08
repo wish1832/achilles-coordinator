@@ -258,7 +258,7 @@ function formatDate(date: Date): string {
  * Navigate to run details page
  */
 function viewRun(runId: string): void {
-  router.push(`/runs/${runId}`)
+  router.push(`/organizations/${orgId.value}/runs/${runId}`)
 }
 
 /**

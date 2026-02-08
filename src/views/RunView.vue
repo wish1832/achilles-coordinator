@@ -284,7 +284,8 @@ function editRSVP(): void {
 
 // Navigate to the pairings management page for this run
 function navigateToPairings(): void {
-  router.push(`/runs/${runId.value}/pairing`)
+  if (!runsStore.currentRun) return
+  router.push(`/organizations/${runsStore.currentRun.organizationId}/runs/${runId.value}/pairing`)
 }
 
 // Initialize on mount
