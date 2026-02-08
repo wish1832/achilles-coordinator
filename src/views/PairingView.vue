@@ -11,7 +11,17 @@
     <!-- Header -->
     <header class="pairing-header">
       <div class="pairing-header__content">
-        <h1 class="pairing-title">Manage Pairing Groups</h1>
+        <div class="pairing-header__top-row">
+          <h1 class="pairing-title">Manage Pairing Groups</h1>
+          <!-- Help icon to open pairing instructions modal -->
+          <button
+            class="help-icon-button"
+            aria-label="How to pair"
+            @click="isInstructionsModalOpen = true"
+          >
+            <font-awesome-icon icon="circle-question" />
+          </button>
+        </div>
         <p v-if="organization && run" class="pairing-subtitle">
           {{ organization.name }}
         </p>
@@ -41,92 +51,92 @@
 
         <!-- Success state -->
         <div v-else-if="loading === 'success'">
-          <!-- Instructions section -->
-          <section class="pairing-instructions" aria-labelledby="instructions-heading">
-            <h2 id="instructions-heading">How to Pair</h2>
-            <CardUI>
-              <div class="instructions-content">
-                <h3 class="instructions-subheading">Pairing Athletes with Guides</h3>
-                <ol class="instructions-list">
-                  <li>
-                    Click or press Enter/Space on an athlete, then click a guide to create a pairing
-                  </li>
-                  <li>
-                    Or, click or press Enter/Space on a guide, then click an athlete to create a
-                    pairing
-                  </li>
-                  <li>Athletes can be paired with multiple guides</li>
-                </ol>
+          <!-- Instructions modal -->
+          <ModalElement
+            :is-open="isInstructionsModalOpen"
+            title="How to Pair"
+            size="large"
+            @close="isInstructionsModalOpen = false"
+          >
+            <div class="instructions-content">
+              <h3 class="instructions-subheading">Pairing Athletes with Guides</h3>
+              <ol class="instructions-list">
+                <li>
+                  Click or press Enter/Space on an athlete, then click a guide to create a pairing
+                </li>
+                <li>
+                  Or, click or press Enter/Space on a guide, then click an athlete to create a
+                  pairing
+                </li>
+                <li>Athletes can be paired with multiple guides</li>
+              </ol>
 
-                <h3 class="instructions-subheading">Pairing Athletes Together</h3>
-                <p class="instructions-paragraph">
-                  When guide availability is limited, multiple athletes may need to share one guide.
-                  To represent this, you can pair athletes together. The second athlete will be
-                  shown under the first athlete's pairings.
-                </p>
-                <p class="instructions-paragraph"><strong>To pair athletes together:</strong></p>
-                <ul class="instructions-list">
-                  <li>
-                    <strong>With mouse:</strong> Click the first athlete (who will keep their own
-                    pairing entry), then click the second athlete (who will move under the first
-                    athlete's card)
-                  </li>
-                  <li>
-                    <strong>With keyboard:</strong> Press Enter or Space on the first athlete, then
-                    press Enter or Space on the second athlete
-                  </li>
-                </ul>
-                <p class="instructions-paragraph">
-                  Athletes may also be paired together without a guide. You are responsible for
-                  determining whether such pairings are appropriate for the run.
-                </p>
+              <h3 class="instructions-subheading">Pairing Athletes Together</h3>
+              <p class="instructions-paragraph">
+                When guide availability is limited, multiple athletes may need to share one guide.
+                To represent this, you can pair athletes together. The second athlete will be
+                shown under the first athlete's pairings.
+              </p>
+              <p class="instructions-paragraph"><strong>To pair athletes together:</strong></p>
+              <ul class="instructions-list">
+                <li>
+                  <strong>With mouse:</strong> Click the first athlete (who will keep their own
+                  pairing entry), then click the second athlete (who will move under the first
+                  athlete's card)
+                </li>
+                <li>
+                  <strong>With keyboard:</strong> Press Enter or Space on the first athlete, then
+                  press Enter or Space on the second athlete
+                </li>
+              </ul>
+              <p class="instructions-paragraph">
+                Athletes may also be paired together without a guide. You are responsible for
+                determining whether such pairings are appropriate for the run.
+              </p>
 
-                <h3 class="instructions-subheading">Navigation & Actions</h3>
-                <ul class="instructions-list">
-                  <li>Press Escape to clear your selection</li>
-                  <li>Use Arrow Up/Down to navigate between cards in a column</li>
-                  <li>Use Home/End to jump to the first or last card in a column</li>
-                  <li>Click "Unpair" on a sub-card to remove that specific pairing</li>
-                  <li>Click "Save Pairings" to save your changes</li>
-                </ul>
-              </div>
-            </CardUI>
-          </section>
-
-          <!-- Save section with unsaved changes indicator -->
-          <section class="pairing-actions" aria-labelledby="actions-heading">
-            <h2 id="actions-heading" class="sr-only">Actions</h2>
-            <div class="actions-bar">
-              <div class="actions-status">
-                <span v-if="hasUnsavedChanges" class="unsaved-indicator"> Unsaved changes </span>
-                <span v-else class="saved-indicator">All changes saved</span>
-              </div>
-              <ButtonUI
-                variant="primary"
-                :disabled="!hasUnsavedChanges || savingPairings"
-                :loading="savingPairings"
-                @click="savePairings"
-              >
-                Save Pairings
-              </ButtonUI>
+              <h3 class="instructions-subheading">Navigation & Actions</h3>
+              <ul class="instructions-list">
+                <li>Press Escape to clear your selection</li>
+                <li>Use Arrow Up/Down to navigate between cards in a column</li>
+                <li>Use Home/End to jump to the first or last card in a column</li>
+                <li>Click "Unpair" on a sub-card to remove that specific pairing</li>
+                <li>Click "Save Pairings" to save your changes</li>
+              </ul>
             </div>
-          </section>
+          </ModalElement>
 
           <!-- Pairing columns -->
           <section class="pairing-columns-section" aria-labelledby="pairings-heading">
             <h2 id="pairings-heading" class="sr-only">Athletes and Guides</h2>
 
-            <!-- Sort controls -->
+            <!-- Sort controls and save actions on the same row -->
             <div class="sort-controls">
+              <!-- Sort button on the left -->
               <ButtonUI
                 variant="secondary"
                 :aria-label="`Sort by pace, currently ${sortDirection === 'asc' ? 'slowest to fastest' : 'fastest to slowest'}. Click to toggle.`"
                 @click="toggleSortDirection"
               >
                 Pace
-                <PhCaretUp v-if="sortDirection === 'asc'" :size="32" weight="duotone" />
-                <PhCaretDown v-else :size="32" weight="duotone" />
+                <font-awesome-icon v-if="sortDirection === 'asc'" icon="caret-up" />
+                <font-awesome-icon v-else icon="caret-down" />
               </ButtonUI>
+
+              <!-- Save indicator and save button grouped on the right -->
+              <div class="actions-save-group">
+                <div class="actions-status">
+                  <span v-if="hasUnsavedChanges" class="unsaved-indicator">Unsaved changes</span>
+                  <span v-else class="saved-indicator">All changes saved</span>
+                </div>
+                <ButtonUI
+                  variant="primary"
+                  :disabled="!hasUnsavedChanges || savingPairings"
+                  :loading="savingPairings"
+                  @click="savePairings"
+                >
+                  Save Pairings
+                </ButtonUI>
+              </div>
             </div>
 
             <div class="pairing-columns">
@@ -339,9 +349,8 @@ import type { User, LoadingState } from '@/types'
 import CardUI from '@/components/ui/CardUI.vue'
 import ButtonUI from '@/components/ui/ButtonUI.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
+import ModalElement from '@/components/ui/ModalElement.vue'
 
-// Phosphor Icons
-import { PhCaretUp, PhCaretDown } from '@phosphor-icons/vue'
 
 // Route access
 const route = useRoute()
@@ -372,6 +381,9 @@ const selectedAthleteId = ref<string | null>(null)
 const selectedGuideId = ref<string | null>(null)
 const pairings = ref<Record<string, { guides: string[]; athletes: string[] }>>({})
 const originalPairings = ref<Record<string, { guides: string[]; athletes: string[] }>>({})
+
+// Modal state for "How to Pair" instructions
+const isInstructionsModalOpen = ref(false)
 
 // Sorting state
 // sortDirection: 'asc' means slowest to fastest (ascending pace values)
@@ -1284,6 +1296,12 @@ onMounted(() => {
   padding: 0 1rem;
 }
 
+.pairing-header__top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .pairing-title {
   font-size: 2.5rem;
   font-weight: 700;
@@ -1338,19 +1356,8 @@ onMounted(() => {
 }
 
 /* ==========================================
-   Instructions Section
+   Instructions (inside modal)
    ========================================== */
-
-.pairing-instructions h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--color-text, #111827);
-  margin: 0 0 1rem 0;
-}
-
-.instructions-content {
-  padding: 1rem;
-}
 
 .instructions-subheading {
   font-size: 1.125rem;
@@ -1388,7 +1395,7 @@ onMounted(() => {
 }
 
 /* ==========================================
-   Actions Bar (Save section)
+   Actions Bar (How to Pair + Save section)
    ========================================== */
 
 .actions-bar {
@@ -1400,6 +1407,37 @@ onMounted(() => {
   background: white;
   border-radius: 0.5rem;
   box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
+}
+
+/* Help icon button for opening instructions modal */
+.help-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  font-size: 3.75rem;
+  color: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  transition: color 0.2s ease;
+}
+
+.help-icon-button:hover {
+  color: white;
+}
+
+.help-icon-button:focus {
+  outline: 3px solid white;
+  outline-offset: 2px;
+}
+
+/* Groups the save indicator and save button together on the right */
+.actions-save-group {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 .actions-status {
@@ -1422,6 +1460,7 @@ onMounted(() => {
 .sort-controls {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
   margin-bottom: 1rem;
 }
@@ -1843,6 +1882,10 @@ onMounted(() => {
   .actions-bar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .actions-save-group {
+    justify-content: space-between;
   }
 }
 

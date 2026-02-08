@@ -1,11 +1,22 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 
+// Font Awesome setup: register icons in the library so they can be used
+// via the <font-awesome-icon> component anywhere in the app
+import { library } from '@fortawesome/fontawesome-svg-core'
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
+import { faCaretUp, faCaretDown, faCircleQuestion } from '@fortawesome/free-solid-svg-icons'
+
+library.add(faCaretUp, faCaretDown, faCircleQuestion)
+
 import App from './App.vue'
 import router from './router'
 import { useAuthStore } from './stores/auth'
 
 const app = createApp(App)
+
+// Register FontAwesomeIcon as a global component
+app.component('font-awesome-icon', FontAwesomeIcon)
 
 // Initialize Pinia first so stores are available
 app.use(createPinia())
