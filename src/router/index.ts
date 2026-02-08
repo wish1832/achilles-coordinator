@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useOrganizationStore } from '@/stores/organization'
 import { useRunsStore } from '@/stores/runs'
+import { useAdminCapabilities } from '@/composables/useAdminCapabilities'
 import type { UserRole } from '@/types/models'
 import LoginView from '@/views/LoginView.vue'
 
@@ -184,6 +185,7 @@ router.beforeEach(async (to, _from, next) => {
 
       const runsStore = useRunsStore()
       const organizationStore = useOrganizationStore()
+      const { canManageRun } = useAdminCapabilities()
 
       // Load the run to check admin status
       try {
@@ -211,14 +213,9 @@ router.beforeEach(async (to, _from, next) => {
         }
       }
 
-      // Check if user is an org admin or a run-specific admin
-      const userId = authStore.currentUser!.id
-      const isOrgAdmin = org
-        ? organizationStore.isUserOrgAdmin(run.organizationId, userId)
-        : false
-      const isRunAdmin = await runsStore.isUserRunAdmin(runId, userId)
-
-      if (!isOrgAdmin && !isRunAdmin) {
+      // Use the canManageRun composable to check if user can manage this run
+      // This checks both org admin status and run-specific admin status
+      if (!canManageRun(run.organizationId, run.runAdminIds)) {
         // User is not authorized to manage this run
         next({ name: 'Run', params: { id: runId } })
         return
