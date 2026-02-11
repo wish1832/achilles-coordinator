@@ -452,7 +452,7 @@ const run = computed(() => runsStore.currentRun)
 const athletes = computed(() => {
   const athleteSignUps = signupsStore
     .getSignUpsForRun(runId.value)
-    .filter((s) => s.role === 'athlete' && s.status === 'active')
+    .filter((s) => s.role === 'athlete' && (s.status === 'yes' || s.status === 'maybe'))
 
   const allAthletes = athleteSignUps
     .map((s) => usersStore.getUserById(s.userId))
@@ -475,13 +475,13 @@ const athletes = computed(() => {
 
 /**
  * Get guides who signed up for the run
- * Filters sign-ups for active guide sign-ups and maps to User objects
+ * Filters sign-ups for guide sign-ups with status 'yes' or 'maybe' and maps to User objects
  * Results are sorted by pace according to current sortDirection
  */
 const guides = computed(() => {
   const guideSignUps = signupsStore
     .getSignUpsForRun(runId.value)
-    .filter((s) => s.role === 'guide' && s.status === 'active')
+    .filter((s) => s.role === 'guide' && (s.status === 'yes' || s.status === 'maybe'))
 
   const allGuides = guideSignUps
     .map((s) => usersStore.getUserById(s.userId))
