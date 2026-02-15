@@ -48,24 +48,9 @@ function getSaturdayAfter(date: Date): Date {
   return saturday
 }
 
-/**
- * Get the Monday after a given date (exactly 7 days later if date is a Monday).
- */
-function getMondayAfter(date: Date): Date {
-  const nextMonday = new Date(date)
-  // Add 7 days to get to the next Monday
-  nextMonday.setDate(date.getDate() + 7)
-  // Preserve the same time as the input date
-  return nextMonday
-}
-
 // Calculate run dates relative to the current system date
-// First run: Monday after user logs in
 const run1Date = getNextMonday()
-// Second run: Saturday after first run
 const run2Date = getSaturdayAfter(run1Date)
-// Third run: Monday after first run (one week later)
-const run3Date = getMondayAfter(run1Date)
 
 export const seedData: SeedData = {
   organizations: [
@@ -285,18 +270,6 @@ export const seedData: SeedData = {
         // Note: user-athlete-2 does not have their own entry since they're paired with athlete-1
       },
     },
-    {
-      id: 'run-3',
-      organizationId: 'org-denver',
-      date: run3Date,
-      time: '18:00',
-      locationId: 'location-wash-park',
-      description: 'Monday night run at Wash Park.',
-      createdBy: 'user-admin-1',
-      createdAt: daysFromNow(-1),
-      status: 'upcoming',
-      pairings: {},
-    },
   ],
   signUps: [
     // Run 1 sign-ups - Wash Park
@@ -307,8 +280,7 @@ export const seedData: SeedData = {
       userId: 'user-athlete-1',
       role: 'athlete',
       timestamp: daysFromNow(-1),
-      status: 'yes',
-      activity: 'walk', // user-athlete-1 only has 'walk' in their activities
+      status: 'active',
     },
     {
       id: 'signup-2',
@@ -316,9 +288,7 @@ export const seedData: SeedData = {
       userId: 'user-athlete-2',
       role: 'athlete',
       timestamp: daysFromNow(-1),
-      status: 'yes',
-      activity: 'run', // user-athlete-2 only has 'run' in their activities
-      pace: { minutes: 9, seconds: 0 }, // matches their preferredPace
+      status: 'active',
     },
     // One-time athletes for run 1
     {
@@ -327,8 +297,7 @@ export const seedData: SeedData = {
       userId: 'user-athlete-3',
       role: 'athlete',
       timestamp: daysFromNow(-1),
-      status: 'yes',
-      activity: 'walk', // user-athlete-3 only has 'walk' in their activities
+      status: 'active',
     },
     {
       id: 'signup-4',
@@ -336,8 +305,7 @@ export const seedData: SeedData = {
       userId: 'user-athlete-4',
       role: 'athlete',
       timestamp: daysFromNow(-1),
-      status: 'maybe',
-      activity: 'run/walk', // user-athlete-4 has ['run', 'walk'], using run/walk as middle ground
+      status: 'active',
     },
 
     // Regular guides (signing up for both runs)
@@ -347,8 +315,7 @@ export const seedData: SeedData = {
       userId: 'user-guide-1',
       role: 'guide',
       timestamp: daysFromNow(-1),
-      status: 'yes',
-      activity: 'walk', // user-guide-1 only has 'walk' in their activities
+      status: 'active',
     },
     {
       id: 'signup-6',
@@ -356,9 +323,7 @@ export const seedData: SeedData = {
       userId: 'user-guide-2',
       role: 'guide',
       timestamp: daysFromNow(-1),
-      status: 'yes',
-      activity: 'run', // user-guide-2 has ['run', 'walk'], choosing run
-      pace: { minutes: 10, seconds: 0 }, // matches their preferredPace
+      status: 'active',
     },
     {
       id: 'signup-7',
@@ -366,9 +331,7 @@ export const seedData: SeedData = {
       userId: 'user-admin-1',
       role: 'guide',
       timestamp: daysFromNow(-1),
-      status: 'yes',
-      activity: 'run', // user-admin-1 has ['run', 'walk'], choosing run
-      pace: { minutes: 9, seconds: 0 }, // matches their preferredPace
+      status: 'active',
     },
     // One-time guides for run 1
     {
@@ -377,9 +340,7 @@ export const seedData: SeedData = {
       userId: 'user-guide-3',
       role: 'guide',
       timestamp: daysFromNow(-1),
-      status: 'yes',
-      activity: 'run', // user-guide-3 only has 'run' in their activities
-      pace: { minutes: 8, seconds: 0 }, // matches their preferredPace
+      status: 'active',
     },
 
     // Run 2 sign-ups - River Trail
@@ -390,8 +351,7 @@ export const seedData: SeedData = {
       userId: 'user-athlete-1',
       role: 'athlete',
       timestamp: daysFromNow(-2),
-      status: 'yes',
-      activity: 'walk', // user-athlete-1 only has 'walk' in their activities
+      status: 'active',
     },
     {
       id: 'signup-10',
@@ -399,9 +359,7 @@ export const seedData: SeedData = {
       userId: 'user-athlete-2',
       role: 'athlete',
       timestamp: daysFromNow(-2),
-      status: 'maybe',
-      activity: 'run', // user-athlete-2 only has 'run' in their activities
-      pace: { minutes: 9, seconds: 30 }, // slightly slower pace than usual
+      status: 'active',
     },
     // One-time athlete for run 2 only
     {
@@ -410,9 +368,7 @@ export const seedData: SeedData = {
       userId: 'user-athlete-4',
       role: 'athlete',
       timestamp: daysFromNow(-2),
-      status: 'yes',
-      activity: 'run', // user-athlete-4 has ['run', 'walk'], choosing run for this trail run
-      pace: { minutes: 7, seconds: 0 }, // matches their preferredPace
+      status: 'active',
     },
 
     // Regular guides (both runs)
@@ -422,8 +378,7 @@ export const seedData: SeedData = {
       userId: 'user-guide-1',
       role: 'guide',
       timestamp: daysFromNow(-2),
-      status: 'yes',
-      activity: 'walk', // user-guide-1 only has 'walk' in their activities
+      status: 'active',
     },
     {
       id: 'signup-13',
@@ -431,8 +386,7 @@ export const seedData: SeedData = {
       userId: 'user-guide-2',
       role: 'guide',
       timestamp: daysFromNow(-2),
-      status: 'yes',
-      activity: 'run/walk', // user-guide-2 has ['run', 'walk'], using run/walk for variety
+      status: 'active',
     },
     {
       id: 'signup-14',
@@ -440,8 +394,7 @@ export const seedData: SeedData = {
       userId: 'user-admin-1',
       role: 'guide',
       timestamp: daysFromNow(-2),
-      status: 'yes',
-      activity: 'walk', // user-admin-1 has ['run', 'walk'], choosing walk for this run
+      status: 'active',
     },
   ],
 }

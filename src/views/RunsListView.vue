@@ -54,7 +54,7 @@
                 <template v-if="isUserSignedUpForRun(run.id)">
                   <div class="signup-status">
                     <p class="signup-status__message">Signed up!</p>
-                    <a href="#" class="signup-status__link" @click.prevent.stop="openEditRSVPModal(run)">
+                    <a href="#" class="signup-status__link" @click.prevent.stop="editRSVP(run.organizationId, run.id)">
                       edit RSVP
                     </a>
                   </div>
@@ -63,7 +63,7 @@
                   v-else
                   variant="primary"
                   size="medium"
-                  @click.stop="openSignUpModal(run)"
+                  @click.stop="signUpForRun(run.id)"
                 >
                   Sign Up
                 </AchillesButton>
@@ -79,34 +79,20 @@
         </div>
       </div>
     </main>
-
-    <!-- RSVP Modal -->
-    <RSVPModal
-      :is-open="isRSVPModalOpen"
-      :run="selectedRun"
-      :location-name="selectedRunLocationName"
-      :is-editing="isEditingRSVP"
-      :existing-sign-up="existingSignUpData"
-      @update:is-open="isRSVPModalOpen = $event"
-      @close="closeRSVPModal"
-      @submitted="handleRSVPSubmitted"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
-import RSVPModal from '@/components/RSVPModal.vue'
 import { useRunsStore } from '@/stores/runs'
 import { useLocationStore } from '@/stores/location'
 import { useSignUpsStore } from '@/stores/signups'
 import { useAuthStore } from '@/stores/auth'
-import type { Run } from '@/types'
 
 // Router and stores
 const router = useRouter()
@@ -117,40 +103,6 @@ const authStore = useAuthStore()
 
 const { runs, loading } = storeToRefs(runsStore)
 const { currentUser } = storeToRefs(authStore)
-
-// RSVP Modal state
-const isRSVPModalOpen = ref(false)
-const selectedRun = ref<Run | null>(null)
-const isEditingRSVP = ref(false)
-
-// Computed: Get the location name for the selected run
-const selectedRunLocationName = computed(() => {
-  if (!selectedRun.value) return 'Unknown Location'
-  return getLocationName(selectedRun.value.locationId)
-})
-
-// Computed: Get existing sign-up data for editing
-const existingSignUpData = computed(() => {
-  if (!selectedRun.value || !currentUser.value || !isEditingRSVP.value) {
-    return undefined
-  }
-
-  // Find the user's sign-up for this run
-  const signUps = signUpsStore.getSignUpsForRun(selectedRun.value.id)
-  const userSignUp = signUps.find(
-    (signup) => signup.userId === currentUser.value!.id && signup.status !== 'no',
-  )
-
-  if (!userSignUp) {
-    return undefined
-  }
-
-  return {
-    status: userSignUp.status,
-    activity: userSignUp.activity,
-    pace: userSignUp.pace,
-  }
-})
 
 // Helper function to get location name by ID
 // Returns the location name if found, otherwise returns 'Unknown Location'
@@ -187,8 +139,19 @@ function viewRun(orgId: string, runId: string): void {
   router.push(`/organizations/${orgId}/runs/${runId}`)
 }
 
+// Sign up for a run
+async function signUpForRun(runId: string): Promise<void> {
+  try {
+    // TODO: Implement sign up logic
+    console.log('Signing up for run:', runId)
+    // This would call the signup store/service
+  } catch (error) {
+    console.error('Error signing up for run:', error)
+  }
+}
+
 // Check if the current user has signed up for a specific run
-// Returns true if the user has an active sign-up for the run (status is 'yes' or 'maybe')
+// Returns true if the user has an active sign-up for the run
 function isUserSignedUpForRun(runId: string): boolean {
   // If no user is logged in, they cannot be signed up
   if (!currentUser.value) {
@@ -198,37 +161,16 @@ function isUserSignedUpForRun(runId: string): boolean {
   // Get all sign-ups for this run
   const signUps = signUpsStore.getSignUpsForRun(runId)
 
-  // Check if any sign-up with status 'yes' or 'maybe' belongs to the current user
+  // Check if any active sign-up belongs to the current user
   return signUps.some(
-    (signup) => signup.userId === currentUser.value!.id && (signup.status === 'yes' || signup.status === 'maybe'),
+    (signup) => signup.userId === currentUser.value!.id && signup.status === 'active',
   )
 }
 
-// Open the RSVP modal for signing up to a run
-function openSignUpModal(run: Run): void {
-  selectedRun.value = run
-  isEditingRSVP.value = false
-  isRSVPModalOpen.value = true
-}
-
-// Open the RSVP modal for editing an existing sign-up
-function openEditRSVPModal(run: Run): void {
-  selectedRun.value = run
-  isEditingRSVP.value = true
-  isRSVPModalOpen.value = true
-}
-
-// Close the RSVP modal
-function closeRSVPModal(): void {
-  isRSVPModalOpen.value = false
-  selectedRun.value = null
-  isEditingRSVP.value = false
-}
-
-// Handle successful RSVP submission
-// The modal handles the actual sign-up creation/update, we just need to close it
-function handleRSVPSubmitted(): void {
-  closeRSVPModal()
+// Navigate to edit RSVP for a run
+function editRSVP(orgId: string, runId: string): void {
+  // Navigate to the run details page where user can edit their RSVP
+  router.push(`/organizations/${orgId}/runs/${runId}`)
 }
 
 // Initialize on mount
