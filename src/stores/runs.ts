@@ -39,7 +39,7 @@ export const useRunsStore = defineStore('runs', () => {
       loading.value = 'loading'
       error.value = null
 
-      // Fetch run from Firestore via repository
+      // Fetch run from backend via repository
       const run = await runRepository.getRun(id)
 
       if (!run) {
