@@ -173,8 +173,8 @@
                             <h4 class="person-name">{{ athlete.displayName }}</h4>
                             <span class="role-badge role-badge--athlete">Athlete</span>
                           </div>
-                          <p v-if="athlete.profileDetails.preferredPace" class="person-detail">
-                            Pace: {{ athlete.profileDetails.preferredPace }} min/mile
+                          <p v-if="getFormattedPaceForUser(athlete.id)" class="person-detail">
+                            Pace: {{ getFormattedPaceForUser(athlete.id) }} min/mile
                           </p>
                           <p v-if="athlete.profileDetails.activities?.length" class="person-detail">
                             Activities: {{ athlete.profileDetails.activities.join(', ') }}
@@ -216,10 +216,10 @@
                                 </div>
                                 <div class="paired-guide-info">
                                   <p
-                                    v-if="user.profileDetails.preferredPace"
+                                    v-if="getFormattedPaceForUser(user.id)"
                                     class="paired-guide-detail"
                                   >
-                                    {{ user.role === 'guide' ? 'Max pace' : 'Pace' }}: {{ user.profileDetails.preferredPace }} min/mile
+                                    {{ user.role === 'guide' ? 'Max pace' : 'Pace' }}: {{ getFormattedPaceForUser(user.id) }} min/mile
                                   </p>
                                   <p
                                     v-if="user.profileDetails?.activities?.length"
@@ -293,8 +293,8 @@
                             <h4 class="person-name">{{ guide.displayName }}</h4>
                             <span class="role-badge role-badge--guide">Guide</span>
                           </div>
-                          <p v-if="guide.profileDetails.preferredPace" class="person-detail">
-                            Max pace: {{ guide.profileDetails.preferredPace }} min/mile
+                          <p v-if="getFormattedPaceForUser(guide.id)" class="person-detail">
+                            Max pace: {{ getFormattedPaceForUser(guide.id) }} min/mile
                           </p>
                           <p v-if="guide.profileDetails.activities?.length" class="person-detail">
                             Activities: {{ guide.profileDetails.activities.join(', ') }}
@@ -343,7 +343,7 @@ import { useUsersStore } from '@/stores/users'
 import { useDataRepository } from '@/composables/useRepositories'
 
 // Type imports
-import type { User, LoadingState } from '@/types'
+import type { User, LoadingState, SignUp } from '@/types'
 
 // UI Component imports
 import CardUI from '@/components/ui/CardUI.vue'
@@ -541,29 +541,37 @@ function toggleSortDirection(): void {
 }
 
 /**
- * Sort users by their preferred pace
- * Users without a pace are placed at the end of the list
+ * Convert a pace object to a decimal number for comparison.
+ * For example, { minutes: 9, seconds: 30 } becomes 9.5
+ * @param pace - The pace object with minutes and seconds
+ * @returns Decimal pace value, or undefined if pace is not set
+ */
+function paceToDecimal(pace: { minutes: number; seconds: number } | undefined): number | undefined {
+  if (!pace) return undefined
+  return pace.minutes + pace.seconds / 60
+}
+
+/**
+ * Sort users by their signup pace for the current run.
+ * Users without a pace are placed at the end of the list.
  */
 function sortByPace<T extends User>(users: T[]): T[] {
   return [...users].sort((a, b) => {
-    const paceA = a.profileDetails.preferredPace
-    const paceB = b.profileDetails.preferredPace
+    // Get pace from signup data instead of user profile
+    const paceA = paceToDecimal(getSignupPace(a.id))
+    const paceB = paceToDecimal(getSignupPace(b.id))
 
     // Users without pace go to the end
-    if (!paceA && !paceB) return 0
-    if (!paceA) return 1
-    if (!paceB) return -1
-
-    // Parse pace values as numbers for comparison
-    const numA = parseFloat(String(paceA))
-    const numB = parseFloat(String(paceB))
+    if (paceA === undefined && paceB === undefined) return 0
+    if (paceA === undefined) return 1
+    if (paceB === undefined) return -1
 
     // Ascending: slowest first (higher numbers first)
     // Descending: fastest first (lower numbers first)
     if (sortDirection.value === 'asc') {
-      return numB - numA
+      return paceB - paceA
     } else {
-      return numA - numB
+      return paceA - paceB
     }
   })
 }
@@ -1029,6 +1037,7 @@ type PaceCompatibilitySeverity = 'none' | 'slight' | 'significant'
 
 /**
  * Determines the severity of pace incompatibility between an athlete and a guide.
+ * Now uses signup pace data (minutes and seconds) instead of profile pace.
  *
  * The logic varies based on the athlete's pace:
  * - For paces faster than or equal to 10 min/mile:
@@ -1038,25 +1047,25 @@ type PaceCompatibilitySeverity = 'none' | 'slight' | 'significant'
  *   - 'slight' if guide's max pace is 1 minute to under 2 minutes slower
  *   - 'significant' if guide's max pace is 2 minutes or more slower
  *
- * @param athletePace - The athlete's preferred pace (e.g., "8", "10.5", "12")
- * @param guidePace - The guide's max pace (e.g., "9", "11", "14")
+ * @param athletePace - The athlete's signup pace object
+ * @param guidePace - The guide's signup pace object
  * @returns The severity level of the pace incompatibility
  */
 function getPaceCompatibilitySeverity(
-  athletePace: string | number | undefined,
-  guidePace: string | number | undefined,
+  athletePace: { minutes: number; seconds: number } | undefined,
+  guidePace: { minutes: number; seconds: number } | undefined,
 ): PaceCompatibilitySeverity {
   // If either pace is not defined, no mismatch can be determined
   if (athletePace === undefined || guidePace === undefined) {
     return 'none'
   }
 
-  // Parse pace values as numbers (in minutes per mile)
-  const athletePaceNum = parseFloat(String(athletePace))
-  const guidePaceNum = parseFloat(String(guidePace))
+  // Convert pace objects to decimal values (in minutes per mile)
+  const athletePaceNum = paceToDecimal(athletePace)
+  const guidePaceNum = paceToDecimal(guidePace)
 
-  // If parsing fails, no mismatch can be determined
-  if (isNaN(athletePaceNum) || isNaN(guidePaceNum)) {
+  // If conversion fails, no mismatch can be determined
+  if (athletePaceNum === undefined || guidePaceNum === undefined) {
     return 'none'
   }
 
@@ -1131,6 +1140,7 @@ function getPaceCompatibilityScreenReaderLabel(severity: PaceCompatibilitySeveri
 
 /**
  * Gets the pace compatibility severity for a guide relative to the currently selected athlete.
+ * Uses signup pace data instead of profile pace.
  *
  * @param guideId - The ID of the guide
  * @returns The pace compatibility severity level
@@ -1141,22 +1151,13 @@ function getGuideCompatibilitySeverity(guideId: string): PaceCompatibilitySeveri
     return 'none'
   }
 
-  // Get the selected athlete's pace
-  const selectedAthlete = usersStore.getUserById(selectedAthleteId.value)
-  if (!selectedAthlete) {
-    return 'none'
-  }
+  // Get the selected athlete's signup pace
+  const athletePace = getSignupPace(selectedAthleteId.value)
 
-  // Get the guide's pace
-  const guide = usersStore.getUserById(guideId)
-  if (!guide) {
-    return 'none'
-  }
+  // Get the guide's signup pace
+  const guidePace = getSignupPace(guideId)
 
-  return getPaceCompatibilitySeverity(
-    selectedAthlete.profileDetails.preferredPace,
-    guide.profileDetails.preferredPace,
-  )
+  return getPaceCompatibilitySeverity(athletePace, guidePace)
 }
 
 /**
@@ -1187,6 +1188,55 @@ function getGuideCardStyle(guideId: string): Record<string, string> {
 function getGuideCompatibilityLabel(guideId: string): string {
   const severity = getGuideCompatibilitySeverity(guideId)
   return getPaceCompatibilityScreenReaderLabel(severity)
+}
+
+// ==========================================
+// Pace Utility Functions
+// ==========================================
+
+/**
+ * Get the signup record for a user in the current run.
+ * Returns the signup if found, undefined otherwise.
+ * @param userId - The user's ID
+ * @returns The signup record or undefined
+ */
+function getSignupForUser(userId: string): SignUp | undefined {
+  const signups = signupsStore.getSignUpsForRun(runId.value)
+  return signups.find((signup) => signup.userId === userId)
+}
+
+/**
+ * Get the pace from a user's signup for the current run.
+ * Returns the pace object with minutes and seconds if available.
+ * @param userId - The user's ID
+ * @returns The pace object or undefined if not set
+ */
+function getSignupPace(userId: string): { minutes: number; seconds: number } | undefined {
+  const signup = getSignupForUser(userId)
+  return signup?.pace
+}
+
+/**
+ * Format a pace object as a string in "M:SS" format.
+ * For example, { minutes: 9, seconds: 30 } becomes "9:30"
+ * @param pace - The pace object with minutes and seconds
+ * @returns Formatted pace string, or undefined if pace is not set
+ */
+function formatPace(pace: { minutes: number; seconds: number } | undefined): string | undefined {
+  if (!pace) return undefined
+  // Format seconds with leading zero (e.g., 0 -> "00", 15 -> "15")
+  const formattedSeconds = pace.seconds.toString().padStart(2, '0')
+  return `${pace.minutes}:${formattedSeconds}`
+}
+
+/**
+ * Get the formatted pace string for a user based on their signup for the current run.
+ * @param userId - The user's ID
+ * @returns Formatted pace string (e.g., "9:30") or undefined if not set
+ */
+function getFormattedPaceForUser(userId: string): string | undefined {
+  const pace = getSignupPace(userId)
+  return formatPace(pace)
 }
 
 // ==========================================
