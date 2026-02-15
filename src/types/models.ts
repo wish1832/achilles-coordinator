@@ -50,11 +50,8 @@ export interface Organization {
 // Run status options
 export type RunStatus = 'upcoming' | 'completed' | 'cancelled'
 
-// Sign-up status options (RSVP response)
-export type SignUpStatus = 'yes' | 'maybe' | 'no'
-
-// Activity options for sign-ups
-export type SignUpActivity = 'run' | 'run/walk' | 'roll' | 'walk'
+// Sign-up status options
+export type SignUpStatus = 'active' | 'withdrawn'
 
 /**
  * User profile information
@@ -147,13 +144,7 @@ export interface SignUp {
   userId: string
   role: 'athlete' | 'guide' // The role they're signing up as for this run
   timestamp: Date
-  status: SignUpStatus // RSVP response: 'yes', 'maybe', or 'no'
-  activity: SignUpActivity // Activity type: 'run', 'run/walk', 'roll', or 'walk'
-  pace?: {
-    // Pace in minutes:seconds per mile (only for 'run' or 'roll' activities)
-    minutes: number // 6-20
-    seconds: number // 0, 15, 30, or 45
-  }
+  status: SignUpStatus
   notes?: string // User can add notes when signing up
 }
 

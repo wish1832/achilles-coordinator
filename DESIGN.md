@@ -227,13 +227,7 @@ interface SignUp {
   userId: string
   role: 'athlete' | 'guide' // Role for this specific sign-up
   timestamp: Date
-  status: 'yes' | 'maybe' | 'no' // RSVP response
-  activity: 'run' | 'run/walk' | 'roll' | 'walk' // Activity type for this sign-up
-  pace?: {
-    // Pace in minutes:seconds per mile (only for 'run' or 'roll' activities)
-    minutes: number // 6-20
-    seconds: number // 0, 15, 30, or 45
-  }
+  status: 'active' | 'withdrawn'
   notes?: string
 }
 ```
@@ -274,7 +268,7 @@ interface SignUp {
 ### signups/
 
 - Document ID: Auto-generated
-- Fields: runId, userId, role, timestamp, status, activity, pace, notes
+- Fields: runId, userId, role, timestamp, status, notes
 - Security: Users can read/write their own sign-ups; organization admins can read/write all sign-ups for their organization's runs
 - Indexes:
   - runId (for querying sign-ups by run)
