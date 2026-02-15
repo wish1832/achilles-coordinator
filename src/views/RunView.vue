@@ -83,10 +83,10 @@
               <template v-if="isUserSignedUp">
                 <div class="signup-status">
                   <p class="signup-status__message">Signed up!</p>
-                  <a href="#" class="signup-status__link" @click.prevent="editRSVP"> edit RSVP </a>
+                  <a href="#" class="signup-status__link" @click.prevent="openEditRSVPModal"> edit RSVP </a>
                 </div>
               </template>
-              <AchillesButton v-else variant="primary" size="medium" @click="signUpForRun">
+              <AchillesButton v-else variant="primary" size="medium" @click="openSignUpModal">
                 Sign Up
               </AchillesButton>
 
@@ -112,6 +112,18 @@
         </div>
       </div>
     </main>
+
+    <!-- RSVP Modal -->
+    <RSVPModal
+      :is-open="isRSVPModalOpen"
+      :run="runsStore.currentRun"
+      :location-name="locationName"
+      :is-editing="isEditingRSVP"
+      :existing-sign-up="existingSignUpData"
+      @update:is-open="isRSVPModalOpen = $event"
+      @close="closeRSVPModal"
+      @submitted="handleRSVPSubmitted"
+    />
   </div>
 </template>
 
@@ -121,6 +133,7 @@ import { useRouter, useRoute } from 'vue-router'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
+import RSVPModal from '@/components/RSVPModal.vue'
 import { useRunsStore } from '@/stores/runs'
 import { useLocationStore } from '@/stores/location'
 import { useOrganizationStore } from '@/stores/organization'
@@ -144,6 +157,10 @@ const { canManageRun } = useAdminCapabilities()
 // Local state for tracking loading and errors
 const loading = ref<LoadingState>('idle')
 const error = ref<string | null>(null)
+
+// RSVP Modal state
+const isRSVPModalOpen = ref(false)
+const isEditingRSVP = ref(false)
 
 // Get the run ID from the route parameter
 const runId = computed(() => route.params.id as string)
@@ -202,10 +219,33 @@ const isUserSignedUp = computed(() => {
   // Get all sign-ups for this run
   const signUps = signUpsStore.getSignUpsForRun(runId.value)
 
-  // Check if any active sign-up belongs to the current user
+  // Check if any sign-up with status 'yes' or 'maybe' belongs to the current user
   return signUps.some(
-    (signup) => signup.userId === authStore.currentUser!.id && signup.status === 'active',
+    (signup) => signup.userId === authStore.currentUser!.id && (signup.status === 'yes' || signup.status === 'maybe'),
   )
+})
+
+// Computed: Get existing sign-up data for editing
+const existingSignUpData = computed(() => {
+  if (!runsStore.currentRun || !authStore.currentUser || !isEditingRSVP.value) {
+    return undefined
+  }
+
+  // Find the user's sign-up for this run
+  const signUps = signUpsStore.getSignUpsForRun(runId.value)
+  const userSignUp = signUps.find(
+    (signup) => signup.userId === authStore.currentUser!.id && (signup.status === 'yes' || signup.status === 'maybe'),
+  )
+
+  if (!userSignUp) {
+    return undefined
+  }
+
+  return {
+    status: userSignUp.status,
+    activity: userSignUp.activity,
+    pace: userSignUp.pace,
+  }
 })
 
 // Helper function to format date for display
@@ -265,21 +305,36 @@ async function loadRunData(): Promise<void> {
   }
 }
 
-// Sign up for the run
-async function signUpForRun(): Promise<void> {
-  try {
-    // TODO: Implement sign up logic
-    console.log('Signing up for run:', runId.value)
-    // This would call the signup store/service
-  } catch (err) {
-    console.error('Error signing up for run:', err)
-  }
+/**
+ * Open the RSVP modal for signing up to a run
+ */
+function openSignUpModal(): void {
+  isEditingRSVP.value = false
+  isRSVPModalOpen.value = true
 }
 
-// Navigate to edit RSVP (for now, just a placeholder)
-function editRSVP(): void {
-  // TODO: Implement RSVP editing
-  console.log('Editing RSVP for run:', runId.value)
+/**
+ * Open the RSVP modal for editing an existing sign-up
+ */
+function openEditRSVPModal(): void {
+  isEditingRSVP.value = true
+  isRSVPModalOpen.value = true
+}
+
+/**
+ * Close the RSVP modal
+ */
+function closeRSVPModal(): void {
+  isRSVPModalOpen.value = false
+  isEditingRSVP.value = false
+}
+
+/**
+ * Handle successful RSVP submission
+ * The modal handles the actual sign-up creation/update, we just need to close it
+ */
+function handleRSVPSubmitted(): void {
+  closeRSVPModal()
 }
 
 // Navigate to the pairings management page for this run

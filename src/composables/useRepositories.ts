@@ -2,6 +2,7 @@ import type { IAuthRepository } from '@/repositories/interfaces/IAuthRepository'
 import type { IDataRepository } from '@/repositories/interfaces/IDataRepository'
 import type { IOrganizationRepository } from '@/repositories/interfaces/IOrganizationRepository'
 import type { IRunRepository } from '@/repositories/interfaces/IRunRepository'
+import type { ISignUpRepository } from '@/repositories/interfaces/ISignUpRepository'
 import type { IUserRepository } from '@/repositories/interfaces/IUserRepository'
 import {
   createLazyAuthRepository,
@@ -41,11 +42,13 @@ let cachedFirebaseAuthRepository: Promise<IAuthRepository> | null = null
 let cachedFirebaseDataRepository: Promise<IDataRepository> | null = null
 let cachedFirebaseOrganizationRepository: Promise<IOrganizationRepository> | null = null
 let cachedFirebaseRunRepository: Promise<IRunRepository> | null = null
+let cachedFirebaseSignUpRepository: Promise<ISignUpRepository> | null = null
 let cachedFirebaseUserRepository: Promise<IUserRepository> | null = null
 let cachedMockAuthRepository: Promise<IAuthRepository> | null = null
 let cachedMockDataRepository: Promise<IDataRepository> | null = null
 let cachedMockOrganizationRepository: Promise<IOrganizationRepository> | null = null
 let cachedMockRunRepository: Promise<IRunRepository> | null = null
+let cachedMockSignUpRepository: Promise<ISignUpRepository> | null = null
 let cachedMockUserRepository: Promise<IUserRepository> | null = null
 
 function loadFirebaseAuthRepository(): Promise<IAuthRepository> {
@@ -86,6 +89,16 @@ function loadFirebaseRunRepository(): Promise<IRunRepository> {
   }
 
   return cachedFirebaseRunRepository
+}
+
+function loadFirebaseSignUpRepository(): Promise<ISignUpRepository> {
+  if (!cachedFirebaseSignUpRepository) {
+    cachedFirebaseSignUpRepository = import('@/repositories/firebase').then(
+      (module) => module.firebaseSignUpRepository,
+    )
+  }
+
+  return cachedFirebaseSignUpRepository
 }
 
 function loadFirebaseUserRepository(): Promise<IUserRepository> {
@@ -136,6 +149,16 @@ function loadMockRunRepository(): Promise<IRunRepository> {
   }
 
   return cachedMockRunRepository
+}
+
+function loadMockSignUpRepository(): Promise<ISignUpRepository> {
+  if (!cachedMockSignUpRepository) {
+    cachedMockSignUpRepository = import('@/repositories/mock').then(
+      (module) => module.mockSignUpRepository,
+    )
+  }
+
+  return cachedMockSignUpRepository
 }
 
 function loadMockUserRepository(): Promise<IUserRepository> {
@@ -229,4 +252,22 @@ export function useOrganizationRepository(): IOrganizationRepository {
   }
 
   return createLazyRepository(loadFirebaseOrganizationRepository).repository
+}
+
+/**
+ * Get the sign-up repository for the current environment
+ * @returns ISignUpRepository implementation (Firebase, Mock, or Emulator)
+ */
+export function useSignUpRepository(): ISignUpRepository {
+  const backend = getBackend()
+
+  if (backend === 'mock') {
+    return createLazyRepository(loadMockSignUpRepository).repository
+  }
+
+  if (useEmulator()) {
+    // same note as above
+  }
+
+  return createLazyRepository(loadFirebaseSignUpRepository).repository
 }
