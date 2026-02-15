@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { useDataRepository } from '@/composables/useRepositories'
+import { useOrganizationRepository } from '@/composables/useRepositories'
 import type { Organization, LoadingState } from '@/types'
 
 /**
@@ -11,7 +11,7 @@ import type { Organization, LoadingState } from '@/types'
 export const useOrganizationStore = defineStore('organization', () => {
   // Get repository instance via dependency injection
   // This allows for easy testing with mock implementations
-  const dataRepository = useDataRepository()
+  const organizationRepository = useOrganizationRepository()
 
   // State
   const organizations = ref<Organization[]>([])
@@ -75,7 +75,7 @@ export const useOrganizationStore = defineStore('organization', () => {
   // Actions
 
   /**
-   * Load all organizations from Firestore
+   * Load all organizations from backend
    * Sets organizations state with all organizations, ordered by name
    */
   async function loadOrganizations(): Promise<void> {
@@ -84,8 +84,8 @@ export const useOrganizationStore = defineStore('organization', () => {
       loading.value = 'loading'
       error.value = null
 
-      // Fetch all organizations from Firestore via repository
-      const orgs = await dataRepository.getOrganizations()
+      // Fetch all organizations from a backend via repository
+      const orgs = await organizationRepository.getOrganizations()
       if (flight !== loadSequence.value) return
 
       organizations.value = orgs
@@ -117,8 +117,8 @@ export const useOrganizationStore = defineStore('organization', () => {
       loading.value = 'loading'
       error.value = null
 
-      // Fetch user's organizations from Firestore via repository
-      const orgs = await dataRepository.getUserOrganizations(userId)
+      // Fetch user's organizations from a backend via repository
+      const orgs = await organizationRepository.getUserOrganizations(userId)
       if (flight !== loadSequence.value) return
 
       organizations.value = orgs
@@ -149,8 +149,8 @@ export const useOrganizationStore = defineStore('organization', () => {
       loading.value = 'loading'
       error.value = null
 
-      // Fetch organization from Firestore via repository
-      const org = await dataRepository.getOrganization(id)
+      // Fetch organization from a backend via repository
+      const org = await organizationRepository.getOrganization(id)
 
       if (!org) {
         throw new Error(`Organization with id ${id} not found`)
@@ -187,8 +187,8 @@ export const useOrganizationStore = defineStore('organization', () => {
       loading.value = 'loading'
       error.value = null
 
-      // Create organization in Firestore via repository
-      const id = await dataRepository.createOrganization(organizationData)
+      // Create organization in a backend via repository
+      const id = await organizationRepository.createOrganization(organizationData)
 
       // Reload organizations to include the new one
       await loadOrganizations()
@@ -215,8 +215,8 @@ export const useOrganizationStore = defineStore('organization', () => {
       loading.value = 'loading'
       error.value = null
 
-      // Update organization in Firestore via repository
-      await dataRepository.updateOrganization(id, updates)
+      // Update organization in a backend via repository
+      await organizationRepository.updateOrganization(id, updates)
 
       // Update local state
       const index = organizations.value.findIndex((org) => org.id === id)
@@ -246,8 +246,8 @@ export const useOrganizationStore = defineStore('organization', () => {
       loading.value = 'loading'
       error.value = null
 
-      // Delete organization from Firestore via repository
-      await dataRepository.deleteOrganization(id)
+      // Delete organization from a backend via repository
+      await organizationRepository.deleteOrganization(id)
 
       // Remove from local state
       organizations.value = organizations.value.filter((org) => org.id !== id)
@@ -276,7 +276,7 @@ export const useOrganizationStore = defineStore('organization', () => {
       error.value = null
 
       // Add member via repository
-      await dataRepository.addOrganizationMember(organizationId, userId)
+      await organizationRepository.addOrganizationMember(organizationId, userId)
 
       // Update local state by adding userId to memberIds array
       const index = organizations.value.findIndex((org) => org.id === organizationId)
@@ -313,7 +313,7 @@ export const useOrganizationStore = defineStore('organization', () => {
       error.value = null
 
       // Remove member via repository
-      await dataRepository.removeOrganizationMember(organizationId, userId)
+      await organizationRepository.removeOrganizationMember(organizationId, userId)
 
       // Update local state by removing userId from both arrays
       const index = organizations.value.findIndex((org) => org.id === organizationId)
@@ -356,7 +356,7 @@ export const useOrganizationStore = defineStore('organization', () => {
       error.value = null
 
       // Add admin via repository
-      await dataRepository.addOrganizationAdmin(organizationId, userId)
+      await organizationRepository.addOrganizationAdmin(organizationId, userId)
 
       // Update local state by adding userId to both arrays
       const index = organizations.value.findIndex((org) => org.id === organizationId)
@@ -401,7 +401,7 @@ export const useOrganizationStore = defineStore('organization', () => {
       error.value = null
 
       // Remove admin via repository
-      await dataRepository.removeOrganizationAdmin(organizationId, userId)
+      await organizationRepository.removeOrganizationAdmin(organizationId, userId)
 
       // Update local state by removing userId from adminIds only
       const index = organizations.value.findIndex((org) => org.id === organizationId)
