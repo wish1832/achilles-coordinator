@@ -126,7 +126,7 @@ export const seedData: SeedData = {
       createdAt: daysFromNow(-4),
       profileDetails: {
         activities: ['run', 'walk'],
-        preferredPace: 9,
+        pace: { minutes: 9, seconds: 0 },
         certifications: ['visually impaired guiding'],
       },
     },
@@ -139,7 +139,7 @@ export const seedData: SeedData = {
       createdAt: daysFromNow(-3),
       profileDetails: {
         activities: ['walk'],
-        preferredPace: 12,
+        pace: { minutes: 12, seconds: 0 },
       },
     },
     {
@@ -151,7 +151,7 @@ export const seedData: SeedData = {
       createdAt: daysFromNow(-10),
       profileDetails: {
         activities: ['run', 'walk'],
-        preferredPace: 10,
+        pace: { minutes: 10, seconds: 0 },
         certifications: ['visually impaired guiding'],
       },
     },
@@ -164,7 +164,7 @@ export const seedData: SeedData = {
       createdAt: daysFromNow(-8),
       profileDetails: {
         activities: ['run'],
-        preferredPace: 8,
+        pace: { minutes: 8, seconds: 0 },
         certifications: ['visually impaired guiding'],
       },
     },
@@ -177,7 +177,7 @@ export const seedData: SeedData = {
       createdAt: daysFromNow(-6),
       profileDetails: {
         activities: ['walk', 'roll'],
-        preferredPace: 15,
+        pace: { minutes: 15, seconds: 0 },
       },
     },
     {
@@ -189,7 +189,7 @@ export const seedData: SeedData = {
       createdAt: daysFromNow(-2),
       profileDetails: {
         activities: ['walk'],
-        preferredPace: 15,
+        pace: { minutes: 15, seconds: 0 },
       },
     },
     {
@@ -201,7 +201,7 @@ export const seedData: SeedData = {
       createdAt: daysFromNow(-7),
       profileDetails: {
         activities: ['run'],
-        preferredPace: 9,
+        pace: { minutes: 9, seconds: 0 },
         disabilityType: 'Visual impairment',
         assistanceNeeded: 'Guide needed for outdoor runs',
       },
@@ -215,7 +215,7 @@ export const seedData: SeedData = {
       createdAt: daysFromNow(-9),
       profileDetails: {
         activities: ['walk'],
-        preferredPace: 18,
+        pace: { minutes: 18, seconds: 0 },
         disabilityType: 'Mobility impairment',
         assistanceNeeded: 'Slower pace preferred',
       },
@@ -229,7 +229,7 @@ export const seedData: SeedData = {
       createdAt: daysFromNow(-5),
       profileDetails: {
         activities: ['run', 'walk'],
-        preferredPace: 7,
+        pace: { minutes: 7, seconds: 0 },
         paceRange: { min: 6, max: 9 },
         disabilityType: 'Hearing impairment',
       },
@@ -318,7 +318,7 @@ export const seedData: SeedData = {
       timestamp: daysFromNow(-1),
       status: 'yes',
       activity: 'run', // user-athlete-2 only has 'run' in their activities
-      pace: { minutes: 9, seconds: 0 }, // matches their preferredPace
+      pace: { minutes: 9, seconds: 0 }, // matches their profile pace
     },
     // One-time athletes for run 1
     {
@@ -358,7 +358,7 @@ export const seedData: SeedData = {
       timestamp: daysFromNow(-1),
       status: 'yes',
       activity: 'run', // user-guide-2 has ['run', 'walk'], choosing run
-      pace: { minutes: 10, seconds: 0 }, // matches their preferredPace
+      pace: { minutes: 10, seconds: 0 }, // matches their profile pace
     },
     {
       id: 'signup-7',
@@ -368,7 +368,7 @@ export const seedData: SeedData = {
       timestamp: daysFromNow(-1),
       status: 'yes',
       activity: 'run', // user-admin-1 has ['run', 'walk'], choosing run
-      pace: { minutes: 9, seconds: 0 }, // matches their preferredPace
+      pace: { minutes: 9, seconds: 0 }, // matches their profile pace
     },
     // One-time guides for run 1
     {
@@ -379,7 +379,7 @@ export const seedData: SeedData = {
       timestamp: daysFromNow(-1),
       status: 'yes',
       activity: 'run', // user-guide-3 only has 'run' in their activities
-      pace: { minutes: 8, seconds: 0 }, // matches their preferredPace
+      pace: { minutes: 8, seconds: 0 }, // matches their profile pace
     },
 
     // Run 2 sign-ups - River Trail
@@ -412,7 +412,7 @@ export const seedData: SeedData = {
       timestamp: daysFromNow(-2),
       status: 'yes',
       activity: 'run', // user-athlete-4 has ['run', 'walk'], choosing run for this trail run
-      pace: { minutes: 7, seconds: 0 }, // matches their preferredPace
+      pace: { minutes: 7, seconds: 0 }, // matches their profile pace
     },
 
     // Regular guides (both runs)

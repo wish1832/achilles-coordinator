@@ -76,7 +76,11 @@ export interface User {
 
     // Activity preferences (for both athletes and guides)
     activities?: ('walk' | 'run' | 'roll')[]
-    preferredPace?: number // Minutes per mile
+    pace?: {
+      // Pace in minutes:seconds per mile (aligned with SignUp pace format)
+      minutes: number // 6-20
+      seconds: number // 0, 15, 30, or 45
+    }
     paceRange?: { min: number; max: number } // Min/max pace in minutes per mile
 
     // Athlete-specific fields
