@@ -31,7 +31,7 @@
             :title="getLocationName(run.locationId)"
             :subtitle="formatRunDate(run.date, run.time)"
             clickable
-            @click="viewRun(run.id)"
+            @click="viewRun(run.organizationId, run.id)"
           >
             <div class="run-content">
               <p class="run-description">{{ run.description }}</p>
@@ -54,7 +54,7 @@
                 <template v-if="isUserSignedUpForRun(run.id)">
                   <div class="signup-status">
                     <p class="signup-status__message">Signed up!</p>
-                    <a href="#" class="signup-status__link" @click.prevent.stop="editRSVP(run.id)">
+                    <a href="#" class="signup-status__link" @click.prevent.stop="editRSVP(run.organizationId, run.id)">
                       edit RSVP
                     </a>
                   </div>
@@ -135,8 +135,8 @@ function formatDate(date: Date): string {
 }
 
 // Navigation
-function viewRun(runId: string): void {
-  router.push(`/runs/${runId}`)
+function viewRun(orgId: string, runId: string): void {
+  router.push(`/organizations/${orgId}/runs/${runId}`)
 }
 
 // Sign up for a run
@@ -168,9 +168,9 @@ function isUserSignedUpForRun(runId: string): boolean {
 }
 
 // Navigate to edit RSVP for a run
-function editRSVP(runId: string): void {
+function editRSVP(orgId: string, runId: string): void {
   // Navigate to the run details page where user can edit their RSVP
-  router.push(`/runs/${runId}`)
+  router.push(`/organizations/${orgId}/runs/${runId}`)
 }
 
 // Initialize on mount

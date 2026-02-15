@@ -33,7 +33,26 @@ const router = createRouter({
       },
     },
     {
-      path: '/runs/:id',
+      path: '/organizations/:orgId',
+      name: 'Organization',
+      component: () => import('@/views/OrganizationView.vue'),
+      meta: {
+        requiresAuth: false,
+        title: 'Organization - Achilles Run Coordinator',
+      },
+    },
+    {
+      path: '/organizations/:orgId/runs/create',
+      name: 'CreateRun',
+      component: () => import('@/views/CreateRunView.vue'),
+      meta: {
+        requiresAuth: true,
+        requiresOrgAdmin: true,
+        title: 'Create Run - Achilles Run Coordinator',
+      },
+    },
+    {
+      path: '/organizations/:orgId/runs/:id',
       name: 'Run',
       component: () => import('@/views/RunView.vue'),
       meta: {
@@ -43,22 +62,22 @@ const router = createRouter({
       },
     },
     {
-      path: '/admin',
-      name: 'Admin',
-      component: () => import('@/views/admin/AdminDashboard.vue'),
-      meta: {
-        requiresAuth: true,
-        title: 'Admin Dashboard - Achilles Run Coordinator',
-      },
-    },
-    {
-      path: '/runs/:id/pairing',
+      path: '/organizations/:orgId/runs/:id/pairing',
       name: 'RunPairing',
       component: () => import('@/views/PairingView.vue'),
       meta: {
         requiresAuth: true,
         requiresRunAdmin: true,
         title: 'Manage Pairings - Achilles Run Coordinator',
+      },
+    },
+    {
+      path: '/admin',
+      name: 'Admin',
+      component: () => import('@/views/admin/AdminDashboard.vue'),
+      meta: {
+        requiresAuth: true,
+        title: 'Admin Dashboard - Achilles Run Coordinator',
       },
     },
     // {
@@ -217,7 +236,7 @@ router.beforeEach(async (to, _from, next) => {
       // This checks both org admin status and run-specific admin status
       if (!canManageRun(run.organizationId, run.runAdminIds)) {
         // User is not authorized to manage this run
-        next({ name: 'Run', params: { id: runId } })
+        next({ name: 'Run', params: { orgId: run.organizationId, id: runId } })
         return
       }
     }

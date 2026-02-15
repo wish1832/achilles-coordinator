@@ -5,9 +5,14 @@ import { createPinia } from 'pinia'
 // via the <font-awesome-icon> component anywhere in the app
 import { library } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
-import { faCaretUp, faCaretDown, faCircleQuestion } from '@fortawesome/free-solid-svg-icons'
+import {
+  faCaretUp,
+  faCaretDown,
+  faCircleQuestion,
+  faCirclePlus,
+} from '@fortawesome/free-solid-svg-icons'
 
-library.add(faCaretUp, faCaretDown, faCircleQuestion)
+library.add(faCaretUp, faCaretDown, faCircleQuestion, faCirclePlus)
 
 import App from './App.vue'
 import router from './router'

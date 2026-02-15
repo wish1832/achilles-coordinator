@@ -10,7 +10,13 @@ const accessibilityStore = useAccessibilityStore()
 
 <template>
   <div id="app" :class="accessibilityStore.accessibilityClasses" class="app">
-    <RouterView />
+    <!-- KeepAlive caches component instances so they aren't destroyed on navigation -->
+    <!-- This allows components to use onActivated to refresh data when revisited -->
+    <RouterView v-slot="{ Component }">
+      <KeepAlive>
+        <component :is="Component" />
+      </KeepAlive>
+    </RouterView>
   </div>
 </template>
 
