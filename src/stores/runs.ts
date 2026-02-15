@@ -1,14 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { useDataRepository } from '@/composables/useRepositories'
+import { useRunRepository } from '@/composables/useRepositories'
 import type { Run, LoadingState } from '@/types'
 
 /**
  * Runs store using Pinia
- * Centralizes run list loading via the data repository.
+ * Centralizes run list loading via the run repository.
  */
 export const useRunsStore = defineStore('runs', () => {
-  const dataRepository = useDataRepository()
+  const runRepository = useRunRepository()
 
   const runs = ref<Run[]>([])
   const currentRun = ref<Run | null>(null)
@@ -20,7 +20,7 @@ export const useRunsStore = defineStore('runs', () => {
       loading.value = 'loading'
       error.value = null
 
-      runs.value = await dataRepository.getUpcomingRuns()
+      runs.value = await runRepository.getUpcomingRuns()
       loading.value = 'success'
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load runs'
@@ -39,8 +39,8 @@ export const useRunsStore = defineStore('runs', () => {
       loading.value = 'loading'
       error.value = null
 
-      // Fetch run from Firestore via repository
-      const run = await dataRepository.getRun(id)
+      // Fetch run from backend via repository
+      const run = await runRepository.getRun(id)
 
       if (!run) {
         throw new Error(`Run with id ${id} not found`)
@@ -107,7 +107,7 @@ export const useRunsStore = defineStore('runs', () => {
 
     // If not found locally, fetch from the repository
     if (!run) {
-      run = await dataRepository.getRun(runId)
+      run = await runRepository.getRun(runId)
     }
 
     if (!run) {
