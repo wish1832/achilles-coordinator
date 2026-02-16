@@ -39,6 +39,32 @@
                 <p class="settings-field__value settings-field__value--capitalize">{{ userRole }}</p>
               </div>
 
+              <!-- Activity preferences -->
+              <div class="settings-option settings-option--stacked">
+                <div class="settings-option__header">
+                  <label class="settings-option__label" id="activities-label">
+                    What activities are you interested in?
+                  </label>
+                </div>
+                <div
+                  class="settings-option__control activity-button-group"
+                  role="group"
+                  aria-labelledby="activities-label"
+                >
+                  <button
+                    v-for="option in activityOptions"
+                    :key="option.value"
+                    type="button"
+                    class="activity-option-button"
+                    :class="{ 'activity-option-button--selected': authStore.draftActivities.includes(option.value) }"
+                    :aria-pressed="authStore.draftActivities.includes(option.value)"
+                    @click="authStore.toggleDraftActivity(option.value)"
+                  >
+                    {{ option.label }}
+                  </button>
+                </div>
+              </div>
+
               <!-- Pace selection -->
               <div class="settings-option settings-option--stacked">
                 <div class="settings-option__header">
@@ -55,10 +81,11 @@
                     <label for="pace-minutes" class="pace-input__label">Minutes</label>
                     <select
                       id="pace-minutes"
-                      :value="authStore.draftPaceMinutes"
+                      :value="authStore.draftPaceMinutes ?? ''"
                       class="settings-select"
                       @change="handlePaceMinutesChange"
                     >
+                      <option v-if="authStore.draftPaceMinutes === undefined" value="" disabled>--</option>
                       <option v-for="min in minutesOptions" :key="min" :value="min">
                         {{ min }}
                       </option>
@@ -69,10 +96,11 @@
                     <label for="pace-seconds" class="pace-input__label">Seconds</label>
                     <select
                       id="pace-seconds"
-                      :value="authStore.draftPaceSeconds"
+                      :value="authStore.draftPaceSeconds ?? ''"
                       class="settings-select"
                       @change="handlePaceSecondsChange"
                     >
+                      <option v-if="authStore.draftPaceSeconds === undefined" value="" disabled>--</option>
                       <option v-for="sec in secondsOptions" :key="sec" :value="sec">
                         {{ sec.toString().padStart(2, '0') }}
                       </option>
@@ -249,6 +277,14 @@ const accessibilityStore = useAccessibilityStore()
 const displayName = computed(() => authStore.userDisplayName || 'Not set')
 const userEmail = computed(() => authStore.currentUser?.email || 'Not available')
 const userRole = computed(() => authStore.userRole || 'Not set')
+
+// Activity options matching the RSVP modal (with multi-select capability)
+const activityOptions: { value: 'walk' | 'run' | 'run/walk' | 'roll'; label: string }[] = [
+  { value: 'run', label: 'Run' },
+  { value: 'run/walk', label: 'Run/Walk' },
+  { value: 'roll', label: 'Roll' },
+  { value: 'walk', label: 'Walk' },
+]
 
 // Pace options based on User model constraints
 // Minutes: 6-20, Seconds: 0, 15, 30, or 45
@@ -498,6 +534,61 @@ function handleTextSizeChange(event: Event): void {
   border-color: var(--color-primary, #0066cc);
 }
 
+/* Activity button group */
+.activity-button-group {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Activity option buttons (multi-select style matching RSVP modal) */
+.activity-option-button {
+  /* Reset button styles */
+  appearance: none;
+  border: none;
+  background: none;
+  cursor: pointer;
+
+  /* Layout */
+  padding: 0.75rem 1.25rem;
+
+  /* Typography */
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.4;
+
+  /* Visual styling */
+  background-color: var(--color-bg-secondary, #f3f4f6);
+  color: var(--color-text, #111827);
+  border: 2px solid var(--color-border, #d1d5db);
+  border-radius: 0.375rem;
+
+  /* Transitions */
+  transition: all 0.2s ease-in-out;
+}
+
+.activity-option-button:hover {
+  background-color: var(--color-bg-hover, #e5e7eb);
+  border-color: var(--color-primary, #0066cc);
+}
+
+.activity-option-button:focus-visible {
+  outline: 2px solid var(--color-focus, #0066cc);
+  outline-offset: 2px;
+}
+
+.activity-option-button--selected {
+  background-color: var(--color-primary, #0066cc);
+  color: white;
+  border-color: var(--color-primary, #0066cc);
+}
+
+.activity-option-button--selected:hover {
+  background-color: var(--color-primary-hover, #0052a3);
+  border-color: var(--color-primary-hover, #0052a3);
+}
+
 /* Pace controls */
 .pace-controls {
   display: flex;
@@ -574,10 +665,25 @@ function handleTextSizeChange(event: Event): void {
   outline-offset: 3px;
 }
 
+.high-contrast .activity-option-button {
+  border: 2px solid var(--color-text, #000000);
+}
+
+.high-contrast .activity-option-button--selected {
+  background-color: var(--color-text, #000000);
+  border-color: var(--color-text, #000000);
+}
+
+.high-contrast .activity-option-button:focus-visible {
+  outline: 3px solid var(--color-focus, #000000);
+  outline-offset: 3px;
+}
+
 /* Reduced motion support */
 .reduced-motion .toggle-switch,
 .reduced-motion .toggle-switch__slider,
-.reduced-motion .settings-select {
+.reduced-motion .settings-select,
+.reduced-motion .activity-option-button {
   transition: none;
 }
 
@@ -619,6 +725,15 @@ function handleTextSizeChange(event: Event): void {
 
   .pace-input {
     flex: 1;
+  }
+
+  .activity-button-group {
+    flex-direction: column;
+  }
+
+  .activity-option-button {
+    width: 100%;
+    text-align: center;
   }
 }
 </style>

@@ -75,7 +75,7 @@ export interface User {
     emergencyPhone?: string
 
     // Activity preferences (for both athletes and guides)
-    activities?: ('walk' | 'run' | 'roll')[]
+    activities?: ('walk' | 'run' | 'run/walk' | 'roll')[]
     pace?: {
       // Pace in minutes:seconds per mile (aligned with SignUp pace format)
       minutes: number // 6-20

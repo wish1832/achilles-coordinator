@@ -25,8 +25,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Profile editing state
   // Draft pace values for editing (separate from saved values)
-  const draftPaceMinutes = ref<number>(10)
-  const draftPaceSeconds = ref<number>(0)
+  // Values are undefined when user has no pace set, allowing dropdowns to show empty state
+  const draftPaceMinutes = ref<number | undefined>(undefined)
+  const draftPaceSeconds = ref<number | undefined>(undefined)
+  // Draft activities for editing (stores user's activity preferences)
+  const draftActivities = ref<('walk' | 'run' | 'run/walk' | 'roll')[]>([])
   // Tracks whether profile has unsaved changes
   const isProfileDirty = ref(false)
   // Saving state for profile updates
@@ -384,13 +387,17 @@ export const useAuthStore = defineStore('auth', () => {
   // ============================================
 
   /**
-   * Initialize draft pace values from the current user's profile
+   * Initialize draft profile values from the current user's profile
    * Call this when entering the profile editing view
    */
   function initializeProfileDraft(): void {
-    const pace = currentUser.value?.profileDetails?.pace
-    draftPaceMinutes.value = pace?.minutes ?? 10
-    draftPaceSeconds.value = pace?.seconds ?? 0
+    const profileDetails = currentUser.value?.profileDetails
+    // Initialize pace values (undefined if user has no pace set)
+    draftPaceMinutes.value = profileDetails?.pace?.minutes
+    draftPaceSeconds.value = profileDetails?.pace?.seconds
+    // Initialize activities (copy the array to avoid mutation issues)
+    draftActivities.value = profileDetails?.activities ? [...profileDetails.activities] : []
+    // Reset dirty and status flags
     isProfileDirty.value = false
     profileSaveError.value = null
     profileSaveSuccess.value = false
@@ -419,6 +426,25 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
+   * Toggle an activity in the draft activities array
+   * If the activity is already selected, it will be removed; otherwise it will be added
+   * Marks the profile as dirty (having unsaved changes)
+   * @param activity - The activity to toggle ('walk', 'run', 'run/walk', or 'roll')
+   */
+  function toggleDraftActivity(activity: 'walk' | 'run' | 'run/walk' | 'roll'): void {
+    const index = draftActivities.value.indexOf(activity)
+    if (index === -1) {
+      // Activity not selected, add it
+      draftActivities.value = [...draftActivities.value, activity]
+    } else {
+      // Activity already selected, remove it
+      draftActivities.value = draftActivities.value.filter((a) => a !== activity)
+    }
+    isProfileDirty.value = true
+    profileSaveSuccess.value = false
+  }
+
+  /**
    * Save the draft profile changes to the user's record
    * Creates a plain object to avoid reactive proxy serialization issues
    */
@@ -442,18 +468,18 @@ export const useAuthStore = defineStore('auth', () => {
         emergencyPhone: currentProfile?.emergencyPhone,
         disabilityType: currentProfile?.disabilityType,
         assistanceNeeded: currentProfile?.assistanceNeeded,
-        // Copy arrays as new plain arrays to avoid reactive proxies
-        activities: currentProfile?.activities ? [...currentProfile.activities] : undefined,
+        // Set activities from draft state (copy to avoid reactive proxies)
+        activities: draftActivities.value.length > 0 ? [...draftActivities.value] : undefined,
         certifications: currentProfile?.certifications ? [...currentProfile.certifications] : undefined,
         // Copy nested objects as new plain objects
         paceRange: currentProfile?.paceRange
           ? { min: currentProfile.paceRange.min, max: currentProfile.paceRange.max }
           : undefined,
-        // Set the new pace value from draft state
-        pace: {
-          minutes: draftPaceMinutes.value,
-          seconds: draftPaceSeconds.value,
-        },
+        // Set the new pace value from draft state (only if both values are defined)
+        pace:
+          draftPaceMinutes.value !== undefined && draftPaceSeconds.value !== undefined
+            ? { minutes: draftPaceMinutes.value, seconds: draftPaceSeconds.value }
+            : undefined,
       }
 
       await userRepository.updateUser(currentUser.value.id, {
@@ -487,6 +513,7 @@ export const useAuthStore = defineStore('auth', () => {
     // Profile editing state
     draftPaceMinutes,
     draftPaceSeconds,
+    draftActivities,
     isProfileDirty,
     isProfileSaving,
     profileSaveError,
@@ -514,6 +541,7 @@ export const useAuthStore = defineStore('auth', () => {
     initializeProfileDraft,
     setDraftPaceMinutes,
     setDraftPaceSeconds,
+    toggleDraftActivity,
     saveProfileChanges,
   }
 })

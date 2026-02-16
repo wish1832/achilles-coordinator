@@ -20,6 +20,8 @@ For general guidelines, read and follow `STYLE.md`.
 - Variables and functions should be named using full English words. Case conventions should follow TypeScript norms (camelCase for variables/functions, PascalCase for types/components).
 - Please use stores and composables only in Views. If there is a reasonable case to use a repository, ask the user before doing so.
 
+- Ask questions about anything in the user request that is not clear and follow up as needed.
+
 ## Essential Commands
 
 ### Development
