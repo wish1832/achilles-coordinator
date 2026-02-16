@@ -26,9 +26,77 @@
                 <label class="settings-field__label">Email</label>
                 <p class="settings-field__value">{{ userEmail }}</p>
               </div>
+            </div>
+          </section>
+
+          <!-- Profile section -->
+          <section class="settings-section" aria-labelledby="profile-heading">
+            <h2 id="profile-heading" class="settings-section__title">Profile</h2>
+            <div class="settings-section__content">
+              <!-- Role display (read-only) -->
               <div class="settings-field">
                 <label class="settings-field__label">Role</label>
                 <p class="settings-field__value settings-field__value--capitalize">{{ userRole }}</p>
+              </div>
+
+              <!-- Pace selection -->
+              <div class="settings-option settings-option--stacked">
+                <div class="settings-option__header">
+                  <label class="settings-option__label" id="pace-label">
+                    Pace (per mile)
+                  </label>
+                  <p class="settings-option__description">
+                    Your typical running pace in minutes and seconds per mile
+                  </p>
+                </div>
+                <div class="settings-option__control pace-controls" role="group" aria-labelledby="pace-label">
+                  <!-- Minutes dropdown -->
+                  <div class="pace-input">
+                    <label for="pace-minutes" class="pace-input__label">Minutes</label>
+                    <select
+                      id="pace-minutes"
+                      :value="authStore.draftPaceMinutes"
+                      class="settings-select"
+                      @change="handlePaceMinutesChange"
+                    >
+                      <option v-for="min in minutesOptions" :key="min" :value="min">
+                        {{ min }}
+                      </option>
+                    </select>
+                  </div>
+                  <!-- Seconds dropdown -->
+                  <div class="pace-input">
+                    <label for="pace-seconds" class="pace-input__label">Seconds</label>
+                    <select
+                      id="pace-seconds"
+                      :value="authStore.draftPaceSeconds"
+                      class="settings-select"
+                      @change="handlePaceSecondsChange"
+                    >
+                      <option v-for="sec in secondsOptions" :key="sec" :value="sec">
+                        {{ sec.toString().padStart(2, '0') }}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Save changes button -->
+              <div class="settings-option settings-option--action">
+                <AchillesButton
+                  :variant="authStore.isProfileDirty ? 'primary' : 'secondary'"
+                  size="medium"
+                  :disabled="!authStore.isProfileDirty || authStore.isProfileSaving"
+                  @click="authStore.saveProfileChanges"
+                >
+                  {{ authStore.isProfileSaving ? 'Saving...' : 'Save changes' }}
+                </AchillesButton>
+                <p v-if="authStore.profileSaveError" class="settings-error" role="alert">
+                  {{ authStore.profileSaveError }}
+                </p>
+                <p v-if="authStore.profileSaveSuccess" class="settings-success" role="status">
+                  Changes saved successfully
+                </p>
               </div>
             </div>
           </section>
@@ -168,7 +236,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAccessibilityStore } from '@/stores/accessibility'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
@@ -181,6 +249,28 @@ const accessibilityStore = useAccessibilityStore()
 const displayName = computed(() => authStore.userDisplayName || 'Not set')
 const userEmail = computed(() => authStore.currentUser?.email || 'Not available')
 const userRole = computed(() => authStore.userRole || 'Not set')
+
+// Pace options based on User model constraints
+// Minutes: 6-20, Seconds: 0, 15, 30, or 45
+const minutesOptions = Array.from({ length: 15 }, (_, i) => i + 6) // 6 to 20
+const secondsOptions = [0, 15, 30, 45]
+
+// Initialize profile draft state when component mounts
+onMounted(() => {
+  authStore.initializeProfileDraft()
+})
+
+// Handle pace minutes change from select dropdown
+function handlePaceMinutesChange(event: Event): void {
+  const target = event.target as HTMLSelectElement
+  authStore.setDraftPaceMinutes(Number(target.value))
+}
+
+// Handle pace seconds change from select dropdown
+function handlePaceSecondsChange(event: Event): void {
+  const target = event.target as HTMLSelectElement
+  authStore.setDraftPaceSeconds(Number(target.value))
+}
 
 // Handle text size change from select dropdown
 function handleTextSizeChange(event: Event): void {
@@ -317,6 +407,11 @@ function handleTextSizeChange(event: Event): void {
   padding-top: 1.5rem;
 }
 
+.settings-option--stacked {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 .settings-option__header {
   flex: 1;
 }
@@ -403,6 +498,38 @@ function handleTextSizeChange(event: Event): void {
   border-color: var(--color-primary, #0066cc);
 }
 
+/* Pace controls */
+.pace-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.pace-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.pace-input__label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-muted, #6b7280);
+}
+
+/* Status messages */
+.settings-error {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: var(--color-error, #dc2626);
+}
+
+.settings-success {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: var(--color-success, #16a34a);
+}
+
 /* Text size support */
 .text-size-small .settings-title {
   font-size: 1.75rem;
@@ -484,6 +611,14 @@ function handleTextSizeChange(event: Event): void {
 
   .settings-select {
     width: 100%;
+  }
+
+  .pace-controls {
+    width: 100%;
+  }
+
+  .pace-input {
+    flex: 1;
   }
 }
 </style>
