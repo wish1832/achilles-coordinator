@@ -65,8 +65,8 @@
                 </div>
               </div>
 
-              <!-- Pace selection -->
-              <div class="settings-option settings-option--stacked">
+              <!-- Pace selection (only shown if user has selected run, run/walk, or roll activities) -->
+              <div v-if="showPaceSection" class="settings-option settings-option--stacked">
                 <div class="settings-option__header">
                   <label class="settings-option__label" id="pace-label">
                     {{ paceLabel }}
@@ -137,12 +137,15 @@
             </p>
             <div class="settings-section__content">
               <!-- High contrast toggle -->
-              <div class="settings-option">
+              <div
+                class="settings-option settings-option--clickable"
+                @click="accessibilityStore.toggleHighContrast"
+              >
                 <div class="settings-option__header">
-                  <label class="settings-option__label" for="high-contrast-toggle">
+                  <span class="settings-option__label" id="high-contrast-label">
                     High Contrast Mode
-                  </label>
-                  <p class="settings-option__description">
+                  </span>
+                  <p class="settings-option__description" id="high-contrast-description">
                     Increases contrast for better visibility
                   </p>
                 </div>
@@ -152,14 +155,13 @@
                     type="button"
                     role="switch"
                     :aria-checked="accessibilityStore.isHighContrast"
+                    aria-labelledby="high-contrast-label"
+                    aria-describedby="high-contrast-description"
                     class="toggle-switch"
                     :class="{ 'toggle-switch--active': accessibilityStore.isHighContrast }"
-                    @click="accessibilityStore.toggleHighContrast"
+                    @click.stop="accessibilityStore.toggleHighContrast"
                   >
                     <span class="toggle-switch__slider" aria-hidden="true"></span>
-                    <span class="sr-only">
-                      {{ accessibilityStore.isHighContrast ? 'Disable' : 'Enable' }} high contrast mode
-                    </span>
                   </button>
                 </div>
               </div>
@@ -190,12 +192,15 @@
               </div>
 
               <!-- Reduced motion toggle -->
-              <div class="settings-option">
+              <div
+                class="settings-option settings-option--clickable"
+                @click="accessibilityStore.toggleReducedMotion"
+              >
                 <div class="settings-option__header">
-                  <label class="settings-option__label" for="reduced-motion-toggle">
+                  <span class="settings-option__label" id="reduced-motion-label">
                     Reduce Motion
-                  </label>
-                  <p class="settings-option__description">
+                  </span>
+                  <p class="settings-option__description" id="reduced-motion-description">
                     Minimizes animations and transitions
                   </p>
                 </div>
@@ -205,25 +210,27 @@
                     type="button"
                     role="switch"
                     :aria-checked="accessibilityStore.isReducedMotion"
+                    aria-labelledby="reduced-motion-label"
+                    aria-describedby="reduced-motion-description"
                     class="toggle-switch"
                     :class="{ 'toggle-switch--active': accessibilityStore.isReducedMotion }"
-                    @click="accessibilityStore.toggleReducedMotion"
+                    @click.stop="accessibilityStore.toggleReducedMotion"
                   >
                     <span class="toggle-switch__slider" aria-hidden="true"></span>
-                    <span class="sr-only">
-                      {{ accessibilityStore.isReducedMotion ? 'Disable' : 'Enable' }} reduced motion
-                    </span>
                   </button>
                 </div>
               </div>
 
               <!-- Focus indicators toggle -->
-              <div class="settings-option">
+              <div
+                class="settings-option settings-option--clickable"
+                @click="accessibilityStore.toggleFocusVisible"
+              >
                 <div class="settings-option__header">
-                  <label class="settings-option__label" for="focus-visible-toggle">
+                  <span class="settings-option__label" id="focus-visible-label">
                     Enhanced Focus Indicators
-                  </label>
-                  <p class="settings-option__description">
+                  </span>
+                  <p class="settings-option__description" id="focus-visible-description">
                     Makes focus indicators more prominent for keyboard navigation
                   </p>
                 </div>
@@ -233,14 +240,13 @@
                     type="button"
                     role="switch"
                     :aria-checked="accessibilityStore.isFocusVisible"
+                    aria-labelledby="focus-visible-label"
+                    aria-describedby="focus-visible-description"
                     class="toggle-switch"
                     :class="{ 'toggle-switch--active': accessibilityStore.isFocusVisible }"
-                    @click="accessibilityStore.toggleFocusVisible"
+                    @click.stop="accessibilityStore.toggleFocusVisible"
                   >
                     <span class="toggle-switch__slider" aria-hidden="true"></span>
-                    <span class="sr-only">
-                      {{ accessibilityStore.isFocusVisible ? 'Disable' : 'Enable' }} enhanced focus indicators
-                    </span>
                   </button>
                 </div>
               </div>
@@ -280,11 +286,12 @@ const userRole = computed(() => authStore.userRole || 'Not set')
 
 // Computed: Pace label based on user role
 // Guides see "Max running pace" while athletes see "Typical running pace"
+// The "min/mi" unit is included in the label for clarity
 const paceLabel = computed(() => {
   if (authStore.isGuide) {
-    return 'Max running pace'
+    return 'Max running pace (min/mi)'
   }
-  return 'Typical running pace'
+  return 'Typical running pace (min/mi)'
 })
 
 // Computed: Pace description text based on user role
@@ -294,6 +301,13 @@ const paceDescription = computed(() => {
     return 'You will be paired with athletes with a pace up to the pace you enter below.'
   }
   return "This is used to pair you with guides that can run up to the pace you provide here. If you're not sure, estimate on the higher end. Guides have no problem going slower than expected but won't be able to keep up if your pace is faster than expected."
+})
+
+// Computed: Show pace section only if the user has selected run, run/walk, or roll activities
+// Walk does not require pace information
+const showPaceSection = computed(() => {
+  const activities = authStore.draftActivities
+  return activities.includes('run') || activities.includes('run/walk') || activities.includes('roll')
 })
 
 // Activity options matching the RSVP modal (with multi-select capability)
@@ -461,6 +475,10 @@ function handleTextSizeChange(event: Event): void {
   padding-top: 1.5rem;
 }
 
+.settings-option--clickable {
+  cursor: pointer;
+}
+
 .settings-option--stacked {
   flex-direction: column;
   align-items: flex-start;
@@ -472,11 +490,10 @@ function handleTextSizeChange(event: Event): void {
 
 .settings-option__label {
   font-size: 0.9375rem;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-text, #111827);
   display: block;
   margin-bottom: 0.25rem;
-  cursor: pointer;
 }
 
 .settings-option__description {

@@ -193,17 +193,19 @@ const secondsOptions = [
 // Computed: Check if user is a guide
 const isGuide = computed(() => authStore.isGuide)
 
-// Computed: Show pace section only for run or roll activities
+// Computed: Show pace section only for run, run/walk, or roll activities
+// Walk does not require pace information
 const showPaceSection = computed(() => {
-  return activity.value === 'run' || activity.value === 'roll'
+  return activity.value === 'run' || activity.value === 'run/walk' || activity.value === 'roll'
 })
 
 // Computed: Pace question label based on user role
+// The "min/mi" unit is included in the label for clarity
 const paceQuestionLabel = computed(() => {
   if (isGuide.value) {
-    return 'What is the max pace you\'re comfortable with?'
+    return 'What is the max pace you\'re comfortable with? (min/mi)'
   }
-  return 'What pace do you plan to run?'
+  return 'What pace do you plan to run? (min/mi)'
 })
 
 // Computed: Pace description text based on user role
