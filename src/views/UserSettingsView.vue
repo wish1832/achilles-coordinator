@@ -69,10 +69,10 @@
               <div class="settings-option settings-option--stacked">
                 <div class="settings-option__header">
                   <label class="settings-option__label" id="pace-label">
-                    Pace (per mile)
+                    {{ paceLabel }}
                   </label>
                   <p class="settings-option__description">
-                    Your typical running pace in minutes and seconds per mile
+                    {{ paceDescription }}
                   </p>
                 </div>
                 <div class="settings-option__control pace-controls" role="group" aria-labelledby="pace-label">
@@ -277,6 +277,24 @@ const accessibilityStore = useAccessibilityStore()
 const displayName = computed(() => authStore.userDisplayName || 'Not set')
 const userEmail = computed(() => authStore.currentUser?.email || 'Not available')
 const userRole = computed(() => authStore.userRole || 'Not set')
+
+// Computed: Pace label based on user role
+// Guides see "Max running pace" while athletes see "Typical running pace"
+const paceLabel = computed(() => {
+  if (authStore.isGuide) {
+    return 'Max running pace'
+  }
+  return 'Typical running pace'
+})
+
+// Computed: Pace description text based on user role
+// Provides context for why we're asking about pace and how it's used for pairing
+const paceDescription = computed(() => {
+  if (authStore.isGuide) {
+    return 'You will be paired with athletes with a pace up to the pace you enter below.'
+  }
+  return "This is used to pair you with guides that can run up to the pace you provide here. If you're not sure, estimate on the higher end. Guides have no problem going slower than expected but won't be able to keep up if your pace is faster than expected."
+})
 
 // Activity options matching the RSVP modal (with multi-select capability)
 const activityOptions: { value: 'walk' | 'run' | 'run/walk' | 'roll'; label: string }[] = [
