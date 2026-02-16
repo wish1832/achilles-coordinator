@@ -108,7 +108,7 @@
         <div v-else class="run-error">
           <h2>Run not found</h2>
           <p>The run you're looking for doesn't exist or has been removed.</p>
-          <AchillesButton @click="router.push('/runs')">Back to Runs</AchillesButton>
+          <AchillesButton @click="router.push('/dashboard')">Back to Dashboard</AchillesButton>
         </div>
       </div>
     </main>

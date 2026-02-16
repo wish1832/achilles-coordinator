@@ -3,12 +3,8 @@
     <div class="app-header__content">
       <!-- Left side: Logo/Title area -->
       <div class="app-header__left">
-        <button
-          class="app-header__title-button"
-          aria-label="Go to home page"
-          @click="goToHome"
-        >
-          Run Coordinator
+        <button class="app-header__title-button" aria-label="Go to home page" @click="goToHome">
+          GuideFinder
         </button>
       </div>
 
@@ -117,9 +113,9 @@ const userInitials = computed(() => {
   }
 })
 
-// Navigate to the home/root page
+// Navigate to the dashboard (home page for logged-in users)
 function goToHome(): void {
-  router.push('/')
+  router.push('/dashboard')
 }
 
 // Toggle the dropdown menu open/closed

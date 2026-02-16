@@ -221,8 +221,8 @@ async function handleSubmit(): Promise<void> {
   try {
     await authStore.signIn(form.value.email, form.value.password)
 
-    // Redirect based on user role
-    router.push('/runs')
+    // Redirect to dashboard after successful login
+    router.push('/dashboard')
   } catch (error) {
     // Error is handled by the auth store
     console.error('Login failed:', error)
