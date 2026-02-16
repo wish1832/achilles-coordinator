@@ -271,8 +271,10 @@ watch(
         // Reset form for new RSVP
         attendance.value = null
         activity.value = null
-        paceMinutes.value = undefined
-        paceSeconds.value = undefined
+        // Pre-populate pace with the user's default pace from their profile
+        const userDefaultPace = authStore.currentUser?.profileDetails?.pace
+        paceMinutes.value = userDefaultPace?.minutes
+        paceSeconds.value = userDefaultPace?.seconds
       }
     }
   },
