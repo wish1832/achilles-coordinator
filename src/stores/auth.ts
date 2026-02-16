@@ -23,6 +23,20 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref<string | null>(null)
   const isInitialized = ref<boolean>(false)
 
+  // Profile editing state
+  // Draft pace values for editing (separate from saved values)
+  // Values are undefined when user has no pace set, allowing dropdowns to show empty state
+  const draftPaceMinutes = ref<number | undefined>(undefined)
+  const draftPaceSeconds = ref<number | undefined>(undefined)
+  // Draft activities for editing (stores user's activity preferences)
+  const draftActivities = ref<('walk' | 'run' | 'run/walk' | 'roll')[]>([])
+  // Tracks whether profile has unsaved changes
+  const isProfileDirty = ref(false)
+  // Saving state for profile updates
+  const isProfileSaving = ref(false)
+  const profileSaveError = ref<string | null>(null)
+  const profileSaveSuccess = ref(false)
+
   // Getters (computed properties)
   const isAuthenticated = computed(() => !!currentUser.value)
   const isAthlete = computed(() => currentUser.value?.role === 'athlete')
@@ -368,12 +382,142 @@ export const useAuthStore = defineStore('auth', () => {
     return requiredRoles.includes(currentUser.value.role)
   }
 
+  // ============================================
+  // Profile Editing Methods
+  // ============================================
+
+  /**
+   * Initialize draft profile values from the current user's profile
+   * Call this when entering the profile editing view
+   */
+  function initializeProfileDraft(): void {
+    const profileDetails = currentUser.value?.profileDetails
+    // Initialize pace values (undefined if user has no pace set)
+    draftPaceMinutes.value = profileDetails?.pace?.minutes
+    draftPaceSeconds.value = profileDetails?.pace?.seconds
+    // Initialize activities (copy the array to avoid mutation issues)
+    draftActivities.value = profileDetails?.activities ? [...profileDetails.activities] : []
+    // Reset dirty and status flags
+    isProfileDirty.value = false
+    profileSaveError.value = null
+    profileSaveSuccess.value = false
+  }
+
+  /**
+   * Update the draft pace minutes value
+   * Marks the profile as dirty (having unsaved changes)
+   * @param minutes - The new minutes value (6-20)
+   */
+  function setDraftPaceMinutes(minutes: number): void {
+    draftPaceMinutes.value = minutes
+    isProfileDirty.value = true
+    profileSaveSuccess.value = false
+  }
+
+  /**
+   * Update the draft pace seconds value
+   * Marks the profile as dirty (having unsaved changes)
+   * @param seconds - The new seconds value (0, 15, 30, or 45)
+   */
+  function setDraftPaceSeconds(seconds: number): void {
+    draftPaceSeconds.value = seconds
+    isProfileDirty.value = true
+    profileSaveSuccess.value = false
+  }
+
+  /**
+   * Toggle an activity in the draft activities array
+   * If the activity is already selected, it will be removed; otherwise it will be added
+   * Marks the profile as dirty (having unsaved changes)
+   * @param activity - The activity to toggle ('walk', 'run', 'run/walk', or 'roll')
+   */
+  function toggleDraftActivity(activity: 'walk' | 'run' | 'run/walk' | 'roll'): void {
+    const index = draftActivities.value.indexOf(activity)
+    if (index === -1) {
+      // Activity not selected, add it
+      draftActivities.value = [...draftActivities.value, activity]
+    } else {
+      // Activity already selected, remove it
+      draftActivities.value = draftActivities.value.filter((a) => a !== activity)
+    }
+    isProfileDirty.value = true
+    profileSaveSuccess.value = false
+  }
+
+  /**
+   * Save the draft profile changes to the user's record
+   * Creates a plain object to avoid reactive proxy serialization issues
+   */
+  async function saveProfileChanges(): Promise<void> {
+    if (!currentUser.value) {
+      profileSaveError.value = 'Unable to save profile changes. Please try again and contact us if the problem persists.'
+      return
+    }
+
+    profileSaveError.value = null
+    profileSaveSuccess.value = false
+    isProfileSaving.value = true
+
+    try {
+      // Build a plain object for profileDetails to avoid reactive proxy issues
+      // We explicitly copy each field to ensure no Vue proxies are passed to the repository
+      const currentProfile = currentUser.value.profileDetails
+      const updatedProfileDetails: User['profileDetails'] = {
+        phone: currentProfile?.phone,
+        emergencyContact: currentProfile?.emergencyContact,
+        emergencyPhone: currentProfile?.emergencyPhone,
+        disabilityType: currentProfile?.disabilityType,
+        assistanceNeeded: currentProfile?.assistanceNeeded,
+        // Set activities from draft state (copy to avoid reactive proxies)
+        activities: draftActivities.value.length > 0 ? [...draftActivities.value] : undefined,
+        certifications: currentProfile?.certifications ? [...currentProfile.certifications] : undefined,
+        // Copy nested objects as new plain objects
+        paceRange: currentProfile?.paceRange
+          ? { min: currentProfile.paceRange.min, max: currentProfile.paceRange.max }
+          : undefined,
+        // Set the new pace value from draft state (only if both values are defined)
+        pace:
+          draftPaceMinutes.value !== undefined && draftPaceSeconds.value !== undefined
+            ? { minutes: draftPaceMinutes.value, seconds: draftPaceSeconds.value }
+            : undefined,
+      }
+
+      await userRepository.updateUser(currentUser.value.id, {
+        profileDetails: updatedProfileDetails,
+      })
+
+      // Update local state with the new profile details
+      currentUser.value = {
+        ...currentUser.value,
+        profileDetails: updatedProfileDetails,
+      }
+
+      isProfileDirty.value = false
+      profileSaveSuccess.value = true
+    } catch (err) {
+      // Log error for debugging, show user-friendly message per STYLE.md
+      console.error('Failed to save profile changes:', err)
+      profileSaveError.value = 'Unable to save profile changes. Please try again and contact us if the problem persists.'
+    } finally {
+      isProfileSaving.value = false
+    }
+  }
+
   return {
     // State
     currentUser,
     loading,
     error,
     isInitialized,
+
+    // Profile editing state
+    draftPaceMinutes,
+    draftPaceSeconds,
+    draftActivities,
+    isProfileDirty,
+    isProfileSaving,
+    profileSaveError,
+    profileSaveSuccess,
 
     // Getters
     isAuthenticated,
@@ -392,5 +536,12 @@ export const useAuthStore = defineStore('auth', () => {
     hasPermission,
     inviteUserToOrganization,
     acceptOrganizationInvite,
+
+    // Profile editing actions
+    initializeProfileDraft,
+    setDraftPaceMinutes,
+    setDraftPaceSeconds,
+    toggleDraftActivity,
+    saveProfileChanges,
   }
 })
