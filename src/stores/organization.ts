@@ -21,6 +21,17 @@ export const useOrganizationStore = defineStore('organization', () => {
   const loadSequence = ref(0)
   const loadedForUserId = ref<string | null>(null)
 
+  // Organization settings editing state
+  // Draft values for editing organization name and description
+  const draftOrgName = ref<string>('')
+  const draftOrgDescription = ref<string>('')
+  // Tracks whether organization settings have unsaved changes
+  const isOrgSettingsDirty = ref(false)
+  // Saving state for organization settings updates
+  const isOrgSettingsSaving = ref(false)
+  const orgSettingsSaveError = ref<string | null>(null)
+  const orgSettingsSaveSuccess = ref(false)
+
   // Getters (functions)
 
   /**
@@ -435,6 +446,90 @@ export const useOrganizationStore = defineStore('organization', () => {
     currentOrganization.value = organization
   }
 
+  // ============================================
+  // Organization Settings Editing Methods
+  // ============================================
+
+  /**
+   * Initialize draft organization settings from an organization
+   * Call this when entering the organization settings view
+   * @param organizationId - The ID of the organization to edit
+   */
+  function initializeOrgSettingsDraft(organizationId: string): void {
+    const org = getOrganizationById(organizationId)
+    // Initialize name and description from the organization
+    draftOrgName.value = org?.name ?? ''
+    draftOrgDescription.value = org?.description ?? ''
+    // Reset dirty and status flags
+    isOrgSettingsDirty.value = false
+    orgSettingsSaveError.value = null
+    orgSettingsSaveSuccess.value = false
+  }
+
+  /**
+   * Update the draft organization name
+   * Marks the settings as dirty (having unsaved changes)
+   * @param name - The new organization name
+   */
+  function setDraftOrgName(name: string): void {
+    draftOrgName.value = name
+    isOrgSettingsDirty.value = true
+    orgSettingsSaveSuccess.value = false
+  }
+
+  /**
+   * Update the draft organization description
+   * Marks the settings as dirty (having unsaved changes)
+   * @param description - The new organization description
+   */
+  function setDraftOrgDescription(description: string): void {
+    draftOrgDescription.value = description
+    isOrgSettingsDirty.value = true
+    orgSettingsSaveSuccess.value = false
+  }
+
+  /**
+   * Save the draft organization settings changes
+   * @param organizationId - The ID of the organization to update
+   */
+  async function saveOrgSettingsChanges(organizationId: string): Promise<void> {
+    orgSettingsSaveError.value = null
+    orgSettingsSaveSuccess.value = false
+    isOrgSettingsSaving.value = true
+
+    try {
+      // Build the updates object with the draft values
+      const updates: Partial<Omit<Organization, 'id'>> = {
+        name: draftOrgName.value.trim(),
+        description: draftOrgDescription.value.trim() || undefined,
+        updatedAt: new Date(),
+      }
+
+      // Use the existing updateOrganization method to persist changes
+      await dataRepository.updateOrganization(organizationId, updates)
+
+      // Update local state
+      const index = organizations.value.findIndex((org) => org.id === organizationId)
+      if (index !== -1 && organizations.value[index]) {
+        Object.assign(organizations.value[index], updates)
+      }
+
+      // Update currentOrganization if it's the one being updated
+      if (currentOrganization.value?.id === organizationId && currentOrganization.value) {
+        Object.assign(currentOrganization.value, updates)
+      }
+
+      isOrgSettingsDirty.value = false
+      orgSettingsSaveSuccess.value = true
+    } catch (err) {
+      // Log error for debugging, show user-friendly message
+      console.error('Failed to save organization settings:', err)
+      orgSettingsSaveError.value = 'Unable to save changes. Please try again and contact us if the problem persists.'
+    } finally {
+      isOrgSettingsSaving.value = false
+    }
+  }
+
   /**
    * Clear any error messages
    */
@@ -461,6 +556,14 @@ export const useOrganizationStore = defineStore('organization', () => {
     error,
     loadedForUserId,
 
+    // Organization settings editing state
+    draftOrgName,
+    draftOrgDescription,
+    isOrgSettingsDirty,
+    isOrgSettingsSaving,
+    orgSettingsSaveError,
+    orgSettingsSaveSuccess,
+
     // Getters
     getOrganizationById,
     isUserOrgAdmin,
@@ -482,5 +585,11 @@ export const useOrganizationStore = defineStore('organization', () => {
     setCurrentOrganization,
     clearError,
     reset,
+
+    // Organization settings editing actions
+    initializeOrgSettingsDraft,
+    setDraftOrgName,
+    setDraftOrgDescription,
+    saveOrgSettingsChanges,
   }
 })

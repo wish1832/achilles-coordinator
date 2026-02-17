@@ -52,6 +52,16 @@ const router = createRouter({
       },
     },
     {
+      path: '/organizations/:orgId/settings',
+      name: 'OrganizationSettings',
+      component: () => import('@/views/OrganizationSettingsView.vue'),
+      meta: {
+        requiresAuth: true,
+        requiresOrgAdmin: true,
+        title: 'Organization Settings - Achilles Run Coordinator',
+      },
+    },
+    {
       path: '/organizations/:orgId/runs/create',
       name: 'CreateRun',
       component: () => import('@/views/CreateRunView.vue'),

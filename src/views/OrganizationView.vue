@@ -29,7 +29,19 @@
       <!-- Header with organization name and description -->
       <header class="organization-header">
         <div class="organization-header__content">
-          <h1 class="organization-title">{{ organization.name }}</h1>
+          <div class="organization-header__title-row">
+            <h1 class="organization-title">{{ organization.name }}</h1>
+            <!-- Edit Org Settings button - only visible to org admins -->
+            <AchillesButton
+              v-if="isUserOrgAdmin"
+              variant="secondary"
+              size="small"
+              @click="navigateToOrgSettings"
+            >
+              <font-awesome-icon icon="pencil" aria-hidden="true" />
+              Edit Org Settings
+            </AchillesButton>
+          </div>
           <p v-if="organization.description" class="organization-description">
             {{ organization.description }}
           </p>
@@ -338,6 +350,14 @@ function navigateToCreateRun(): void {
 }
 
 /**
+ * Navigate to the organization settings page
+ * Only available to organization admins
+ */
+function navigateToOrgSettings(): void {
+  router.push(`/organizations/${orgId.value}/settings`)
+}
+
+/**
  * Check if the current user has signed up for a specific run
  * Returns true if the user has an active sign-up for the run (status is 'yes' or 'maybe')
  */
@@ -444,6 +464,14 @@ onActivated(async () => {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 1rem;
+}
+
+.organization-header__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .organization-title {
