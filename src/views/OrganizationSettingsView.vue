@@ -209,7 +209,12 @@
       size="small"
       @close="closeAllModals"
     >
-      <p v-if="selectedUser && isSelectedUserCurrentUser">
+      <!-- Show a warning when the user is the only admin and tries to step down -->
+      <p v-if="isSelectedUserCurrentUser && isOnlyAdmin">
+        You are unable to step down as admin because you are the only admin in the group. Please
+        make another user admin first.
+      </p>
+      <p v-else-if="selectedUser && isSelectedUserCurrentUser">
         Are you sure you want to step down as admin? You will no longer be able to edit and delete
         runs, remove users, or modify pairings for runs.
       </p>
@@ -223,7 +228,11 @@
           <AchillesButton variant="secondary" @click="closeAllModals">
             Cancel
           </AchillesButton>
-          <AchillesButton variant="danger" @click="confirmRemoveAdmin">
+          <AchillesButton
+            variant="danger"
+            :disabled="isOnlyAdmin"
+            @click="confirmRemoveAdmin"
+          >
             {{ isSelectedUserCurrentUser ? 'Step Down' : 'Remove Admin Role' }}
           </AchillesButton>
         </div>
@@ -353,6 +362,18 @@ const isRemoveUserModalOpen = ref(false)
 const isSelectedUserCurrentUser = computed(
   () => selectedUser.value?.id === authStore.currentUser?.id,
 )
+
+/**
+ * Check if the selected user is the only admin in the organization.
+ * Used to prevent the sole admin from stepping down.
+ */
+const isOnlyAdmin = computed(() => {
+  if (!organization.value || !selectedUser.value) return false
+  return (
+    organization.value.adminIds.length === 1 &&
+    organization.value.adminIds.includes(selectedUser.value.id)
+  )
+})
 
 /**
  * Handle action menu item selection for a user.

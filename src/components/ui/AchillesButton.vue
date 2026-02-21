@@ -247,4 +247,10 @@ function handleKeydown(event: KeyboardEvent): void {
 .button--danger:hover:not(:disabled) {
   background-color: var(--color-error-hover, #b91c1c);
 }
+
+/* Disabled state — reduced opacity and no pointer interaction */
+.button--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 </style>
