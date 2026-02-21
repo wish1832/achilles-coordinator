@@ -237,4 +237,14 @@ function handleKeydown(event: KeyboardEvent): void {
 .button--secondary:hover:not(:disabled) {
   background-color: var(--color-secondary-hover, #e9ecef);
 }
+
+.button--danger {
+  background-color: var(--color-error, #dc2626);
+  color: #ffffff;
+  border-radius: 0.375rem;
+}
+
+.button--danger:hover:not(:disabled) {
+  background-color: var(--color-error-hover, #b91c1c);
+}
 </style>

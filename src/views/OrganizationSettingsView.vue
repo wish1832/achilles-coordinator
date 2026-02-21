@@ -124,14 +124,16 @@
                         :key="admin.id"
                         class="org-settings-members__item"
                       >
-                        <UserAvatar
-                          :display-name="admin.displayName"
-                          size="small"
-                        />
+                        <UserAvatar :display-name="admin.displayName" size="small" />
                         <span class="org-settings-members__name">
                           {{ admin.displayName }}
                           <span class="org-settings-members__role">({{ admin.role }})</span>
                         </span>
+                        <ActionMenu
+                          :items="getAdminMenuItems(admin.id)"
+                          :aria-label="`Actions for ${admin.displayName}`"
+                          @select="(item) => handleUserAction(item, admin)"
+                        />
                       </li>
                       <li v-if="adminUsers.length === 0" class="org-settings-members__empty">
                         No admins found
@@ -148,14 +150,16 @@
                         :key="member.id"
                         class="org-settings-members__item"
                       >
-                        <UserAvatar
-                          :display-name="member.displayName"
-                          size="small"
-                        />
+                        <UserAvatar :display-name="member.displayName" size="small" />
                         <span class="org-settings-members__name">
                           {{ member.displayName }}
                           <span class="org-settings-members__role">({{ member.role }})</span>
                         </span>
+                        <ActionMenu
+                          :items="memberMenuItems"
+                          :aria-label="`Actions for ${member.displayName}`"
+                          @select="(item) => handleUserAction(item, member)"
+                        />
                       </li>
                       <li v-if="nonAdminMembers.length === 0" class="org-settings-members__empty">
                         No additional members
@@ -174,6 +178,83 @@
         </div>
       </main>
     </template>
+
+    <!-- Make Admin Confirmation Modal -->
+    <ModalElement
+      :is-open="isMakeAdminModalOpen"
+      title="Make Admin"
+      size="small"
+      @close="closeAllModals"
+    >
+      <p v-if="selectedUser">
+        Are you sure you want to make <strong>{{ selectedUser.displayName }}</strong> an admin?
+        This user will be able to edit and delete runs, remove users, and modify pairings for runs.
+      </p>
+      <template #footer>
+        <div class="modal-actions">
+          <AchillesButton variant="secondary" @click="closeAllModals">
+            Cancel
+          </AchillesButton>
+          <AchillesButton variant="primary" @click="confirmMakeAdmin">
+            Confirm
+          </AchillesButton>
+        </div>
+      </template>
+    </ModalElement>
+
+    <!-- Remove Admin Role Confirmation Modal -->
+    <ModalElement
+      :is-open="isRemoveAdminModalOpen"
+      :title="isSelectedUserCurrentUser ? 'Step Down as Admin' : 'Remove Admin Role'"
+      size="small"
+      @close="closeAllModals"
+    >
+      <p v-if="selectedUser && isSelectedUserCurrentUser">
+        Are you sure you want to step down as admin? You will no longer be able to edit and delete
+        runs, remove users, or modify pairings for runs.
+      </p>
+      <p v-else-if="selectedUser">
+        Are you sure you want to remove admin privileges from
+        <strong>{{ selectedUser.displayName }}</strong>? This user will no longer be able to edit
+        and delete runs, remove users, or modify pairings for runs.
+      </p>
+      <template #footer>
+        <div class="modal-actions">
+          <AchillesButton variant="secondary" @click="closeAllModals">
+            Cancel
+          </AchillesButton>
+          <AchillesButton variant="danger" @click="confirmRemoveAdmin">
+            {{ isSelectedUserCurrentUser ? 'Step Down' : 'Remove Admin Role' }}
+          </AchillesButton>
+        </div>
+      </template>
+    </ModalElement>
+
+    <!-- Remove User Confirmation Modal -->
+    <ModalElement
+      :is-open="isRemoveUserModalOpen"
+      title="Remove User"
+      size="small"
+      @close="closeAllModals"
+    >
+      <p v-if="selectedUser">
+        Are you sure you want to remove <strong>{{ selectedUser.displayName }}</strong> from this
+        organization?
+      </p>
+      <p class="modal-warning">
+        This action cannot be undone. The user will lose access to all organization resources.
+      </p>
+      <template #footer>
+        <div class="modal-actions">
+          <AchillesButton variant="secondary" @click="closeAllModals">
+            Cancel
+          </AchillesButton>
+          <AchillesButton variant="danger" @click="confirmRemoveUser">
+            Remove User
+          </AchillesButton>
+        </div>
+      </template>
+    </ModalElement>
   </div>
 </template>
 
@@ -183,8 +264,11 @@ import { useRoute } from 'vue-router'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
+import ActionMenu, { type ActionMenuItem } from '@/components/ui/ActionMenu.vue'
+import ModalElement from '@/components/ui/ModalElement.vue'
 import { useOrganizationStore } from '@/stores/organization'
 import { useUsersStore } from '@/stores/users'
+import { useAuthStore } from '@/stores/auth'
 import type { LoadingState, User } from '@/types'
 
 // Router and route
@@ -193,6 +277,7 @@ const route = useRoute()
 // Stores
 const organizationStore = useOrganizationStore()
 const usersStore = useUsersStore()
+const authStore = useAuthStore()
 
 // Local loading state
 const organizationLoading = ref<LoadingState>('idle')
@@ -231,6 +316,111 @@ const nonAdminMembers = computed((): User[] => {
 })
 
 /**
+ * Get menu items for an admin user.
+ * If the admin is the current logged-in user, show "Step down as admin" instead.
+ */
+function getAdminMenuItems(adminId: string): ActionMenuItem[] {
+  const isCurrentUser = authStore.currentUser?.id === adminId
+  return [
+    {
+      id: 'remove-admin',
+      label: isCurrentUser ? 'Step down as admin' : 'Remove admin role',
+      danger: true,
+    },
+    { id: 'remove-user', label: 'Remove from organization', danger: true },
+  ]
+}
+
+/**
+ * Menu items for non-admin members.
+ * Members can be promoted to admin or removed from the organization.
+ */
+const memberMenuItems: ActionMenuItem[] = [
+  { id: 'make-admin', label: 'Make admin' },
+  { id: 'remove-user', label: 'Remove from organization', danger: true },
+]
+
+// Modal state for confirmation dialogs
+const selectedUser = ref<User | null>(null)
+const isMakeAdminModalOpen = ref(false)
+const isRemoveAdminModalOpen = ref(false)
+const isRemoveUserModalOpen = ref(false)
+
+/**
+ * Check if the selected user is the currently logged-in user.
+ * Used to adjust modal language for self-actions.
+ */
+const isSelectedUserCurrentUser = computed(
+  () => selectedUser.value?.id === authStore.currentUser?.id,
+)
+
+/**
+ * Handle action menu item selection for a user.
+ * Opens the appropriate confirmation modal based on the selected action.
+ */
+function handleUserAction(item: ActionMenuItem, user: User): void {
+  selectedUser.value = user
+
+  switch (item.id) {
+    case 'make-admin':
+      isMakeAdminModalOpen.value = true
+      break
+    case 'remove-admin':
+      isRemoveAdminModalOpen.value = true
+      break
+    case 'remove-user':
+      isRemoveUserModalOpen.value = true
+      break
+  }
+}
+
+/**
+ * Close all confirmation modals and clear the selected user.
+ */
+function closeAllModals(): void {
+  isMakeAdminModalOpen.value = false
+  isRemoveAdminModalOpen.value = false
+  isRemoveUserModalOpen.value = false
+  selectedUser.value = null
+}
+
+/**
+ * Confirm making a user an admin.
+ * TODO: Implement the actual admin promotion logic.
+ */
+function confirmMakeAdmin(): void {
+  if (selectedUser.value) {
+    console.log(`Making ${selectedUser.value.displayName} an admin`)
+    // TODO: Call store method to add user to adminIds
+  }
+  closeAllModals()
+}
+
+/**
+ * Confirm removing admin role from a user.
+ * TODO: Implement the actual admin removal logic.
+ */
+function confirmRemoveAdmin(): void {
+  if (selectedUser.value) {
+    console.log(`Removing admin role from ${selectedUser.value.displayName}`)
+    // TODO: Call store method to remove user from adminIds
+  }
+  closeAllModals()
+}
+
+/**
+ * Confirm removing a user from the organization.
+ * TODO: Implement the actual user removal logic.
+ */
+function confirmRemoveUser(): void {
+  if (selectedUser.value) {
+    console.log(`Removing ${selectedUser.value.displayName} from organization`)
+    // TODO: Call store method to remove user from memberIds
+  }
+  closeAllModals()
+}
+
+/**
  * Load organization data from the store
  */
 async function loadOrganizationData(): Promise<void> {
@@ -253,7 +443,9 @@ async function loadMembersData(): Promise<void> {
   try {
     membersLoading.value = 'loading'
     // Combine adminIds and memberIds, removing duplicates
-    const allMemberIds = [...new Set([...organization.value.adminIds, ...organization.value.memberIds])]
+    const allMemberIds = [
+      ...new Set([...organization.value.adminIds, ...organization.value.memberIds]),
+    ]
     await usersStore.loadUsers(allMemberIds)
     membersLoading.value = 'success'
   } catch {
@@ -574,6 +766,24 @@ async function saveSettings(): Promise<void> {
 .org-settings-error p {
   color: var(--color-text-muted, #6b7280);
   margin: 0 0 1.5rem 0;
+}
+
+/* Action menu right alignment */
+.org-settings-members__item :deep(.action-menu) {
+  margin-left: auto;
+}
+
+/* Modal styles */
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.modal-warning {
+  margin-top: 1rem;
+  color: var(--color-error, #dc2626);
+  font-weight: 600;
 }
 
 /* Mobile responsiveness */
