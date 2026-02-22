@@ -13,6 +13,7 @@ import {
   faGear,
   faArrowRightFromBracket,
   faEllipsis,
+  faPencil,
 } from '@fortawesome/free-solid-svg-icons'
 
 library.add(
@@ -23,6 +24,7 @@ library.add(
   faGear,
   faArrowRightFromBracket,
   faEllipsis,
+  faPencil,
 )
 
 import App from './App.vue'
