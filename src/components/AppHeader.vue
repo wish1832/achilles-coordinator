@@ -240,11 +240,11 @@ function handleClickOutside(event: MouseEvent): void {
 
 // Set up and tear down click outside listener
 onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
+  document.addEventListener('click', handleClickOutside, true)
 })
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('click', handleClickOutside, true)
 })
 </script>
 
