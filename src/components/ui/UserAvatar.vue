@@ -11,8 +11,9 @@
       `user-avatar--${variant}`,
       { 'user-avatar--inline': inline }
     ]"
-    :aria-label="`Avatar for ${displayName}`"
-    role="img"
+    :aria-label="ariaHidden ? undefined : `Avatar for ${displayName}`"
+    :role="ariaHidden ? undefined : 'img'"
+    :aria-hidden="ariaHidden || undefined"
   >
     {{ initials }}
   </span>
@@ -32,11 +33,15 @@ const props = withDefaults(
     variant?: 'default' | 'header'
     // Whether the avatar should display inline with text
     inline?: boolean
+    // When true, hides the avatar from screen readers (use when a parent element
+    // already provides an accessible label, e.g. the avatar is inside a labeled button)
+    ariaHidden?: boolean
   }>(),
   {
     size: 'medium',
     variant: 'default',
     inline: false,
+    ariaHidden: false,
   },
 )
 

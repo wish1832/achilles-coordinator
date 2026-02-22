@@ -25,7 +25,7 @@
               :display-name="displayName"
               size="medium"
               variant="header"
-              aria-hidden="true"
+              aria-hidden
             />
           </button>
 
