@@ -4,7 +4,7 @@
       <!-- Left side: Logo/Title area -->
       <div class="app-header__left">
         <button class="app-header__title-button" aria-label="Go to home page" @click="goToHome">
-          GuideFinder
+          Run Coordinator
         </button>
       </div>
 
