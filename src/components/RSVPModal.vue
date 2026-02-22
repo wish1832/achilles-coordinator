@@ -76,6 +76,11 @@
             <span class="rsvp-pace-unit" aria-hidden="true">s</span>
           </div>
         </div>
+
+        <!-- Pace validation error shown after submit attempt -->
+        <p v-if="submitAttempted && paceValidationError" class="rsvp-pace-error" role="alert">
+          {{ paceValidationError }}
+        </p>
       </fieldset>
 
       <!-- Error message display -->
@@ -148,6 +153,10 @@ const signUpsStore = useSignUpsStore()
 const isSubmitting = ref(false)
 const submitError = ref<string | null>(null)
 
+// Tracks whether the user has attempted to submit, so pace validation
+// errors are only shown after they click the submit button.
+const submitAttempted = ref(false)
+
 // Form state
 const attendance = ref<SignUpStatus | null>(null)
 const activity = ref<SignUpActivity | null>(null)
@@ -189,6 +198,36 @@ const secondsOptions = [
   { value: 30, label: '30' },
   { value: 45, label: '45' },
 ]
+
+// Watch for pace minutes selection to auto-fill seconds when both were undefined.
+// This mirrors the behavior in UserSettingsView — when a user who has never set
+// a pace selects minutes, seconds defaults to 0 ("00") to reduce friction.
+watch(paceMinutes, (newValue, oldValue) => {
+  if (oldValue === undefined && newValue !== undefined && paceSeconds.value === undefined) {
+    paceSeconds.value = 0
+  }
+})
+
+// Computed: Pace validation error message
+// When the pace section is visible, both minutes and seconds must be selected.
+// Returns the appropriate error message, or null if validation passes.
+const paceValidationError = computed<string | null>(() => {
+  if (!showPaceSection.value) {
+    return null
+  }
+  if (paceMinutes.value === undefined && paceSeconds.value === undefined) {
+    return 'Please select a pace for your activity.'
+  }
+  const hasMinutes = paceMinutes.value !== undefined
+  const hasSeconds = paceSeconds.value !== undefined
+  if (hasMinutes === hasSeconds) {
+    return null
+  }
+  if (!hasMinutes) {
+    return 'Please enter your pace in both minutes and seconds (missing minutes).'
+  }
+  return 'Please enter your pace in both minutes and seconds (missing seconds).'
+})
 
 // Computed: Check if user is a guide
 const isGuide = computed(() => authStore.isGuide)
@@ -261,6 +300,9 @@ watch(
   () => props.isOpen,
   (newIsOpen) => {
     if (newIsOpen) {
+      // Reset submit-attempted flag so validation errors don't show immediately
+      submitAttempted.value = false
+
       // If editing, populate with existing values
       if (props.isEditing && props.existingSignUp) {
         attendance.value = props.existingSignUp.status
@@ -290,8 +332,11 @@ function handleClose(): void {
 // Handle form submission
 // Creates or updates a sign-up record using the signups store
 async function handleSubmit(): Promise<void> {
+  // Mark that the user has attempted to submit so pace validation errors show
+  submitAttempted.value = true
+
   // Validate form and required data
-  if (!isFormValid.value || !attendance.value || !activity.value) {
+  if (!isFormValid.value || !attendance.value || !activity.value || paceValidationError.value) {
     return
   }
 
@@ -445,6 +490,13 @@ async function handleSubmit(): Promise<void> {
   font-size: 1rem;
   font-weight: 500;
   color: var(--color-text, #111827);
+}
+
+/* Pace validation error (beneath pace fields) */
+.rsvp-pace-error {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: var(--color-error, #dc2626);
 }
 
 /* Error message */

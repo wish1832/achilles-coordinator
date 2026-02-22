@@ -36,7 +36,9 @@
               <!-- Role display (read-only) -->
               <div class="settings-field">
                 <label class="settings-field__label">Role</label>
-                <p class="settings-field__value settings-field__value--capitalize">{{ userRole }}</p>
+                <p class="settings-field__value settings-field__value--capitalize">
+                  {{ userRole }}
+                </p>
               </div>
 
               <!-- Activity preferences -->
@@ -56,7 +58,11 @@
                     :key="option.value"
                     type="button"
                     class="activity-option-button"
-                    :class="{ 'activity-option-button--selected': authStore.draftActivities.includes(option.value) }"
+                    :class="{
+                      'activity-option-button--selected': authStore.draftActivities.includes(
+                        option.value,
+                      ),
+                    }"
                     :aria-pressed="authStore.draftActivities.includes(option.value)"
                     @click="authStore.toggleDraftActivity(option.value)"
                   >
@@ -75,7 +81,11 @@
                     {{ paceDescription }}
                   </p>
                 </div>
-                <div class="settings-option__control pace-controls" role="group" aria-labelledby="pace-label">
+                <div
+                  class="settings-option__control pace-controls"
+                  role="group"
+                  aria-labelledby="pace-label"
+                >
                   <!-- Minutes dropdown -->
                   <div class="pace-input">
                     <label for="pace-minutes" class="pace-input__label">Minutes</label>
@@ -85,7 +95,9 @@
                       class="settings-select"
                       @change="handlePaceMinutesChange"
                     >
-                      <option v-if="authStore.draftPaceMinutes === undefined" value="" disabled>--</option>
+                      <option v-if="authStore.draftPaceMinutes === undefined" value="" disabled>
+                        --
+                      </option>
                       <option v-for="min in minutesOptions" :key="min" :value="min">
                         {{ min }}
                       </option>
@@ -100,13 +112,23 @@
                       class="settings-select"
                       @change="handlePaceSecondsChange"
                     >
-                      <option v-if="authStore.draftPaceSeconds === undefined" value="" disabled>--</option>
+                      <option v-if="authStore.draftPaceSeconds === undefined" value="" disabled>
+                        --
+                      </option>
                       <option v-for="sec in secondsOptions" :key="sec" :value="sec">
                         {{ sec.toString().padStart(2, '0') }}
                       </option>
                     </select>
                   </div>
                 </div>
+                <!-- Pace validation error shown after save attempt when only one field is selected -->
+                <p
+                  v-if="saveAttempted && paceValidationError"
+                  class="settings-pace-error"
+                  role="alert"
+                >
+                  {{ paceValidationError }}
+                </p>
               </div>
 
               <!-- Save changes button -->
@@ -115,7 +137,7 @@
                   :variant="authStore.isProfileDirty ? 'primary' : 'secondary'"
                   size="medium"
                   :disabled="!authStore.isProfileDirty || authStore.isProfileSaving"
-                  @click="authStore.saveProfileChanges"
+                  @click="handleSave"
                 >
                   {{ authStore.isProfileSaving ? 'Saving...' : 'Save changes' }}
                 </AchillesButton>
@@ -169,9 +191,7 @@
               <!-- Text size selector -->
               <div class="settings-option">
                 <div class="settings-option__header">
-                  <label class="settings-option__label" for="text-size-select">
-                    Text Size
-                  </label>
+                  <label class="settings-option__label" for="text-size-select"> Text Size </label>
                   <p class="settings-option__description">
                     Adjust the size of text throughout the application
                   </p>
@@ -270,7 +290,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAccessibilityStore } from '@/stores/accessibility'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
@@ -307,8 +327,49 @@ const paceDescription = computed(() => {
 // Walk does not require pace information
 const showPaceSection = computed(() => {
   const activities = authStore.draftActivities
-  return activities.includes('run') || activities.includes('run/walk') || activities.includes('roll')
+  return (
+    activities.includes('run') || activities.includes('run/walk') || activities.includes('roll')
+  )
 })
+
+// Tracks whether the user has attempted to save, so we only show
+// pace validation errors after they click the save button.
+const saveAttempted = ref(false)
+
+// Computed: Pace validation error message
+// When the pace section is visible, both minutes and seconds must be selected.
+// Returns the appropriate error message, or null if validation passes.
+const paceValidationError = computed<string | null>(() => {
+  if (!showPaceSection.value) {
+    return null
+  }
+  const hasMinutes = authStore.draftPaceMinutes !== undefined
+  const hasSeconds = authStore.draftPaceSeconds !== undefined
+  // Both set or both unset (unset means user hasn't touched them yet) — no error
+  if (hasMinutes === hasSeconds) {
+    return null
+  }
+  // Only one is set — show a specific error for the missing field
+  if (!hasMinutes) {
+    return 'Please enter your pace in both minutes and seconds (missing minutes).'
+  }
+  return 'Please enter your pace in both minutes and seconds (missing seconds).'
+})
+
+// Handle save button click with pace validation
+// If pace fields are partially filled, show the error instead of saving.
+// Otherwise, delegate to the store's save method and reset the flag on success.
+async function handleSave(): Promise<void> {
+  saveAttempted.value = true
+  if (paceValidationError.value) {
+    return
+  }
+  await authStore.saveProfileChanges()
+  // Reset the flag after a successful save so errors don't linger
+  if (!authStore.profileSaveError) {
+    saveAttempted.value = false
+  }
+}
 
 // Activity options matching the RSVP modal (with multi-select capability)
 const activityOptions: { value: 'walk' | 'run' | 'run/walk' | 'roll'; label: string }[] = [
@@ -329,9 +390,16 @@ onMounted(() => {
 })
 
 // Handle pace minutes change from select dropdown
+// If both fields were undefined (user has never set a pace), auto-fill seconds to 0
+// so the user doesn't have to manually select "00" for even-minute paces.
 function handlePaceMinutesChange(event: Event): void {
   const target = event.target as HTMLSelectElement
+  const bothWereUnset =
+    authStore.draftPaceMinutes === undefined && authStore.draftPaceSeconds === undefined
   authStore.setDraftPaceMinutes(Number(target.value))
+  if (bothWereUnset) {
+    authStore.setDraftPaceSeconds(0)
+  }
 }
 
 // Handle pace seconds change from select dropdown
@@ -641,6 +709,13 @@ function handleTextSizeChange(event: Event): void {
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--color-text-muted, #6b7280);
+}
+
+/* Pace validation error (beneath pace fields) */
+.settings-pace-error {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: var(--color-error, #dc2626);
 }
 
 /* Status messages */
