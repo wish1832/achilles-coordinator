@@ -187,17 +187,13 @@
       @close="closeAllModals"
     >
       <p v-if="selectedUser">
-        Are you sure you want to make <strong>{{ selectedUser.displayName }}</strong> an admin?
-        This user will be able to edit and delete runs, remove users, and modify pairings for runs.
+        Are you sure you want to make <strong>{{ selectedUser.displayName }}</strong> an admin? This
+        user will be able to edit and delete runs, remove users, and modify pairings for runs.
       </p>
       <template #footer>
         <div class="modal-actions">
-          <AchillesButton variant="secondary" @click="closeAllModals">
-            Cancel
-          </AchillesButton>
-          <AchillesButton variant="primary" @click="confirmMakeAdmin">
-            Confirm
-          </AchillesButton>
+          <AchillesButton variant="secondary" @click="closeAllModals"> Cancel </AchillesButton>
+          <AchillesButton variant="primary" @click="confirmMakeAdmin"> Confirm </AchillesButton>
         </div>
       </template>
     </ModalElement>
@@ -220,19 +216,14 @@
       </p>
       <p v-else-if="selectedUser">
         Are you sure you want to remove admin privileges from
-        <strong>{{ selectedUser.displayName }}</strong>? This user will no longer be able to edit
-        and delete runs, remove users, or modify pairings for runs.
+        <strong>{{ selectedUser.displayName }}</strong
+        >? This user will no longer be able to edit and delete runs, remove users, or modify
+        pairings for runs.
       </p>
       <template #footer>
         <div class="modal-actions">
-          <AchillesButton variant="secondary" @click="closeAllModals">
-            Cancel
-          </AchillesButton>
-          <AchillesButton
-            variant="danger"
-            :disabled="isOnlyAdmin"
-            @click="confirmRemoveAdmin"
-          >
+          <AchillesButton variant="secondary" @click="closeAllModals"> Cancel </AchillesButton>
+          <AchillesButton variant="danger" :disabled="isOnlyAdmin" @click="confirmRemoveAdmin">
             {{ isSelectedUserCurrentUser ? 'Step Down' : 'Remove Admin Role' }}
           </AchillesButton>
         </div>
@@ -251,16 +242,13 @@
         organization?
       </p>
       <p class="modal-warning">
-        This action cannot be undone. The user will lose access to all organization resources.
+        Warning! This action can't be undone. The user will lose access to all organization
+        resources.
       </p>
       <template #footer>
         <div class="modal-actions">
-          <AchillesButton variant="secondary" @click="closeAllModals">
-            Cancel
-          </AchillesButton>
-          <AchillesButton variant="danger" @click="confirmRemoveUser">
-            Remove User
-          </AchillesButton>
+          <AchillesButton variant="secondary" @click="closeAllModals"> Cancel </AchillesButton>
+          <AchillesButton variant="danger" @click="confirmRemoveUser"> Remove User </AchillesButton>
         </div>
       </template>
     </ModalElement>
@@ -407,36 +395,46 @@ function closeAllModals(): void {
 
 /**
  * Confirm making a user an admin.
- * TODO: Implement the actual admin promotion logic.
+ * Calls the organization store to add the user to the org's adminIds array.
  */
-function confirmMakeAdmin(): void {
+async function confirmMakeAdmin(): Promise<void> {
   if (selectedUser.value) {
-    console.log(`Making ${selectedUser.value.displayName} an admin`)
-    // TODO: Call store method to add user to adminIds
+    try {
+      await organizationStore.addAdmin(orgId.value, selectedUser.value.id)
+    } catch (err) {
+      console.error('Failed to make user admin:', err)
+    }
   }
   closeAllModals()
 }
 
 /**
  * Confirm removing admin role from a user.
- * TODO: Implement the actual admin removal logic.
+ * Calls the organization store to remove the user from the org's adminIds array.
+ * The user remains a member of the organization.
  */
-function confirmRemoveAdmin(): void {
+async function confirmRemoveAdmin(): Promise<void> {
   if (selectedUser.value) {
-    console.log(`Removing admin role from ${selectedUser.value.displayName}`)
-    // TODO: Call store method to remove user from adminIds
+    try {
+      await organizationStore.removeAdmin(orgId.value, selectedUser.value.id)
+    } catch (err) {
+      console.error('Failed to remove admin role:', err)
+    }
   }
   closeAllModals()
 }
 
 /**
  * Confirm removing a user from the organization.
- * TODO: Implement the actual user removal logic.
+ * Calls the organization store to remove the user from both memberIds and adminIds.
  */
-function confirmRemoveUser(): void {
+async function confirmRemoveUser(): Promise<void> {
   if (selectedUser.value) {
-    console.log(`Removing ${selectedUser.value.displayName} from organization`)
-    // TODO: Call store method to remove user from memberIds
+    try {
+      await organizationStore.removeMember(orgId.value, selectedUser.value.id)
+    } catch (err) {
+      console.error('Failed to remove user:', err)
+    }
   }
   closeAllModals()
 }
