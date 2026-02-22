@@ -1,8 +1,26 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAccessibilityStore } from '@/stores/accessibility'
+import { useAuthStore } from '@/stores/auth'
+import AppHeader from '@/components/AppHeader.vue'
 
 // Initialize stores
 const accessibilityStore = useAccessibilityStore()
+const authStore = useAuthStore()
+const route = useRoute()
+
+// Computed: Determine if the header should be shown
+// The header should be visible on all pages except the login page,
+// and only when the user is authenticated
+const showHeader = computed(() => {
+  // Don't show header on the login page
+  if (route.name === 'Login') {
+    return false
+  }
+  // Only show header when user is authenticated
+  return authStore.isAuthenticated
+})
 
 // Note: Authentication is initialized in main.ts before router navigation
 // to ensure auth state is loaded before routing decisions are made
@@ -10,6 +28,9 @@ const accessibilityStore = useAccessibilityStore()
 
 <template>
   <div id="app" :class="accessibilityStore.accessibilityClasses" class="app">
+    <!-- App header with user menu - shown on all pages except login when authenticated -->
+    <AppHeader v-if="showHeader" />
+
     <!-- KeepAlive caches component instances so they aren't destroyed on navigation -->
     <!-- This allows components to use onActivated to refresh data when revisited -->
     <RouterView v-slot="{ Component }">

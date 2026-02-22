@@ -33,6 +33,16 @@ const router = createRouter({
       },
     },
     {
+      path: '/settings',
+      name: 'Settings',
+      component: () => import('@/views/UserSettingsView.vue'),
+      meta: {
+        requiresAuth: true,
+        roles: ['athlete', 'guide'],
+        title: 'Settings - Achilles Run Coordinator',
+      },
+    },
+    {
       path: '/organizations/:orgId',
       name: 'Organization',
       component: () => import('@/views/OrganizationView.vue'),
