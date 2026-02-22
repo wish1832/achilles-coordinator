@@ -156,7 +156,7 @@
                           <span class="org-settings-members__role">({{ member.role }})</span>
                         </span>
                         <ActionMenu
-                          :items="memberMenuItems"
+                          :items="getMemberMenuItems(member.id)"
                           :aria-label="`Actions for ${member.displayName}`"
                           @select="(item) => handleUserAction(item, member)"
                         />
@@ -230,25 +230,46 @@
       </template>
     </ModalElement>
 
-    <!-- Remove User Confirmation Modal -->
+    <!-- Remove User / Leave Organization Confirmation Modal -->
     <ModalElement
       :is-open="isRemoveUserModalOpen"
-      title="Remove User"
+      :title="isSelectedUserCurrentUser ? 'Leave Organization' : 'Remove User'"
       size="small"
       @close="closeAllModals"
     >
-      <p v-if="selectedUser">
-        Are you sure you want to remove <strong>{{ selectedUser.displayName }}</strong> from this
-        organization?
+      <!-- Current user is the only admin and cannot leave -->
+      <p v-if="isSelectedUserCurrentUser && isOnlyAdmin">
+        You are unable to leave the group because you are the only admin in the group. Please make
+        another user admin first.
       </p>
-      <p class="modal-warning">
-        Warning! This action can't be undone. The user will lose access to all organization
-        resources.
-      </p>
+      <!-- Current user leaving the organization -->
+      <template v-else-if="isSelectedUserCurrentUser">
+        <p>Are you sure you want to leave this organization?</p>
+        <p class="modal-warning">
+          Warning! This action can't be undone. You will lose access to all organization resources.
+        </p>
+      </template>
+      <!-- Admin removing another user -->
+      <template v-else-if="selectedUser">
+        <p>
+          Are you sure you want to remove <strong>{{ selectedUser.displayName }}</strong> from this
+          organization?
+        </p>
+        <p class="modal-warning">
+          Warning! This action can't be undone. The user will lose access to all organization
+          resources.
+        </p>
+      </template>
       <template #footer>
         <div class="modal-actions">
           <AchillesButton variant="secondary" @click="closeAllModals"> Cancel </AchillesButton>
-          <AchillesButton variant="danger" @click="confirmRemoveUser"> Remove User </AchillesButton>
+          <AchillesButton
+            variant="danger"
+            :disabled="isSelectedUserCurrentUser && isOnlyAdmin"
+            @click="confirmRemoveUser"
+          >
+            {{ isSelectedUserCurrentUser ? 'Leave Organization' : 'Remove User' }}
+          </AchillesButton>
         </div>
       </template>
     </ModalElement>
@@ -324,18 +345,30 @@ function getAdminMenuItems(adminId: string): ActionMenuItem[] {
       label: isCurrentUser ? 'Step down as admin' : 'Remove admin role',
       danger: true,
     },
-    { id: 'remove-user', label: 'Remove from organization', danger: true },
+    {
+      id: 'remove-user',
+      label: isCurrentUser ? 'Leave organization' : 'Remove from organization',
+      danger: true,
+    },
   ]
 }
 
 /**
- * Menu items for non-admin members.
+ * Get menu items for a non-admin member.
  * Members can be promoted to admin or removed from the organization.
+ * If the member is the current user, show "Leave organization" instead.
  */
-const memberMenuItems: ActionMenuItem[] = [
-  { id: 'make-admin', label: 'Make admin' },
-  { id: 'remove-user', label: 'Remove from organization', danger: true },
-]
+function getMemberMenuItems(memberId: string): ActionMenuItem[] {
+  const isCurrentUser = authStore.currentUser?.id === memberId
+  return [
+    { id: 'make-admin', label: 'Make admin' },
+    {
+      id: 'remove-user',
+      label: isCurrentUser ? 'Leave organization' : 'Remove from organization',
+      danger: true,
+    },
+  ]
+}
 
 // Modal state for confirmation dialogs
 const selectedUser = ref<User | null>(null)
