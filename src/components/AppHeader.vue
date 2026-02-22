@@ -19,6 +19,7 @@
           <!-- User avatar button that triggers the dropdown -->
           <button
             class="user-menu__trigger"
+            ref="triggerButtonRef"
             :aria-label="`User menu for ${displayName}`"
             aria-haspopup="menu"
             :aria-expanded="isDropdownOpen"
@@ -86,6 +87,7 @@ const authStore = useAuthStore()
 
 // Refs for DOM elements
 const userMenuRef = ref<HTMLElement | null>(null)
+const triggerButtonRef = ref<HTMLButtonElement | null>(null)
 const settingsButtonRef = ref<HTMLButtonElement | null>(null)
 const logoutButtonRef = ref<HTMLButtonElement | null>(null)
 
@@ -134,9 +136,16 @@ function toggleDropdown(): void {
   }
 }
 
-// Close the dropdown menu
-function closeDropdown(): void {
+// Close the dropdown menu.
+// When shouldReturnFocus is true (e.g. Escape key), focus returns to the trigger button
+// so keyboard users aren't left with focus lost in the DOM.
+function closeDropdown(shouldReturnFocus = false): void {
   isDropdownOpen.value = false
+  if (shouldReturnFocus) {
+    nextTick(() => {
+      triggerButtonRef.value?.focus()
+    })
+  }
 }
 
 // Navigate to the settings page
@@ -175,9 +184,9 @@ function handleTriggerKeydown(event: KeyboardEvent): void {
       }
       break
     case 'Escape':
-      // Close dropdown
+      // Close dropdown and return focus to trigger
       event.preventDefault()
-      closeDropdown()
+      closeDropdown(true)
       break
   }
 }
@@ -201,9 +210,9 @@ function handleMenuItemKeydown(event: KeyboardEvent, itemIndex: number): void {
       menuItems[prevIndex]?.focus()
       break
     case 'Escape':
-      // Close dropdown and return focus to trigger
+      // Close dropdown and return focus to the trigger button
       event.preventDefault()
-      closeDropdown()
+      closeDropdown(true)
       break
     case 'Tab':
       // Close dropdown when tabbing out
