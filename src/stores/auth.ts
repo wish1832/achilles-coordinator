@@ -475,9 +475,14 @@ export const useAuthStore = defineStore('auth', () => {
         paceRange: currentProfile?.paceRange
           ? { min: currentProfile.paceRange.min, max: currentProfile.paceRange.max }
           : undefined,
-        // Set the new pace value from draft state (only if both values are defined)
+        // Set pace from draft state only if the selected activities require pace.
+        // Activities that require pace: 'run', 'run/walk', 'roll'. Walk does not.
+        // This prevents stale pace values from being saved when a user deselects
+        // all pace-requiring activities after previously entering pace values.
         pace:
-          draftPaceMinutes.value !== undefined && draftPaceSeconds.value !== undefined
+          draftActivities.value.some((a) => a === 'run' || a === 'run/walk' || a === 'roll') &&
+          draftPaceMinutes.value !== undefined &&
+          draftPaceSeconds.value !== undefined
             ? { minutes: draftPaceMinutes.value, seconds: draftPaceSeconds.value }
             : undefined,
       }
