@@ -87,8 +87,6 @@ export const seedData: SeedData = {
       ],
       createdAt: daysFromNow(-15),
       settings: {
-        defaultMaxAthletes: 10,
-        defaultMaxGuides: 10,
         timezone: 'America/Denver',
       },
     },

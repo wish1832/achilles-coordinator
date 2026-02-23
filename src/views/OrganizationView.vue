@@ -29,7 +29,19 @@
       <!-- Header with organization name and description -->
       <header class="organization-header">
         <div class="organization-header__content">
-          <h1 class="organization-title">{{ organization.name }}</h1>
+          <div class="organization-header__title-row">
+            <h1 class="organization-title">{{ organization.name }}</h1>
+            <!-- Edit Org Settings button - only visible to org admins -->
+            <AchillesButton
+              v-if="isUserOrgAdmin"
+              variant="secondary"
+              size="small"
+              @click="navigateToOrgSettings"
+            >
+              <font-awesome-icon icon="pencil" aria-hidden="true" />
+              Edit Org Settings
+            </AchillesButton>
+          </div>
           <p v-if="organization.description" class="organization-description">
             {{ organization.description }}
           </p>
@@ -41,14 +53,6 @@
         <div class="organization-container">
           <!-- Runs section - only visible to members -->
           <section v-if="isMember" class="runs-section" aria-labelledby="runs-heading">
-            <!-- Create Run button - only visible to org admins -->
-            <div v-if="isUserOrgAdmin" class="runs-section__header">
-              <AchillesButton variant="primary" size="medium" @click="navigateToCreateRun">
-                <font-awesome-icon icon="circle-plus" aria-hidden="true" />
-                <span>Create Run</span>
-              </AchillesButton>
-            </div>
-
             <h2 id="runs-heading" class="section-heading">Upcoming Runs</h2>
 
             <!-- Loading runs -->
@@ -130,6 +134,17 @@
           </section>
         </div>
       </main>
+
+      <!-- Floating Action Button for creating a run - only visible to org admins -->
+      <button
+        v-if="isUserOrgAdmin"
+        type="button"
+        class="button-create-run"
+        aria-label="Create Run"
+        @click="navigateToCreateRun"
+      >
+        <font-awesome-icon icon="plus" aria-hidden="true" />
+      </button>
 
       <!-- RSVP Modal -->
       <RSVPModal
@@ -335,6 +350,14 @@ function navigateToCreateRun(): void {
 }
 
 /**
+ * Navigate to the organization settings page
+ * Only available to organization admins
+ */
+function navigateToOrgSettings(): void {
+  router.push(`/organizations/${orgId.value}/settings`)
+}
+
+/**
  * Check if the current user has signed up for a specific run
  * Returns true if the user has an active sign-up for the run (status is 'yes' or 'maybe')
  */
@@ -434,12 +457,6 @@ onActivated(async () => {
 
 /* Header */
 .organization-header {
-  background: linear-gradient(
-    135deg,
-    var(--color-primary, #0066cc) 0%,
-    var(--color-primary-hover, #0052a3) 100%
-  );
-  color: white;
   padding: 2rem 0;
 }
 
@@ -449,18 +466,27 @@ onActivated(async () => {
   padding: 0 1rem;
 }
 
+.organization-header__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .organization-title {
   font-size: 2.5rem;
   font-weight: 700;
   margin: 0 0 0.5rem 0;
   line-height: 1.2;
+  color: var(--color-text, #111827);
 }
 
 .organization-description {
   font-size: 1.25rem;
   margin: 0;
-  opacity: 0.9;
   line-height: 1.4;
+  color: var(--color-text-muted, #6b7280);
 }
 
 /* Main content */
@@ -487,18 +513,62 @@ onActivated(async () => {
   margin-bottom: 2rem;
 }
 
-/* Runs section header with Create Run button */
-.runs-section__header {
+/* Floating Action Button for creating a run */
+.button-create-run {
+  /* Fixed position in bottom right corner */
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 100;
+
+  /* Circular shape */
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+
+  /* Styling */
+  background-color: var(--color-primary, #0066cc);
+  color: white;
+  border: none;
+  cursor: pointer;
+
+  /* Center the icon */
   display: flex;
-  justify-content: flex-start;
-  margin-bottom: 1rem;
+  align-items: center;
+  justify-content: center;
+
+  /* Icon size */
+  font-size: 1.5rem;
+
+  /* Shadow for elevation */
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+  /* Smooth transitions */
+  transition:
+    background-color 0.2s ease-in-out,
+    transform 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out;
 }
 
-/* Style the button content to have icon and text side by side */
-.runs-section__header :deep(.button) {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
+.button-create-run:hover {
+  background-color: var(--color-primary-hover, #0052a3);
+  transform: scale(1.05);
+  box-shadow:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.button-create-run:focus {
+  outline: none;
+  box-shadow:
+    0 0 0 3px var(--color-bg-secondary, #f9fafb),
+    0 0 0 5px var(--color-primary, #0066cc);
+}
+
+.button-create-run:active {
+  transform: scale(0.95);
 }
 
 /* Runs list */
@@ -698,10 +768,6 @@ onActivated(async () => {
 }
 
 /* High contrast mode */
-.high-contrast .organization-header {
-  background: var(--color-primary, #000000);
-}
-
 .high-contrast .run-card {
   border: 2px solid var(--color-text, #000000);
 }
@@ -720,6 +786,10 @@ onActivated(async () => {
   text-decoration-thickness: 2px;
 }
 
+.high-contrast .button-create-run {
+  border: 2px solid var(--color-text, #000000);
+}
+
 /* Reduced motion support */
 .reduced-motion .run-card {
   transition: none;
@@ -731,6 +801,18 @@ onActivated(async () => {
 
 .reduced-motion .signup-status__link {
   transition: none;
+}
+
+.reduced-motion .button-create-run {
+  transition: none;
+}
+
+.reduced-motion .button-create-run:hover {
+  transform: none;
+}
+
+.reduced-motion .button-create-run:active {
+  transform: none;
 }
 
 /* Mobile responsiveness */

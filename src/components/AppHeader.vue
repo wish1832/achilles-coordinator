@@ -3,11 +3,7 @@
     <div class="app-header__content">
       <!-- Left side: Logo/Title area -->
       <div class="app-header__left">
-        <button
-          class="app-header__title-button"
-          aria-label="Go to home page"
-          @click="goToHome"
-        >
+        <button class="app-header__title-button" aria-label="Go to home page" @click="goToHome">
           Run Coordinator
         </button>
       </div>
@@ -26,9 +22,12 @@
             @click="toggleDropdown"
             @keydown="handleTriggerKeydown"
           >
-            <span class="user-menu__avatar" aria-hidden="true">
-              {{ userInitials }}
-            </span>
+            <UserAvatar
+              :display-name="displayName"
+              size="medium"
+              variant="header"
+              aria-hidden
+            />
           </button>
 
           <!-- Dropdown menu -->
@@ -80,6 +79,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import UserAvatar from '@/components/ui/UserAvatar.vue'
 
 // Router and stores
 const router = useRouter()
@@ -97,31 +97,9 @@ const isDropdownOpen = ref(false)
 // Computed: Get the user's display name from the auth store
 const displayName = computed(() => authStore.userDisplayName || 'User')
 
-// Computed: Generate initials from the user's display name
-// Takes the first letter of up to the first two words
-const userInitials = computed(() => {
-  const name = displayName.value.trim()
-  if (!name) return '?'
-
-  // Split by whitespace to get individual words, filtering out empty strings
-  const words = name.split(/\s+/).filter((word) => word.length > 0)
-
-  // Get the first letter of the first word
-  const firstInitial = words[0]?.charAt(0).toUpperCase() ?? '?'
-
-  if (words.length === 1) {
-    // Single word: return just the first letter
-    return firstInitial
-  } else {
-    // Multiple words: return first letter of first two words
-    const secondInitial = words[1]?.charAt(0).toUpperCase() ?? ''
-    return firstInitial + secondInitial
-  }
-})
-
-// Navigate to the home/root page
+// Navigate to the dashboard (home page for logged-in users)
 function goToHome(): void {
-  router.push('/')
+  router.push('/dashboard')
 }
 
 // Toggle the dropdown menu open/closed
@@ -338,15 +316,6 @@ onUnmounted(() => {
   outline-offset: 2px;
 }
 
-/* User avatar initials */
-.user-menu__avatar {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: white;
-  text-transform: uppercase;
-  user-select: none;
-}
-
 /* Dropdown menu */
 .user-menu__dropdown {
   position: absolute;
@@ -440,10 +409,6 @@ onUnmounted(() => {
   .user-menu__trigger {
     width: 2.25rem;
     height: 2.25rem;
-  }
-
-  .user-menu__avatar {
-    font-size: 0.75rem;
   }
 }
 </style>

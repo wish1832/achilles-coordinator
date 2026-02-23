@@ -1,82 +1,124 @@
 <template>
-  <div class="runs-view">
+  <div class="dashboard-view">
     <!-- Skip link for keyboard navigation -->
     <a href="#main-content" class="skip-link">Skip to main content</a>
 
-    <!-- Header -->
-    <header class="runs-header">
-      <div class="runs-header__content">
-        <h1 class="runs-title">Upcoming Runs</h1>
-      </div>
-    </header>
-
     <!-- Main content -->
-    <main id="main-content" class="runs-main">
-      <div class="runs-container">
-        <!-- Loading state -->
-        <LoadingUI v-if="loading === 'loading'" type="spinner" text="Loading runs..." centered />
+    <main id="main-content" class="dashboard-main">
+      <div class="dashboard-container">
+        <!-- Organizations Section -->
+        <section class="dashboard-section" aria-labelledby="organizations-heading">
+          <h2 id="organizations-heading" class="section-title">Organizations</h2>
 
-        <div v-else-if="loading === 'error'" class="runs-error">
-          <h2>Unable to load runs</h2>
-          <p>There was an error loading the runs. Please try again.</p>
-          <AchillesButton @click="runsStore.loadUpcomingRuns"> Try Again </AchillesButton>
-        </div>
+          <!-- Loading state for organizations -->
+          <LoadingUI
+            v-if="organizationsLoading === 'loading'"
+            type="spinner"
+            text="Loading organizations..."
+            centered
+          />
 
-        <!-- Runs list -->
-        <div v-else-if="runs.length > 0" class="runs-list">
-          <CardUI
-            v-for="run in runs"
-            :key="run.id"
-            class="run-card"
-            :title="getLocationName(run.locationId)"
-            :subtitle="formatRunDate(run.date, run.time)"
-            clickable
-            @click="viewRun(run.organizationId, run.id)"
-          >
-            <div class="run-content">
-              <p class="run-description">{{ run.description }}</p>
+          <!-- Organizations list -->
+          <div v-else-if="userOrganizations.length > 0" class="organizations-list">
+            <router-link
+              v-for="org in userOrganizations"
+              :key="org.id"
+              :to="`/organizations/${org.id}`"
+              class="organization-link"
+              :aria-label="`Go to ${org.name} organization page`"
+            >
+              <span class="organization-avatar" aria-hidden="true">
+                {{ getOrgInitials(org.name) }}
+              </span>
+              <span class="organization-name">{{ org.name }}</span>
+            </router-link>
+          </div>
 
-              <div class="run-details">
-                <div class="run-detail"><strong>Date:</strong> {{ formatDate(run.date) }}</div>
-                <div class="run-detail"><strong>Time:</strong> {{ run.time }}</div>
-                <div class="run-detail run-signup-counts">
-                  <span class="signup-count">
-                    <strong>Athletes:</strong> {{ signUpsStore.getSignUpCounts(run.id).athletes }}
-                  </span>
-                  <span class="signup-count">
-                    <strong>Guides:</strong> {{ signUpsStore.getSignUpCounts(run.id).guides }}
-                  </span>
+          <!-- Empty state for organizations -->
+          <div v-else class="organizations-empty">
+            <p>You are not a member of any organizations yet.</p>
+          </div>
+        </section>
+
+        <!-- Upcoming Runs Section -->
+        <section class="dashboard-section" aria-labelledby="runs-heading">
+          <h2 id="runs-heading" class="section-title">Upcoming Runs</h2>
+
+          <!-- Loading state for runs -->
+          <LoadingUI
+            v-if="runsLoading === 'loading'"
+            type="spinner"
+            text="Loading runs..."
+            centered
+          />
+
+          <!-- Error state for runs -->
+          <div v-else-if="runsLoading === 'error'" class="runs-error">
+            <h3>Unable to load runs</h3>
+            <p>There was an error loading the runs. Please try again.</p>
+            <AchillesButton @click="runsStore.loadUpcomingRuns">Try Again</AchillesButton>
+          </div>
+
+          <!-- Runs list -->
+          <div v-else-if="runs.length > 0" class="runs-list">
+            <CardUI
+              v-for="run in runs"
+              :key="run.id"
+              class="run-card"
+              :title="getLocationName(run.locationId)"
+              :subtitle="formatRunDate(run.date, run.time)"
+              clickable
+              @click="viewRun(run.organizationId, run.id)"
+            >
+              <div class="run-content">
+                <p class="run-description">{{ run.description }}</p>
+
+                <div class="run-details">
+                  <div class="run-detail"><strong>Date:</strong> {{ formatDate(run.date) }}</div>
+                  <div class="run-detail"><strong>Time:</strong> {{ run.time }}</div>
+                  <div class="run-detail run-signup-counts">
+                    <span class="signup-count">
+                      <strong>Athletes:</strong> {{ signUpsStore.getSignUpCounts(run.id).athletes }}
+                    </span>
+                    <span class="signup-count">
+                      <strong>Guides:</strong> {{ signUpsStore.getSignUpCounts(run.id).guides }}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="run-actions">
+                  <!-- Show "signed up!" message if user already signed up, otherwise show "Sign Up" button -->
+                  <template v-if="isUserSignedUpForRun(run.id)">
+                    <div class="signup-status">
+                      <p class="signup-status__message">Signed up!</p>
+                      <a
+                        href="#"
+                        class="signup-status__link"
+                        @click.prevent.stop="openEditRSVPModal(run)"
+                      >
+                        edit RSVP
+                      </a>
+                    </div>
+                  </template>
+                  <AchillesButton
+                    v-else
+                    variant="primary"
+                    size="medium"
+                    @click.stop="openSignUpModal(run)"
+                  >
+                    Sign Up
+                  </AchillesButton>
                 </div>
               </div>
+            </CardUI>
+          </div>
 
-              <div class="run-actions">
-                <!-- Show "signed up!" message if user already signed up, otherwise show "Sign Up" button -->
-                <template v-if="isUserSignedUpForRun(run.id)">
-                  <div class="signup-status">
-                    <p class="signup-status__message">Signed up!</p>
-                    <a href="#" class="signup-status__link" @click.prevent.stop="openEditRSVPModal(run)">
-                      edit RSVP
-                    </a>
-                  </div>
-                </template>
-                <AchillesButton
-                  v-else
-                  variant="primary"
-                  size="medium"
-                  @click.stop="openSignUpModal(run)"
-                >
-                  Sign Up
-                </AchillesButton>
-              </div>
-            </div>
-          </CardUI>
-        </div>
-
-        <!-- Empty state -->
-        <div v-else class="runs-empty">
-          <h2>No upcoming runs</h2>
-          <p>There are no upcoming runs scheduled at this time.</p>
-        </div>
+          <!-- Empty state for runs -->
+          <div v-else class="runs-empty">
+            <h3>No upcoming runs</h3>
+            <p>There are no upcoming runs scheduled at this time.</p>
+          </div>
+        </section>
       </div>
     </main>
 
@@ -106,6 +148,7 @@ import { useRunsStore } from '@/stores/runs'
 import { useLocationStore } from '@/stores/location'
 import { useSignUpsStore } from '@/stores/signups'
 import { useAuthStore } from '@/stores/auth'
+import { useOrganizationStore } from '@/stores/organization'
 import type { Run } from '@/types'
 
 // Router and stores
@@ -114,14 +157,23 @@ const runsStore = useRunsStore()
 const locationStore = useLocationStore()
 const signUpsStore = useSignUpsStore()
 const authStore = useAuthStore()
+const organizationStore = useOrganizationStore()
 
-const { runs, loading } = storeToRefs(runsStore)
+// Destructure refs from stores
+const { runs, loading: runsLoading } = storeToRefs(runsStore)
 const { currentUser } = storeToRefs(authStore)
+const { loading: organizationsLoading } = storeToRefs(organizationStore)
 
 // RSVP Modal state
 const isRSVPModalOpen = ref(false)
 const selectedRun = ref<Run | null>(null)
 const isEditingRSVP = ref(false)
+
+// Computed: Get the user's organizations (where they are a member)
+const userOrganizations = computed(() => {
+  if (!currentUser.value) return []
+  return organizationStore.getUserMemberOrganizations(currentUser.value.id)
+})
 
 // Computed: Get the location name for the selected run
 const selectedRunLocationName = computed(() => {
@@ -151,6 +203,32 @@ const existingSignUpData = computed(() => {
     pace: userSignUp.pace,
   }
 })
+
+/**
+ * Generate initials from an organization name
+ * Takes the first letter of up to the first two words
+ * @param name - The organization name
+ * @returns Initials string (1-2 uppercase letters)
+ */
+function getOrgInitials(name: string): string {
+  const trimmedName = name.trim()
+  if (!trimmedName) return '?'
+
+  // Split by whitespace to get individual words, filtering out empty strings
+  const words = trimmedName.split(/\s+/).filter((word) => word.length > 0)
+
+  // Get the first letter of the first word
+  const firstInitial = words[0]?.charAt(0).toUpperCase() ?? '?'
+
+  if (words.length === 1) {
+    // Single word: return just the first letter
+    return firstInitial
+  } else {
+    // Multiple words: return first letter of first two words
+    const secondInitial = words[1]?.charAt(0).toUpperCase() ?? ''
+    return firstInitial + secondInitial
+  }
+}
 
 // Helper function to get location name by ID
 // Returns the location name if found, otherwise returns 'Unknown Location'
@@ -200,7 +278,9 @@ function isUserSignedUpForRun(runId: string): boolean {
 
   // Check if any sign-up with status 'yes' or 'maybe' belongs to the current user
   return signUps.some(
-    (signup) => signup.userId === currentUser.value!.id && (signup.status === 'yes' || signup.status === 'maybe'),
+    (signup) =>
+      signup.userId === currentUser.value!.id &&
+      (signup.status === 'yes' || signup.status === 'maybe'),
   )
 }
 
@@ -232,9 +312,14 @@ function handleRSVPSubmitted(): void {
 }
 
 // Initialize on mount
-// Load runs, locations, and sign-ups when the component mounts
+// Load organizations, runs, locations, and sign-ups when the component mounts
 onMounted(async () => {
-  // First, load the upcoming runs
+  // Load user's organizations if we have a current user
+  if (currentUser.value) {
+    await organizationStore.loadUserOrganizations(currentUser.value.id)
+  }
+
+  // Load the upcoming runs
   await runsStore.loadUpcomingRuns()
 
   // Then, load locations for all organizations that have runs
@@ -258,51 +343,106 @@ onMounted(async () => {
 
 <style scoped>
 /* Main layout */
-.runs-view {
+.dashboard-view {
   min-height: 100vh;
   background-color: var(--color-bg-secondary, #f9fafb);
 }
 
-/* Header */
-.runs-header {
-  background: linear-gradient(
-    135deg,
-    var(--color-primary, #0066cc) 0%,
-    var(--color-primary-hover, #0052a3) 100%
-  );
-  color: white;
+/* Main content */
+.dashboard-main {
   padding: 2rem 0;
 }
 
-.runs-header__content {
+.dashboard-container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 1rem;
 }
 
-.runs-title {
-  font-size: 2.5rem;
+/* Section styling */
+.dashboard-section {
+  margin-bottom: 2.5rem;
+}
+
+.dashboard-section:last-child {
+  margin-bottom: 0;
+}
+
+.section-title {
+  font-size: 1.5rem;
   font-weight: 700;
-  margin: 0 0 0.5rem 0;
+  color: var(--color-text, #111827);
+  margin: 0 0 1.25rem 0;
   line-height: 1.2;
 }
 
-.runs-subtitle {
-  font-size: 1.25rem;
+/* Organizations list */
+.organizations-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.organization-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow, 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06));
+  text-decoration: none;
+  color: var(--color-text, #111827);
+  transition:
+    transform 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out;
+}
+
+.organization-link:hover {
+  transform: translateY(-2px);
+  box-shadow: var(
+    --shadow-lg,
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05)
+  );
+}
+
+.organization-link:focus {
+  outline: 2px solid var(--color-primary, #0066cc);
+  outline-offset: 2px;
+}
+
+.organization-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background-color: var(--color-primary, #0066cc);
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.organization-name {
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+/* Empty state for organizations */
+.organizations-empty {
+  padding: 1.5rem;
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow, 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06));
+}
+
+.organizations-empty p {
+  color: var(--color-text-muted, #6b7280);
   margin: 0;
-  opacity: 0.9;
-  line-height: 1.4;
-}
-
-/* Main content */
-.runs-main {
-  padding: 2rem 0;
-}
-
-.runs-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
 }
 
 /* Runs list */
@@ -411,10 +551,10 @@ onMounted(async () => {
   box-shadow: var(--shadow, 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06));
 }
 
-.runs-error h2 {
+.runs-error h3 {
   color: var(--color-error, #dc2626);
   margin: 0 0 0.5rem 0;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
 }
 
 .runs-error p {
@@ -422,7 +562,7 @@ onMounted(async () => {
   margin: 0 0 1.5rem 0;
 }
 
-/* Empty state */
+/* Empty state for runs */
 .runs-empty {
   text-align: center;
   padding: 3rem 1rem;
@@ -431,10 +571,10 @@ onMounted(async () => {
   box-shadow: var(--shadow, 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06));
 }
 
-.runs-empty h2 {
+.runs-empty h3 {
   color: var(--color-text, #111827);
   margin: 0 0 0.5rem 0;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
 }
 
 .runs-empty p {
@@ -443,33 +583,21 @@ onMounted(async () => {
 }
 
 /* Text size support */
-.text-size-small .runs-title {
+.text-size-small .section-title {
+  font-size: 1.25rem;
+}
+
+.text-size-large .section-title {
+  font-size: 1.75rem;
+}
+
+.text-size-extra-large .section-title {
   font-size: 2rem;
 }
 
-.text-size-small .runs-subtitle {
-  font-size: 1.125rem;
-}
-
-.text-size-large .runs-title {
-  font-size: 3rem;
-}
-
-.text-size-large .runs-subtitle {
-  font-size: 1.375rem;
-}
-
-.text-size-extra-large .runs-title {
-  font-size: 3.5rem;
-}
-
-.text-size-extra-large .runs-subtitle {
-  font-size: 1.5rem;
-}
-
 /* High contrast mode */
-.high-contrast .runs-header {
-  background: var(--color-primary, #000000);
+.high-contrast .organization-link {
+  border: 2px solid var(--color-text, #000000);
 }
 
 .high-contrast .run-card {
@@ -491,6 +619,14 @@ onMounted(async () => {
 }
 
 /* Reduced motion support */
+.reduced-motion .organization-link {
+  transition: none;
+}
+
+.reduced-motion .organization-link:hover {
+  transform: none;
+}
+
 .reduced-motion .run-card {
   transition: none;
 }
@@ -509,26 +645,26 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
 
-  .runs-title {
-    font-size: 2rem;
-  }
-
-  .runs-subtitle {
-    font-size: 1.125rem;
+  .section-title {
+    font-size: 1.375rem;
   }
 }
 
 @media (max-width: 640px) {
-  .runs-header {
+  .dashboard-main {
     padding: 1.5rem 0;
   }
 
-  .runs-main {
-    padding: 1.5rem 0;
-  }
-
-  .runs-container {
+  .dashboard-container {
     padding: 0 0.5rem;
+  }
+
+  .organizations-list {
+    flex-direction: column;
+  }
+
+  .organization-link {
+    width: 100%;
   }
 }
 </style>

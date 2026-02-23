@@ -23,13 +23,13 @@ const router = createRouter({
       },
     },
     {
-      path: '/runs',
-      name: 'Runs',
-      component: () => import('@/views/RunsListView.vue'),
+      path: '/dashboard',
+      name: 'Dashboard',
+      component: () => import('@/views/DashboardView.vue'),
       meta: {
         requiresAuth: true,
         roles: ['athlete', 'guide'],
-        title: 'Runs - Achilles Run Coordinator',
+        title: 'Dashboard - Achilles Run Coordinator',
       },
     },
     {
@@ -49,6 +49,16 @@ const router = createRouter({
       meta: {
         requiresAuth: false,
         title: 'Organization - Achilles Run Coordinator',
+      },
+    },
+    {
+      path: '/organizations/:orgId/settings',
+      name: 'OrganizationSettings',
+      component: () => import('@/views/OrganizationSettingsView.vue'),
+      meta: {
+        requiresAuth: true,
+        requiresOrgAdmin: true,
+        title: 'Organization Settings - Achilles Run Coordinator',
       },
     },
     {
@@ -79,15 +89,6 @@ const router = createRouter({
         requiresAuth: true,
         requiresRunAdmin: true,
         title: 'Manage Pairings - Achilles Run Coordinator',
-      },
-    },
-    {
-      path: '/admin',
-      name: 'Admin',
-      component: () => import('@/views/admin/AdminDashboard.vue'),
-      meta: {
-        requiresAuth: true,
-        title: 'Admin Dashboard - Achilles Run Coordinator',
       },
     },
     // {
@@ -162,7 +163,7 @@ router.beforeEach(async (to, _from, next) => {
 
     // If an authenticated user lacks the required roles, redirect based on their role
     if (requiredRoles?.length && !authStore.hasPermission(requiredRoles)) {
-      next({ name: 'Runs' })
+      next({ name: 'Dashboard' })
       return
     }
 
@@ -170,7 +171,7 @@ router.beforeEach(async (to, _from, next) => {
     if (to.meta.requiresOrgAdmin) {
       const orgId = to.params.orgId as string
       if (!orgId) {
-        next({ name: 'Admin' })
+        next({ name: 'Dashboard' })
         return
       }
 
@@ -183,22 +184,22 @@ router.beforeEach(async (to, _from, next) => {
           await organizationStore.loadOrganization(orgId)
           org = organizationStore.getOrganizationById(orgId)
         } catch {
-          // Organization not found or error loading, redirect to admin dashboard
-          next({ name: 'Admin' })
+          // Organization not found or error loading, redirect to dashboard
+          next({ name: 'Dashboard' })
           return
         }
       }
 
       // Check if current user is admin of this organization
       if (!org) {
-        next({ name: 'Admin' })
+        next({ name: 'Dashboard' })
         return
       }
 
       const isAdmin = organizationStore.isUserOrgAdmin(orgId, authStore.currentUser!.id)
       if (!isAdmin) {
-        // User is not admin of this organization, redirect to admin dashboard
-        next({ name: 'Admin' })
+        // User is not admin of this organization, redirect to dashboard
+        next({ name: 'Dashboard' })
         return
       }
     }
@@ -208,7 +209,7 @@ router.beforeEach(async (to, _from, next) => {
     if (to.meta.requiresRunAdmin) {
       const runId = to.params.id as string
       if (!runId) {
-        next({ name: 'Runs' })
+        next({ name: 'Dashboard' })
         return
       }
 
@@ -220,13 +221,13 @@ router.beforeEach(async (to, _from, next) => {
       try {
         await runsStore.loadRun(runId)
       } catch {
-        next({ name: 'Runs' })
+        next({ name: 'Dashboard' })
         return
       }
 
       const run = runsStore.currentRun
       if (!run) {
-        next({ name: 'Runs' })
+        next({ name: 'Dashboard' })
         return
       }
 
@@ -237,7 +238,7 @@ router.beforeEach(async (to, _from, next) => {
           await organizationStore.loadOrganization(run.organizationId)
           org = organizationStore.getOrganizationById(run.organizationId)
         } catch {
-          next({ name: 'Runs' })
+          next({ name: 'Dashboard' })
           return
         }
       }
@@ -254,7 +255,7 @@ router.beforeEach(async (to, _from, next) => {
 
   // Redirect authenticated users away from login page
   if (to.name === 'Login' && authStore.isAuthenticated) {
-    next({ name: 'Runs' })
+    next({ name: 'Dashboard' })
     return
   }
 

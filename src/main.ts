@@ -9,12 +9,23 @@ import {
   faCaretUp,
   faCaretDown,
   faCircleQuestion,
-  faCirclePlus,
+  faPlus,
   faGear,
   faArrowRightFromBracket,
+  faEllipsis,
+  faPencil,
 } from '@fortawesome/free-solid-svg-icons'
 
-library.add(faCaretUp, faCaretDown, faCircleQuestion, faCirclePlus, faGear, faArrowRightFromBracket)
+library.add(
+  faCaretUp,
+  faCaretDown,
+  faCircleQuestion,
+  faPlus,
+  faGear,
+  faArrowRightFromBracket,
+  faEllipsis,
+  faPencil,
+)
 
 import App from './App.vue'
 import router from './router'
