@@ -118,6 +118,111 @@ export const useRunsStore = defineStore('runs', () => {
     return run.runAdminIds?.includes(userId) ?? false
   }
 
+  // --- Edit run draft state ---
+  // Draft values track unsaved changes when editing a run.
+  // Each field mirrors a user-editable property on the Run model.
+  const draftRunDate = ref('')
+  const draftRunTime = ref('')
+  const draftRunLocationId = ref('')
+  const draftRunDescription = ref('')
+  const draftRunMaxAthletes = ref<number | undefined>(undefined)
+  const draftRunMaxGuides = ref<number | undefined>(undefined)
+  const draftRunNotes = ref<string | undefined>(undefined)
+
+  // Tracks whether any draft field differs from the persisted values
+  const isEditRunDirty = ref(false)
+
+  // Saving state for the edit run form
+  const isEditRunSaving = ref(false)
+  const editRunSaveError = ref<string | null>(null)
+  const editRunSaveSuccess = ref(false)
+
+  /**
+   * Initialize the edit run draft from a run's current values.
+   * Call this when navigating to the edit run page.
+   * Converts the run's Date to an ISO date string for the date input.
+   * @param runId - The ID of the run to initialize the draft from
+   */
+  function initializeEditRunDraft(runId: string): void {
+    const run = getRunById(runId) ?? currentRun.value
+    if (!run) return
+
+    // Convert the run date to a YYYY-MM-DD string for the date input
+    const runDate = new Date(run.date)
+    const year = runDate.getFullYear()
+    const month = String(runDate.getMonth() + 1).padStart(2, '0')
+    const day = String(runDate.getDate()).padStart(2, '0')
+    draftRunDate.value = `${year}-${month}-${day}`
+
+    draftRunTime.value = run.time
+    draftRunLocationId.value = run.locationId
+    draftRunDescription.value = run.description
+    draftRunMaxAthletes.value = run.maxAthletes
+    draftRunMaxGuides.value = run.maxGuides
+    draftRunNotes.value = run.notes
+
+    // Reset dirty and status flags
+    isEditRunDirty.value = false
+    editRunSaveError.value = null
+    editRunSaveSuccess.value = false
+  }
+
+  /**
+   * Save edit run draft changes to the database.
+   * Updates only the fields that the user can edit, then refreshes
+   * the local store state to reflect the saved values.
+   * @param runId - The ID of the run to update
+   */
+  async function saveEditRunChanges(runId: string): Promise<void> {
+    try {
+      isEditRunSaving.value = true
+      editRunSaveError.value = null
+      editRunSaveSuccess.value = false
+
+      // Build the partial update object with only the editable fields.
+      // Parse date parts manually to avoid UTC interpretation —
+      // new Date('YYYY-MM-DD') is treated as UTC midnight, which shifts
+      // the day back in US timezones when displayed with toLocaleDateString.
+      const dateParts = draftRunDate.value.split('-').map(Number)
+      const year = dateParts[0]!
+      const month = dateParts[1]!
+      const day = dateParts[2]!
+      // month - 1 because JS Date months are zero-indexed (0 = Jan, 1 = Feb, etc.)
+      const updates: Partial<Omit<Run, 'id'>> = {
+        date: new Date(year, month - 1, day),
+        time: draftRunTime.value,
+        locationId: draftRunLocationId.value,
+        description: draftRunDescription.value.trim(),
+      }
+
+      // Only include optional fields if they have values
+      if (draftRunMaxAthletes.value !== undefined) {
+        updates.maxAthletes = draftRunMaxAthletes.value
+      }
+      if (draftRunMaxGuides.value !== undefined) {
+        updates.maxGuides = draftRunMaxGuides.value
+      }
+      if (draftRunNotes.value) {
+        updates.notes = draftRunNotes.value.trim()
+      }
+
+      // Persist to the database
+      await dataRepository.updateRun(runId, updates)
+
+      // Reload the run so local state reflects the saved values
+      await loadRun(runId)
+
+      isEditRunDirty.value = false
+      editRunSaveSuccess.value = true
+    } catch (err) {
+      editRunSaveError.value =
+        err instanceof Error ? err.message : 'Failed to save run changes'
+      throw err
+    } finally {
+      isEditRunSaving.value = false
+    }
+  }
+
   function clearError(): void {
     error.value = null
   }
@@ -133,5 +238,19 @@ export const useRunsStore = defineStore('runs', () => {
     setCurrentRun,
     isUserRunAdmin,
     clearError,
+    // Edit run draft state
+    draftRunDate,
+    draftRunTime,
+    draftRunLocationId,
+    draftRunDescription,
+    draftRunMaxAthletes,
+    draftRunMaxGuides,
+    draftRunNotes,
+    isEditRunDirty,
+    isEditRunSaving,
+    editRunSaveError,
+    editRunSaveSuccess,
+    initializeEditRunDraft,
+    saveEditRunChanges,
   }
 })
