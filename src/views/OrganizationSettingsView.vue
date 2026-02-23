@@ -49,9 +49,20 @@
                     id="org-name"
                     type="text"
                     class="org-settings-input"
+                    :class="{ 'org-settings-input--error': nameError }"
+                    :aria-invalid="!!nameError"
+                    :aria-describedby="nameError ? 'org-name-error' : undefined"
                     :value="organizationStore.draftOrgName"
                     @input="handleNameChange"
                   />
+                  <p
+                    v-if="nameError"
+                    id="org-name-error"
+                    class="org-settings-field__error"
+                    role="alert"
+                  >
+                    {{ nameError }}
+                  </p>
                 </div>
 
                 <!-- Organization description field -->
@@ -300,6 +311,9 @@ const authStore = useAuthStore()
 // Local loading state
 const organizationLoading = ref<LoadingState>('idle')
 
+// Validation error for the organization name field
+const nameError = ref<string | null>(null)
+
 // Get organization ID from route params
 const orgId = computed(() => route.params.orgId as string)
 
@@ -523,6 +537,11 @@ onMounted(async () => {
 function handleNameChange(event: Event): void {
   const target = event.target as HTMLInputElement
   organizationStore.setDraftOrgName(target.value)
+
+  // Clear the error once the user types at least one non-space character
+  if (nameError.value && target.value.trim().length > 0) {
+    nameError.value = null
+  }
 }
 
 /**
@@ -539,6 +558,12 @@ function handleDescriptionChange(event: Event): void {
  * Calls the store method to persist the changes
  */
 async function saveSettings(): Promise<void> {
+  // Validate that the organization name is not empty or whitespace-only
+  if (!organizationStore.draftOrgName.trim()) {
+    nameError.value = 'Organization name is required.'
+    return
+  }
+
   if (orgId.value) {
     await organizationStore.saveOrgSettingsChanges(orgId.value)
   }
@@ -660,6 +685,27 @@ async function saveSettings(): Promise<void> {
 .org-settings-input:focus-visible {
   outline: 2px solid var(--color-focus, #0066cc);
   outline-offset: 2px;
+}
+
+/* Error state for name input */
+.org-settings-input--error {
+  border-color: var(--color-error, #dc2626);
+}
+
+.org-settings-input--error:hover {
+  border-color: var(--color-error, #dc2626);
+}
+
+.org-settings-input--error:focus {
+  border-color: var(--color-error, #dc2626);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+/* Field-level error message */
+.org-settings-field__error {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-error, #dc2626);
 }
 
 /* Textarea */
@@ -790,6 +836,11 @@ async function saveSettings(): Promise<void> {
 .high-contrast .org-settings-textarea:focus-visible {
   outline: 3px solid var(--color-focus, #000000);
   outline-offset: 3px;
+}
+
+.high-contrast .org-settings-input--error {
+  border-color: var(--color-error, #dc2626);
+  border-width: 3px;
 }
 
 /* Reduced motion support */
