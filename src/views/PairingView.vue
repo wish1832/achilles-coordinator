@@ -8,20 +8,21 @@
       {{ srAnnouncement }}
     </div>
 
+    <!-- Help icon teleported to AppHeader, to the left of the avatar -->
+    <Teleport to="#header-actions">
+      <button
+        class="help-icon-button"
+        aria-label="How to pair"
+        @click="isInstructionsModalOpen = true"
+      >
+        <font-awesome-icon icon="circle-question" />
+      </button>
+    </Teleport>
+
     <!-- Header -->
     <header class="pairing-header">
       <div class="pairing-header__content">
-        <div class="pairing-header__top-row">
-          <h1 class="pairing-title">Manage Pairing Groups</h1>
-          <!-- Help icon to open pairing instructions modal -->
-          <button
-            class="help-icon-button"
-            aria-label="How to pair"
-            @click="isInstructionsModalOpen = true"
-          >
-            <font-awesome-icon icon="circle-question" />
-          </button>
-        </div>
+        <h1 class="pairing-title">Manage Pairing Groups</h1>
         <p v-if="organization && run" class="pairing-subtitle">
           {{ organization.name }}
         </p>
@@ -74,8 +75,8 @@
               <h3 class="instructions-subheading">Pairing Athletes Together</h3>
               <p class="instructions-paragraph">
                 When guide availability is limited, multiple athletes may need to share one guide.
-                To represent this, you can pair athletes together. The second athlete will be
-                shown under the first athlete's pairings.
+                To represent this, you can pair athletes together. The second athlete will be shown
+                under the first athlete's pairings.
               </p>
               <p class="instructions-paragraph"><strong>To pair athletes together:</strong></p>
               <ul class="instructions-list">
@@ -219,7 +220,8 @@
                                     v-if="getFormattedPaceForUser(user.id)"
                                     class="paired-guide-detail"
                                   >
-                                    {{ user.role === 'guide' ? 'Max pace' : 'Pace' }}: {{ getFormattedPaceForUser(user.id) }} min/mile
+                                    {{ user.role === 'guide' ? 'Max pace' : 'Pace' }}:
+                                    {{ getFormattedPaceForUser(user.id) }} min/mile
                                   </p>
                                   <p
                                     v-if="user.profileDetails?.activities?.length"
@@ -350,7 +352,6 @@ import CardUI from '@/components/ui/CardUI.vue'
 import ButtonUI from '@/components/ui/ButtonUI.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import ModalElement from '@/components/ui/ModalElement.vue'
-
 
 // Route access
 const route = useRoute()
@@ -1331,12 +1332,6 @@ onMounted(() => {
    ========================================== */
 
 .pairing-header {
-  background: linear-gradient(
-    135deg,
-    var(--color-primary, #0066cc) 0%,
-    var(--color-primary-hover, #0052a3) 100%
-  );
-  color: white;
   padding: 2rem 0;
 }
 
@@ -1346,23 +1341,18 @@ onMounted(() => {
   padding: 0 1rem;
 }
 
-.pairing-header__top-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
 .pairing-title {
   font-size: 2.5rem;
   font-weight: 700;
+  color: var(--color-text, #111827);
   margin: 0 0 0.5rem 0;
   line-height: 1.2;
 }
 
 .pairing-subtitle {
   font-size: 1.25rem;
+  color: var(--color-text-muted, #6b7280);
   margin: 0;
-  opacity: 0.9;
   line-height: 1.4;
 }
 
@@ -1457,30 +1447,6 @@ onMounted(() => {
   background: white;
   border-radius: 0.5rem;
   box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
-}
-
-/* Help icon button for opening instructions modal */
-.help-icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.25rem;
-  font-size: 3.75rem;
-  color: rgba(255, 255, 255, 0.8);
-  border-radius: 50%;
-  transition: color 0.2s ease;
-}
-
-.help-icon-button:hover {
-  color: white;
-}
-
-.help-icon-button:focus {
-  outline: 3px solid white;
-  outline-offset: 2px;
 }
 
 /* Groups the save indicator and save button together on the right */
@@ -1882,10 +1848,6 @@ onMounted(() => {
    High Contrast Mode
    ========================================== */
 
-.high-contrast .pairing-header {
-  background: var(--color-primary, #000000);
-}
-
 .high-contrast .person-card-wrapper {
   border: 2px solid var(--color-text, #000000);
 }
@@ -1955,5 +1917,31 @@ onMounted(() => {
   .pairing-title {
     font-size: 1.75rem;
   }
+}
+</style>
+
+<!-- Unscoped styles for elements teleported outside this component's DOM -->
+<style>
+/* Help icon button teleported into the app header */
+#header-actions .help-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  font-size: 1.5rem;
+  color: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  transition: color 0.2s ease;
+}
+
+#header-actions .help-icon-button:hover {
+  color: white;
+}
+
+#header-actions .help-icon-button:focus {
+  color: white;
 }
 </style>
