@@ -342,7 +342,6 @@ import { useOrganizationStore } from '@/stores/organization'
 import { useRunsStore } from '@/stores/runs'
 import { useSignUpsStore } from '@/stores/signups'
 import { useUsersStore } from '@/stores/users'
-import { useDataRepository } from '@/composables/useRepositories'
 
 // Type imports
 import type { User, LoadingState, SignUp } from '@/types'
@@ -365,7 +364,6 @@ const organizationStore = useOrganizationStore()
 const runsStore = useRunsStore()
 const signupsStore = useSignUpsStore()
 const usersStore = useUsersStore()
-const dataRepository = useDataRepository()
 
 // Loading and error states
 // Track the overall loading state of the page data
@@ -855,10 +853,8 @@ async function savePairings(): Promise<void> {
     savingPairings.value = true
     error.value = null
 
-    // Update the run document with the new pairings
-    await dataRepository.updateRun(runId.value, {
-      pairings: pairings.value,
-    })
+    // Update the run document with the new pairings via the runs store
+    await runsStore.savePairings(runId.value, pairings.value)
 
     // Update original pairings to mark as saved
     // Use deep copy to properly track changes since pairings contains nested arrays
