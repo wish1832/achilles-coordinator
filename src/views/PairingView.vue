@@ -123,7 +123,10 @@
                   <font-awesome-icon icon="circle-question" />
                 </button>
                 <div class="actions-status">
-                  <span v-if="hasUnsavedChanges" class="unsaved-indicator">Unsaved changes</span>
+                  <span v-if="hasSaveError" class="save-error-indicator">Save error</span>
+                  <span v-else-if="hasUnsavedChanges" class="unsaved-indicator"
+                    >Unsaved changes</span
+                  >
                   <span v-else class="saved-indicator">All changes saved</span>
                 </div>
                 <ButtonUI
@@ -331,7 +334,7 @@
 
 <script setup lang="ts">
 // Core Vue imports
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 // Store imports
@@ -367,6 +370,8 @@ const usersStore = useUsersStore()
 const loading = ref<LoadingState>('idle')
 const error = ref<string | null>(null)
 const savingPairings = ref(false)
+// Tracks whether the most recent save attempt failed, so the indicator can show an error message
+const hasSaveError = ref(false)
 
 // Pairing state
 // selectedAthleteId: The currently selected athlete (for pairing)
@@ -390,6 +395,11 @@ const sortDirection = ref<'asc' | 'desc'>('desc')
 // Screen reader announcement
 // This string is announced to screen readers via an ARIA live region
 const srAnnouncement = ref('')
+
+// Log pairings whenever they change
+watch(pairings, (newPairings) => {
+  console.log('Pairings updated:', JSON.parse(JSON.stringify(newPairings)))
+}, { deep: true })
 
 // Refs for card elements to enable keyboard navigation
 // These arrays store references to DOM elements for athlete and guide cards
@@ -849,9 +859,25 @@ async function savePairings(): Promise<void> {
   try {
     savingPairings.value = true
     error.value = null
+    // Clear any previous save error so the indicator resets while saving
+    hasSaveError.value = false
+
+    // Log the current state of pairings before saving
+    console.log('=== Saving Pairings for Run ===')
+    console.log('Run ID:', runId.value)
+    console.log('Pairings state:', JSON.stringify(pairings.value, null, 2))
+    console.log('Number of athletes with pairings:', Object.keys(pairings.value).length)
+
+    // Deep copy the pairings to convert from Vue reactive proxy to a plain object.
+    // structuredClone in the repository cannot clone reactive proxies.
+    const plainPairings = JSON.parse(JSON.stringify(pairings.value))
 
     // Update the run document with the new pairings via the runs store
-    await runsStore.savePairings(runId.value, pairings.value)
+    await runsStore.savePairings(runId.value, plainPairings)
+
+    // Log confirmation after successful save
+    console.log('✓ Pairings saved successfully')
+    console.log('==============================')
 
     // Update original pairings to mark as saved
     // Use deep copy to properly track changes since pairings contains nested arrays
@@ -859,6 +885,8 @@ async function savePairings(): Promise<void> {
 
     announceToScreenReader('Pairings saved successfully')
   } catch (err) {
+    console.error('✗ Error saving pairings:', err)
+    hasSaveError.value = true
     error.value = err instanceof Error ? err.message : 'Failed to save pairings'
     announceToScreenReader('Error saving pairings')
   } finally {
@@ -1475,6 +1503,10 @@ onMounted(() => {
 .actions-status {
   font-size: 0.875rem;
   font-weight: 500;
+}
+
+.save-error-indicator {
+  color: var(--color-danger, #dc3545);
 }
 
 .unsaved-indicator {
