@@ -8,17 +8,6 @@
       {{ srAnnouncement }}
     </div>
 
-    <!-- Help icon teleported to AppHeader, to the left of the avatar -->
-    <Teleport to="#header-actions">
-      <button
-        class="help-icon-button"
-        aria-label="How to pair"
-        @click="isInstructionsModalOpen = true"
-      >
-        <font-awesome-icon icon="circle-question" />
-      </button>
-    </Teleport>
-
     <!-- Header -->
     <header class="pairing-header">
       <div class="pairing-header__content">
@@ -125,6 +114,14 @@
 
               <!-- Save indicator and save button grouped on the right -->
               <div class="actions-save-group">
+                <!-- Help button to open pairing instructions modal -->
+                <button
+                  class="help-icon-button"
+                  aria-label="How to pair"
+                  @click="isInstructionsModalOpen = true"
+                >
+                  <font-awesome-icon icon="circle-question" />
+                </button>
                 <div class="actions-status">
                   <span v-if="hasUnsavedChanges" class="unsaved-indicator">Unsaved changes</span>
                   <span v-else class="saved-indicator">All changes saved</span>
@@ -1445,11 +1442,34 @@ onMounted(() => {
   box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
 }
 
-/* Groups the save indicator and save button together on the right */
+/* Groups the help button, save indicator, and save button together on the right */
 .actions-save-group {
   display: flex;
   align-items: center;
   gap: 1rem;
+}
+
+/* Help icon button for opening pairing instructions */
+.help-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  font-size: 1.5rem;
+  color: var(--color-text-muted, #6b7280);
+  border-radius: 50%;
+  transition: color 0.2s ease;
+}
+
+.help-icon-button:hover {
+  color: var(--color-primary, #0066cc);
+}
+
+.help-icon-button:focus {
+  color: var(--color-primary, #0066cc);
 }
 
 .actions-status {
@@ -1913,31 +1933,5 @@ onMounted(() => {
   .pairing-title {
     font-size: 1.75rem;
   }
-}
-</style>
-
-<!-- Unscoped styles for elements teleported outside this component's DOM -->
-<style>
-/* Help icon button teleported into the app header */
-#header-actions .help-icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.25rem;
-  font-size: 1.5rem;
-  color: rgba(255, 255, 255, 0.8);
-  border-radius: 50%;
-  transition: color 0.2s ease;
-}
-
-#header-actions .help-icon-button:hover {
-  color: white;
-}
-
-#header-actions .help-icon-button:focus {
-  color: white;
 }
 </style>

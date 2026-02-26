@@ -10,9 +10,6 @@
 
       <!-- Right side: User menu and page-specific actions -->
       <div class="app-header__right">
-        <!-- Teleport target for page-specific header actions (e.g., help button on pairing page) -->
-        <div id="header-actions" class="header-actions"></div>
-
         <!-- User menu dropdown -->
         <div class="user-menu" ref="userMenuRef">
           <!-- User avatar button that triggers the dropdown -->
@@ -291,11 +288,6 @@ onUnmounted(() => {
   gap: 0.75rem;
 }
 
-/* Container for page-specific actions teleported into the header */
-.header-actions {
-  display: flex;
-  align-items: center;
-}
 
 /* User menu container */
 .user-menu {
