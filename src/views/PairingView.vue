@@ -334,7 +334,7 @@
 
 <script setup lang="ts">
 // Core Vue imports
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onActivated } from 'vue'
 import { useRoute } from 'vue-router'
 
 // Store imports
@@ -396,10 +396,6 @@ const sortDirection = ref<'asc' | 'desc'>('desc')
 // This string is announced to screen readers via an ARIA live region
 const srAnnouncement = ref('')
 
-// Log pairings whenever they change
-watch(pairings, (newPairings) => {
-  console.log('Pairings updated:', JSON.parse(JSON.stringify(newPairings)))
-}, { deep: true })
 
 // Refs for card elements to enable keyboard navigation
 // These arrays store references to DOM elements for athlete and guide cards
@@ -862,22 +858,12 @@ async function savePairings(): Promise<void> {
     // Clear any previous save error so the indicator resets while saving
     hasSaveError.value = false
 
-    // Log the current state of pairings before saving
-    console.log('=== Saving Pairings for Run ===')
-    console.log('Run ID:', runId.value)
-    console.log('Pairings state:', JSON.stringify(pairings.value, null, 2))
-    console.log('Number of athletes with pairings:', Object.keys(pairings.value).length)
-
     // Deep copy the pairings to convert from Vue reactive proxy to a plain object.
     // structuredClone in the repository cannot clone reactive proxies.
     const plainPairings = JSON.parse(JSON.stringify(pairings.value))
 
     // Update the run document with the new pairings via the runs store
     await runsStore.savePairings(runId.value, plainPairings)
-
-    // Log confirmation after successful save
-    console.log('✓ Pairings saved successfully')
-    console.log('==============================')
 
     // Update original pairings to mark as saved
     // Use deep copy to properly track changes since pairings contains nested arrays
@@ -1302,9 +1288,19 @@ function formatRunDate(date: Date): string {
 // ==========================================
 
 /**
- * Load data when component is mounted
+ * Load data when component is first mounted
  */
 onMounted(() => {
+  loadData()
+})
+
+/**
+ * Reload data each time the component is re-activated after navigation.
+ * With KeepAlive in App.vue, the component is cached rather than destroyed,
+ * so onMounted only fires once. onActivated fires every time the view becomes
+ * visible again, ensuring unsaved changes are discarded and fresh data is loaded.
+ */
+onActivated(() => {
   loadData()
 })
 </script>

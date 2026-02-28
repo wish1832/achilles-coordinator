@@ -46,7 +46,12 @@ export const useRunsStore = defineStore('runs', () => {
         throw new Error(`Run with id ${id} not found`)
       }
 
-      currentRun.value = run
+      // Deep-clone the run before storing it so that mutations to nested
+      // objects (like pairings) in views do not bleed back into store state
+      // through Vue's shared reactive proxy backing.
+      // structuredClone is used instead of JSON.parse/stringify to correctly
+      // preserve Date objects on the run (date, createdAt, updatedAt).
+      currentRun.value = structuredClone(run)
 
       // Update the run in the runs array if it exists
       const index = runs.value.findIndex((r) => r.id === id)
