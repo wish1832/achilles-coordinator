@@ -48,7 +48,7 @@
                 @click="handleActionsMenuSelect('add-athlete')"
                 @mouseenter="actionsMenuActiveIndex = 0"
               >
-                Add Athlete
+                Add User
               </li>
               <li
                 role="menuitem"
@@ -99,6 +99,17 @@
             @close="isInstructionsModalOpen = false"
           />
 
+          <!-- Add User drawer: slides in from the right to add org members to the run -->
+          <AddUserDrawer
+            :is-open="isAddUserDrawerOpen"
+            :org-members="orgMembers"
+            :signed-up-user-ids="signedUpUserIds"
+            :adding-user-id="addingUserId"
+            :recently-added-user-ids="recentlyAddedUserIds"
+            @close="closeAddUserDrawer"
+            @add-user="addUserToRun"
+          />
+
           <!-- Pairing columns -->
           <section class="pairing-columns-section" aria-labelledby="pairings-heading">
             <h2 id="pairings-heading" class="sr-only">Athletes and Guides</h2>
@@ -147,7 +158,7 @@
 
 <script setup lang="ts">
 // Core Vue imports
-import { ref, computed, onMounted, onActivated, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onMounted, onActivated, onBeforeUnmount, nextTick, toRaw } from 'vue'
 import { useRoute } from 'vue-router'
 
 // Store imports
@@ -170,6 +181,7 @@ import PairingActionsBar from '@/components/pairing/PairingActionsBar.vue'
 import PairingAthleteColumn from '@/components/pairing/PairingAthleteColumn.vue'
 import PairingGuideColumn from '@/components/pairing/PairingGuideColumn.vue'
 import PairingHelpModal from '@/components/pairing/PairingHelpModal.vue'
+import AddUserDrawer from '@/components/pairing/AddUserDrawer.vue'
 
 // Route access
 const route = useRoute()
@@ -206,6 +218,21 @@ const srAnnouncement = ref('')
 
 // Modal state for "How to Pair" instructions
 const isInstructionsModalOpen = ref(false)
+
+// ==========================================
+// Add User Drawer State
+// ==========================================
+
+// Whether the Add User drawer is visible
+const isAddUserDrawerOpen = ref(false)
+
+// ID of the user currently being added (drives the loading spinner on their row)
+const addingUserId = ref<string | null>(null)
+
+// Set of user IDs that were added during the current drawer session.
+// Cleared each time the drawer is opened so "Added" badges only appear for
+// users added in the current session, not from prior opens.
+const recentlyAddedUserIds = ref<Set<string>>(new Set())
 
 // Sorting state
 const sortDirection = ref<'asc' | 'desc'>('desc')
@@ -330,6 +357,44 @@ const unpairedGuides = computed(() => {
  */
 const hasUnsavedChanges = computed(
   () => JSON.stringify(pairings.value) !== JSON.stringify(originalPairings.value),
+)
+
+/**
+ * All athletes in the organization, sorted alphabetically by display name.
+ * Used to populate the Athletes section of the Add User drawer.
+ */
+const orgAthletes = computed(() => {
+  const memberIds = organization.value?.memberIds ?? []
+  return memberIds
+    .map((id) => usersStore.getUserById(id))
+    .filter((user): user is User => user !== undefined && user.role === 'athlete')
+    .sort((a, b) => a.displayName.localeCompare(b.displayName))
+})
+
+/**
+ * All guides in the organization, sorted alphabetically by display name.
+ * Used to populate the Guides section of the Add User drawer.
+ */
+const orgGuides = computed(() => {
+  const memberIds = organization.value?.memberIds ?? []
+  return memberIds
+    .map((id) => usersStore.getUserById(id))
+    .filter((user): user is User => user !== undefined && user.role === 'guide')
+    .sort((a, b) => a.displayName.localeCompare(b.displayName))
+})
+
+/**
+ * Combined list of all org members (athletes first, then guides).
+ * Passed to AddUserDrawer which handles the role-based splitting internally.
+ */
+const orgMembers = computed(() => [...orgAthletes.value, ...orgGuides.value])
+
+/**
+ * Set of user IDs that already have a sign-up record for this run.
+ * Used by AddUserDrawer to mark already-signed-up users as disabled.
+ */
+const signedUpUserIds = computed(
+  () => new Set(signupsStore.getSignUpsForRun(runId.value).map((s) => s.userId)),
 )
 
 // ==========================================
@@ -471,6 +536,11 @@ async function loadData(): Promise<void> {
 
     // Load all user details in parallel
     await Promise.all(userIds.map((id) => usersStore.loadUser(id)))
+
+    // Load all org member profiles so the Add User drawer can display everyone,
+    // not just those who have already signed up for this run
+    const memberIds = organization.value?.memberIds ?? []
+    await usersStore.loadUsers(memberIds)
 
     // Initialize local pairings state from the run's saved pairings
     const savedPairings = run.value?.pairings || {}
@@ -623,6 +693,74 @@ function handleActionsMenuSelect(action: 'add-athlete' | 'help'): void {
   closeActionsMenu()
   if (action === 'help') {
     isInstructionsModalOpen.value = true
+  } else if (action === 'add-athlete') {
+    // Clear any "Added" badges from the previous session before opening
+    recentlyAddedUserIds.value = new Set()
+    isAddUserDrawerOpen.value = true
+  }
+}
+
+/**
+ * Close the Add User drawer. Called when the user presses the X, clicks the
+ * backdrop, or presses Escape. Clears the recently-added set so badges don't
+ * linger if the drawer is reopened later.
+ */
+function closeAddUserDrawer(): void {
+  isAddUserDrawerOpen.value = false
+  recentlyAddedUserIds.value = new Set()
+}
+
+/**
+ * Add an org member to the current run by creating a sign-up record for them.
+ *
+ * The sign-up is created with status 'yes' and activity 'run'. If the user has
+ * a default pace set on their profile it is copied to the sign-up so they appear
+ * in the correct position in the pairing columns.
+ *
+ * @param userId - The ID of the user to add
+ */
+async function addUserToRun(userId: string): Promise<void> {
+  console.log('[addUserToRun] called with userId:', userId)
+
+  const user = usersStore.getUserById(userId)
+  console.log('[addUserToRun] user lookup:', user ? user.displayName : 'NOT FOUND')
+  console.log('[addUserToRun] run.value:', run.value ? run.value.id : 'NOT FOUND')
+
+  if (!user || !run.value) return
+
+  // Show the loading spinner on this user's row while the request is in flight
+  addingUserId.value = userId
+
+  try {
+    // Use the user's first preferred activity as the default, falling back to 'run'
+    const defaultActivity = user.profileDetails.activities?.[0] ?? 'run'
+    console.log('[addUserToRun] creating sign-up:', { runId: runId.value, userId, activity: defaultActivity })
+
+    await signupsStore.createOrUpdateSignUp({
+      runId: runId.value,
+      userId,
+      role: user.role,
+      status: 'yes',
+      activity: defaultActivity,
+      // Copy the user's default pace to the sign-up if they have one defined.
+      // toRaw strips Vue reactivity so structuredClone in the mock doesn't fail.
+      pace: user.profileDetails.pace ? toRaw(user.profileDetails.pace) : undefined,
+      timestamp: new Date(),
+    })
+
+    console.log('[addUserToRun] sign-up created successfully, updating recentlyAddedUserIds')
+
+    // Mark this user as added in the current drawer session so the drawer
+    // can show the "Added" badge on their row
+    recentlyAddedUserIds.value = new Set(recentlyAddedUserIds.value).add(userId)
+    console.log('[addUserToRun] recentlyAddedUserIds:', [...recentlyAddedUserIds.value])
+
+    announceToScreenReader(`${user.displayName} added to run`)
+  } catch (err) {
+    console.error('[addUserToRun] error:', err)
+    announceToScreenReader(`Failed to add ${user.displayName}`)
+  } finally {
+    addingUserId.value = null
   }
 }
 

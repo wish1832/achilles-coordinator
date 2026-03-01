@@ -61,7 +61,7 @@ const showHeader = computed(() => {
   --color-danger-hover: #c82333;
   --color-danger-text: #ffffff;
 
-  --color-success: #28a745;
+  --color-success: #008b00; /* was #28a745 */
   --color-warning: #ffc107;
   --color-info: #17a2b8;
 
@@ -209,7 +209,14 @@ html {
 }
 
 body {
-  font-family: inherit;
+  /*
+    Font is declared here (on body) rather than solely on .app so that elements
+    rendered via <Teleport to="body"> — such as modals and the Add User drawer —
+    inherit the same typeface even though they sit outside the .app element.
+  */
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
+    'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   line-height: inherit;
   color: inherit;
   background-color: inherit;
