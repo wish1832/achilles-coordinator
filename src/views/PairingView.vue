@@ -720,12 +720,7 @@ function closeAddUserDrawer(): void {
  * @param userId - The ID of the user to add
  */
 async function addUserToRun(userId: string): Promise<void> {
-  console.log('[addUserToRun] called with userId:', userId)
-
   const user = usersStore.getUserById(userId)
-  console.log('[addUserToRun] user lookup:', user ? user.displayName : 'NOT FOUND')
-  console.log('[addUserToRun] run.value:', run.value ? run.value.id : 'NOT FOUND')
-
   if (!user || !run.value) return
 
   // Show the loading spinner on this user's row while the request is in flight
@@ -734,7 +729,6 @@ async function addUserToRun(userId: string): Promise<void> {
   try {
     // Use the user's first preferred activity as the default, falling back to 'run'
     const defaultActivity = user.profileDetails.activities?.[0] ?? 'run'
-    console.log('[addUserToRun] creating sign-up:', { runId: runId.value, userId, activity: defaultActivity })
 
     await signupsStore.createOrUpdateSignUp({
       runId: runId.value,
@@ -748,16 +742,12 @@ async function addUserToRun(userId: string): Promise<void> {
       timestamp: new Date(),
     })
 
-    console.log('[addUserToRun] sign-up created successfully, updating recentlyAddedUserIds')
-
     // Mark this user as added in the current drawer session so the drawer
     // can show the "Added" badge on their row
     recentlyAddedUserIds.value = new Set(recentlyAddedUserIds.value).add(userId)
-    console.log('[addUserToRun] recentlyAddedUserIds:', [...recentlyAddedUserIds.value])
 
     announceToScreenReader(`${user.displayName} added to run`)
-  } catch (err) {
-    console.error('[addUserToRun] error:', err)
+  } catch {
     announceToScreenReader(`Failed to add ${user.displayName}`)
   } finally {
     addingUserId.value = null

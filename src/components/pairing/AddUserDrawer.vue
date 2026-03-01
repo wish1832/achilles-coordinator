@@ -115,7 +115,7 @@
                   :loading="addingUserId === user.id"
                   :disabled="addingUserId !== null"
                   :aria-label="`Add ${user.displayName} to run`"
-                  @click="() => { console.log('[AddUserDrawer] add-user emit for:', user.id); $emit('add-user', user.id) }"
+                  @click="$emit('add-user', user.id)"
                 >
                   Add
                 </AchillesButton>
@@ -167,7 +167,7 @@
                   :loading="addingUserId === user.id"
                   :disabled="addingUserId !== null"
                   :aria-label="`Add ${user.displayName} to run`"
-                  @click="() => { console.log('[AddUserDrawer] add-user emit for:', user.id); $emit('add-user', user.id) }"
+                  @click="$emit('add-user', user.id)"
                 >
                   Add
                 </AchillesButton>
