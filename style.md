@@ -16,6 +16,7 @@ Agents: read this file for style guidance before making UI changes.
 - Ensure focus indicators are visible
 - Support screen readers with descriptive labels
 - Respect user preferences from accessibility store
+- Ask before applying aria aspects, especially aria label. The use of HTML elements in an accessible pattern is preferred over aria attributes.
 
 ## Interaction Patterns
 
