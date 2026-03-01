@@ -10,6 +10,10 @@ const accessibilityStore = useAccessibilityStore()
 const authStore = useAuthStore()
 const route = useRoute()
 
+// Computed: Whether the header content area should use a wider max-width
+// The pairing page uses a 1400px layout, so the header should match
+const wideHeader = computed(() => route.name === 'RunPairing')
+
 // Computed: Determine if the header should be shown
 // The header should be visible on all pages except the login page,
 // and only when the user is authenticated
@@ -29,7 +33,7 @@ const showHeader = computed(() => {
 <template>
   <div id="app" :class="accessibilityStore.accessibilityClasses" class="app">
     <!-- App header with user menu - shown on all pages except login when authenticated -->
-    <AppHeader v-if="showHeader" />
+    <AppHeader v-if="showHeader" :class="{ 'app-header--wide': wideHeader }" />
 
     <!-- KeepAlive caches component instances so they aren't destroyed on navigation -->
     <!-- This allows components to use onActivated to refresh data when revisited -->
@@ -57,7 +61,7 @@ const showHeader = computed(() => {
   --color-danger-hover: #c82333;
   --color-danger-text: #ffffff;
 
-  --color-success: #28a745;
+  --color-success: #008b00; /* was #28a745 */
   --color-warning: #ffc107;
   --color-info: #17a2b8;
 
@@ -205,7 +209,14 @@ html {
 }
 
 body {
-  font-family: inherit;
+  /*
+    Font is declared here (on body) rather than solely on .app so that elements
+    rendered via <Teleport to="body"> — such as modals and the Add User drawer —
+    inherit the same typeface even though they sit outside the .app element.
+  */
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
+    'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   line-height: inherit;
   color: inherit;
   background-color: inherit;
@@ -262,6 +273,11 @@ body {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* Wide header variant for pages with wider layouts (e.g., pairing page) */
+.app-header--wide .app-header__content {
+  max-width: 1400px;
 }
 
 /* Print styles */

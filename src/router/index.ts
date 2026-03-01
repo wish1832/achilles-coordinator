@@ -82,6 +82,16 @@ const router = createRouter({
       },
     },
     {
+      path: '/organizations/:orgId/runs/:id/edit',
+      name: 'EditRun',
+      component: () => import('@/views/EditRunView.vue'),
+      meta: {
+        requiresAuth: true,
+        requiresRunAdmin: true,
+        title: 'Edit Run - Achilles Run Coordinator',
+      },
+    },
+    {
       path: '/organizations/:orgId/runs/:id/pairing',
       name: 'RunPairing',
       component: () => import('@/views/PairingView.vue'),

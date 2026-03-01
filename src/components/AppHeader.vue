@@ -8,7 +8,7 @@
         </button>
       </div>
 
-      <!-- Right side: User menu -->
+      <!-- Right side: User menu and page-specific actions -->
       <div class="app-header__right">
         <!-- User menu dropdown -->
         <div class="user-menu" ref="userMenuRef">
@@ -285,7 +285,9 @@ onUnmounted(() => {
 .app-header__right {
   display: flex;
   align-items: center;
+  gap: 0.75rem;
 }
+
 
 /* User menu container */
 .user-menu {
