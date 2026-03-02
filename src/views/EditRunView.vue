@@ -1,5 +1,5 @@
 <template>
-  <div class="create-run-view">
+  <div class="edit-run-view">
     <!-- Skip link for keyboard navigation -->
     <a href="#main-content" class="skip-link">Skip to main content</a>
 
@@ -7,32 +7,32 @@
     <LoadingUI
       v-if="pageLoading === 'loading'"
       type="spinner"
-      text="Loading form..."
+      text="Loading run..."
       centered
     />
 
     <!-- Error state for initial data loading -->
-    <div v-else-if="pageLoading === 'error'" class="create-run-error">
-      <h1>Unable to load form</h1>
-      <p>There was an error loading the form. Please try again.</p>
+    <div v-else-if="pageLoading === 'error'" class="edit-run-error">
+      <h1>Unable to load run</h1>
+      <p>There was an error loading the run. Please try again.</p>
       <AchillesButton @click="loadFormData">Try Again</AchillesButton>
     </div>
 
     <!-- Main form content -->
-    <template v-else-if="organization">
+    <template v-else-if="organization && runsStore.currentRun">
       <!-- Header with organization name -->
-      <header class="create-run-header">
-        <div class="create-run-header__content">
-          <h1 class="create-run-title">Create Run</h1>
-          <p class="create-run-subtitle">{{ organization.name }}</p>
+      <header class="edit-run-header">
+        <div class="edit-run-header__content">
+          <h1 class="edit-run-title">Edit Run</h1>
+          <p class="edit-run-subtitle">{{ organization.name }}</p>
         </div>
       </header>
 
       <!-- Main content area -->
-      <main id="main-content" class="create-run-main">
-        <div class="create-run-container">
-          <CardUI class="create-run-card" title="Run Details">
-            <form @submit.prevent="handleSubmit" class="create-run-form">
+      <main id="main-content" class="edit-run-main">
+        <div class="edit-run-container">
+          <CardUI class="edit-run-card" title="Run Details">
+            <form @submit.prevent="handleSubmit" class="edit-run-form">
               <!-- Date field - required -->
               <div class="form-field">
                 <label for="date" class="form-label">
@@ -41,7 +41,7 @@
                 </label>
                 <input
                   id="date"
-                  v-model="form.date"
+                  v-model="runsStore.draftRunDate"
                   type="date"
                   class="form-input"
                   :class="{ 'form-input--error': errors.date }"
@@ -49,6 +49,7 @@
                   :aria-describedby="errors.date ? 'date-error' : undefined"
                   required
                   @blur="validateField('date')"
+                  @input="markDirty"
                 />
                 <div v-if="errors.date" id="date-error" class="form-error" role="alert">
                   {{ errors.date }}
@@ -63,7 +64,7 @@
                 </label>
                 <input
                   id="time"
-                  v-model="form.time"
+                  v-model="runsStore.draftRunTime"
                   type="time"
                   class="form-input"
                   :class="{ 'form-input--error': errors.time }"
@@ -71,6 +72,7 @@
                   :aria-describedby="errors.time ? 'time-error' : undefined"
                   required
                   @blur="validateField('time')"
+                  @input="markDirty"
                 />
                 <div v-if="errors.time" id="time-error" class="form-error" role="alert">
                   {{ errors.time }}
@@ -79,7 +81,7 @@
 
               <!-- Location dropdown - required, uses custom component for rich display -->
               <LocationDropdown
-                v-model="form.locationId"
+                v-model="runsStore.draftRunLocationId"
                 :locations="locations"
                 label="Location"
                 placeholder="Select a location"
@@ -87,6 +89,7 @@
                 :error="!!errors.locationId"
                 :error-message="errors.locationId"
                 @blur="validateField('locationId')"
+                @update:model-value="markDirty"
               />
 
               <!-- Description field - required -->
@@ -97,7 +100,7 @@
                 </label>
                 <textarea
                   id="description"
-                  v-model="form.description"
+                  v-model="runsStore.draftRunDescription"
                   class="form-input form-textarea"
                   :class="{ 'form-input--error': errors.description }"
                   :aria-invalid="!!errors.description"
@@ -105,6 +108,7 @@
                   rows="3"
                   required
                   @blur="validateField('description')"
+                  @input="markDirty"
                 />
                 <div v-if="errors.description" id="description-error" class="form-error" role="alert">
                   {{ errors.description }}
@@ -118,7 +122,7 @@
                 </label>
                 <input
                   id="maxAthletes"
-                  v-model.number="form.maxAthletes"
+                  v-model.number="runsStore.draftRunMaxAthletes"
                   type="number"
                   min="0"
                   class="form-input"
@@ -126,6 +130,7 @@
                   :aria-invalid="!!errors.maxAthletes"
                   :aria-describedby="errors.maxAthletes ? 'maxAthletes-error' : 'maxAthletes-helper'"
                   @blur="validateField('maxAthletes')"
+                  @input="markDirty"
                 />
                 <div v-if="errors.maxAthletes" id="maxAthletes-error" class="form-error" role="alert">
                   {{ errors.maxAthletes }}
@@ -142,7 +147,7 @@
                 </label>
                 <input
                   id="maxGuides"
-                  v-model.number="form.maxGuides"
+                  v-model.number="runsStore.draftRunMaxGuides"
                   type="number"
                   min="0"
                   class="form-input"
@@ -150,6 +155,7 @@
                   :aria-invalid="!!errors.maxGuides"
                   :aria-describedby="errors.maxGuides ? 'maxGuides-error' : 'maxGuides-helper'"
                   @blur="validateField('maxGuides')"
+                  @input="markDirty"
                 />
                 <div v-if="errors.maxGuides" id="maxGuides-error" class="form-error" role="alert">
                   {{ errors.maxGuides }}
@@ -166,17 +172,18 @@
                 </label>
                 <textarea
                   id="notes"
-                  v-model="form.notes"
+                  v-model="runsStore.draftRunNotes"
                   class="form-input form-textarea"
                   rows="2"
                   aria-describedby="notes-helper"
+                  @input="markDirty"
                 />
                 <div id="notes-helper" class="form-helper">
                   Optional notes visible to participants
                 </div>
               </div>
 
-              <!-- Form actions: Cancel and Create buttons -->
+              <!-- Form actions: Cancel and Save Changes buttons -->
               <div class="form-actions">
                 <AchillesButton
                   type="button"
@@ -187,17 +194,17 @@
                 </AchillesButton>
                 <AchillesButton
                   type="submit"
-                  variant="primary"
-                  :loading="submitting"
-                  :disabled="!isFormValid || submitting"
+                  :variant="runsStore.isEditRunDirty ? 'primary' : 'secondary'"
+                  :loading="runsStore.isEditRunSaving"
+                  :disabled="!runsStore.isEditRunDirty || !isFormValid || runsStore.isEditRunSaving"
                 >
-                  Create
+                  {{ runsStore.isEditRunSaving ? 'Saving...' : 'Save Changes' }}
                 </AchillesButton>
               </div>
 
               <!-- Global error message for submission failures -->
-              <div v-if="submitError" class="form-error form-error--global" role="alert">
-                {{ submitError }}
+              <div v-if="runsStore.editRunSaveError" class="form-error form-error--global" role="alert">
+                {{ runsStore.editRunSaveError }}
               </div>
             </form>
           </CardUI>
@@ -217,48 +224,30 @@ import LoadingUI from '@/components/ui/LoadingUI.vue'
 import LocationDropdown from '@/components/ui/LocationDropdown.vue'
 import { useOrganizationStore } from '@/stores/organization'
 import { useLocationStore } from '@/stores/location'
-import { useAuthStore } from '@/stores/auth'
-import { useDataRepository } from '@/composables/useRepositories'
-import type { CreateRunForm, LoadingState, Run } from '@/types'
+import { useRunsStore } from '@/stores/runs'
+import type { LoadingState } from '@/types'
 
 // Router and route for navigation and params
 const route = useRoute()
 const router = useRouter()
 
-// Stores for organization, location, and auth data
+// Stores for organization, location, and run data
 const organizationStore = useOrganizationStore()
 const locationStore = useLocationStore()
-const authStore = useAuthStore()
-
-// Repository for creating the run in the database
-const dataRepository = useDataRepository()
+const runsStore = useRunsStore()
 
 // Get reactive reference to locations from the store
 const { locations } = storeToRefs(locationStore)
 
-// Get organization ID from route params
+// Get organization ID and run ID from route params
 const orgId = computed(() => route.params.orgId as string)
+const runId = computed(() => route.params.id as string)
 
 // Get current organization from store
 const organization = computed(() => organizationStore.getOrganizationById(orgId.value))
 
-// Loading states for page initialization and form submission
+// Loading state for page initialization
 const pageLoading = ref<LoadingState>('idle')
-const submitting = ref(false)
-const submitError = ref<string | null>(null)
-
-// Form state with all fields from CreateRunForm interface
-// organizationId is set from route params, not user input
-const form = ref<CreateRunForm>({
-  organizationId: '',
-  date: '',
-  time: '',
-  locationId: '',
-  description: '',
-  maxAthletes: undefined,
-  maxGuides: undefined,
-  notes: undefined,
-})
 
 // Validation errors keyed by field name
 const errors = ref<Record<string, string>>({})
@@ -267,16 +256,17 @@ const errors = ref<Record<string, string>>({})
 // Requires all required fields and no validation errors
 const isFormValid = computed(() => {
   return (
-    form.value.date &&
-    form.value.time &&
-    form.value.locationId &&
-    form.value.description &&
+    runsStore.draftRunDate &&
+    runsStore.draftRunTime &&
+    runsStore.draftRunLocationId &&
+    runsStore.draftRunDescription &&
     Object.keys(errors.value).length === 0
   )
 })
 
 /**
  * Load initial data needed for the form:
+ * - Run data to populate draft state
  * - Organization details for display
  * - Locations for the dropdown
  */
@@ -284,8 +274,8 @@ async function loadFormData(): Promise<void> {
   try {
     pageLoading.value = 'loading'
 
-    // Set organization ID from route params
-    form.value.organizationId = orgId.value
+    // Load the run data
+    await runsStore.loadRun(runId.value)
 
     // Load organization if not already in cache
     if (!organization.value) {
@@ -295,6 +285,9 @@ async function loadFormData(): Promise<void> {
     // Load locations for this organization to populate the dropdown
     await locationStore.loadLocationsForOrganization(orgId.value)
 
+    // Initialize the draft state from the loaded run
+    runsStore.initializeEditRunDraft(runId.value)
+
     pageLoading.value = 'success'
   } catch {
     pageLoading.value = 'error'
@@ -302,13 +295,21 @@ async function loadFormData(): Promise<void> {
 }
 
 /**
- * Validate an individual field
- * Called on blur for immediate feedback
+ * Mark the draft as dirty when the user changes any field.
+ * Called from input/change events on all form fields.
  */
-function validateField(field: keyof CreateRunForm | string): void {
+function markDirty(): void {
+  runsStore.isEditRunDirty = true
+}
+
+/**
+ * Validate an individual field.
+ * Called on blur for immediate feedback.
+ */
+function validateField(field: string): void {
   switch (field) {
     case 'date':
-      if (!form.value.date) {
+      if (!runsStore.draftRunDate) {
         errors.value.date = 'Date is required'
       } else {
         delete errors.value.date
@@ -316,7 +317,7 @@ function validateField(field: keyof CreateRunForm | string): void {
       break
 
     case 'time':
-      if (!form.value.time) {
+      if (!runsStore.draftRunTime) {
         errors.value.time = 'Time is required'
       } else {
         delete errors.value.time
@@ -324,7 +325,7 @@ function validateField(field: keyof CreateRunForm | string): void {
       break
 
     case 'locationId':
-      if (!form.value.locationId) {
+      if (!runsStore.draftRunLocationId) {
         errors.value.locationId = 'Location is required'
       } else {
         delete errors.value.locationId
@@ -332,9 +333,9 @@ function validateField(field: keyof CreateRunForm | string): void {
       break
 
     case 'description':
-      if (!form.value.description) {
+      if (!runsStore.draftRunDescription) {
         errors.value.description = 'Description is required'
-      } else if (form.value.description.trim().length < 10) {
+      } else if (runsStore.draftRunDescription.trim().length < 10) {
         errors.value.description = 'Description must be at least 10 characters'
       } else {
         delete errors.value.description
@@ -342,7 +343,7 @@ function validateField(field: keyof CreateRunForm | string): void {
       break
 
     case 'maxAthletes':
-      if (form.value.maxAthletes !== undefined && form.value.maxAthletes < 0) {
+      if (runsStore.draftRunMaxAthletes !== undefined && runsStore.draftRunMaxAthletes < 0) {
         errors.value.maxAthletes = 'Maximum athletes cannot be negative'
       } else {
         delete errors.value.maxAthletes
@@ -350,7 +351,7 @@ function validateField(field: keyof CreateRunForm | string): void {
       break
 
     case 'maxGuides':
-      if (form.value.maxGuides !== undefined && form.value.maxGuides < 0) {
+      if (runsStore.draftRunMaxGuides !== undefined && runsStore.draftRunMaxGuides < 0) {
         errors.value.maxGuides = 'Maximum guides cannot be negative'
       } else {
         delete errors.value.maxGuides
@@ -360,22 +361,22 @@ function validateField(field: keyof CreateRunForm | string): void {
 }
 
 /**
- * Validate all required fields before submission
- * Returns true if all validations pass
+ * Validate all required fields before submission.
+ * Returns true if all validations pass.
  */
 function validateAllFields(): boolean {
   // Clear any existing errors
   errors.value = {}
 
   // Validate each required field
-  const requiredFields: (keyof CreateRunForm)[] = ['date', 'time', 'locationId', 'description']
+  const requiredFields = ['date', 'time', 'locationId', 'description']
   requiredFields.forEach(validateField)
 
   // Also validate optional numeric fields if they have values
-  if (form.value.maxAthletes !== undefined) {
+  if (runsStore.draftRunMaxAthletes !== undefined) {
     validateField('maxAthletes')
   }
-  if (form.value.maxGuides !== undefined) {
+  if (runsStore.draftRunMaxGuides !== undefined) {
     validateField('maxGuides')
   }
 
@@ -383,59 +384,22 @@ function validateAllFields(): boolean {
 }
 
 /**
- * Handle form submission
- * Creates the run in the database and navigates back to the organization page
+ * Handle form submission.
+ * Saves changes to the database and navigates back to the run view.
  */
 async function handleSubmit(): Promise<void> {
-  // Clear previous submission error
-  submitError.value = null
-
-  // Validate all fields before attempting to submit
+  // Validate all fields before attempting to save
   if (!validateAllFields()) {
     return
   }
 
   try {
-    submitting.value = true
+    await runsStore.saveEditRunChanges(runId.value)
 
-    // Build the run data object for creation
-    // Uses Omit<Run, 'id'> since ID is generated by the database
-    // Parse date parts manually to avoid UTC interpretation —
-    // new Date('YYYY-MM-DD') is treated as UTC midnight, which shifts
-    // the day back in US timezones when displayed with toLocaleDateString.
-    const dateParts = form.value.date.split('-').map(Number)
-    const year = dateParts[0]!
-    const month = dateParts[1]!
-    const day = dateParts[2]!
-    // month - 1 because JS Date months are zero-indexed (0 = Jan, 1 = Feb, etc.)
-    const runData: Omit<Run, 'id'> = {
-      organizationId: form.value.organizationId,
-      date: new Date(year, month - 1, day),
-      time: form.value.time,
-      locationId: form.value.locationId,
-      description: form.value.description.trim(),
-      createdBy: authStore.currentUser!.id,
-      createdAt: new Date(),
-      status: 'upcoming',
-      // Only include optional fields if they have values
-      ...(form.value.maxAthletes !== undefined && { maxAthletes: form.value.maxAthletes }),
-      ...(form.value.maxGuides !== undefined && { maxGuides: form.value.maxGuides }),
-      ...(form.value.notes && { notes: form.value.notes.trim() }),
-    }
-
-    // Create the run via the data repository
-    const newRunId = await dataRepository.createRun(runData)
-    console.log('[CreateRunView] Created run with ID:', newRunId)
-    console.log('[CreateRunView] Run data:', runData)
-
-    // Navigate back to the organization page on success
-    router.push(`/organizations/${orgId.value}`)
-  } catch (err) {
-    console.error('Failed to create run:', err)
-    submitError.value =
-      'Unable to create run. Please try again and contact us if the problem persists.'
-  } finally {
-    submitting.value = false
+    // Navigate back to the run view on success
+    router.push(`/organizations/${orgId.value}/runs/${runId.value}`)
+  } catch {
+    // Error is already set in the store by saveEditRunChanges
   }
 }
 
@@ -443,7 +407,7 @@ async function handleSubmit(): Promise<void> {
  * Handle cancel button - navigate back without saving
  */
 function handleCancel(): void {
-  router.push(`/organizations/${orgId.value}`)
+  router.push(`/organizations/${orgId.value}/runs/${runId.value}`)
 }
 
 // Load form data when component mounts
@@ -454,23 +418,23 @@ onMounted(() => {
 
 <style scoped>
 /* Main view container */
-.create-run-view {
+.edit-run-view {
   min-height: 100vh;
   background-color: var(--color-bg-secondary, #f9fafb);
 }
 
 /* Header section */
-.create-run-header {
+.edit-run-header {
   padding: 2rem 0;
 }
 
-.create-run-header__content {
+.edit-run-header__content {
   max-width: 800px;
   margin: 0 auto;
   padding: 0 1rem;
 }
 
-.create-run-title {
+.edit-run-title {
   font-size: 2rem;
   font-weight: 700;
   margin: 0 0 0.25rem 0;
@@ -478,7 +442,7 @@ onMounted(() => {
   color: var(--color-text, #111827);
 }
 
-.create-run-subtitle {
+.edit-run-subtitle {
   font-size: 1.125rem;
   margin: 0;
   line-height: 1.4;
@@ -486,23 +450,23 @@ onMounted(() => {
 }
 
 /* Main content area */
-.create-run-main {
+.edit-run-main {
   padding: 2rem 0;
 }
 
-.create-run-container {
+.edit-run-container {
   max-width: 800px;
   margin: 0 auto;
   padding: 0 1rem;
 }
 
 /* Form card */
-.create-run-card {
+.edit-run-card {
   background: white;
 }
 
 /* Form layout */
-.create-run-form {
+.edit-run-form {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -611,7 +575,7 @@ onMounted(() => {
 }
 
 /* Error page styling */
-.create-run-error {
+.edit-run-error {
   text-align: center;
   padding: 3rem 1rem;
   max-width: 600px;
@@ -621,52 +585,28 @@ onMounted(() => {
   box-shadow: var(--shadow, 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06));
 }
 
-.create-run-error h1 {
+.edit-run-error h1 {
   color: var(--color-error, #dc2626);
   margin: 0 0 0.5rem 0;
   font-size: 1.5rem;
 }
 
-.create-run-error p {
+.edit-run-error p {
   color: var(--color-text-muted, #6b7280);
   margin: 0 0 1.5rem 0;
 }
 
-/* Skip link for keyboard navigation */
-.skip-link {
-  position: absolute;
-  left: -10000px;
-  top: auto;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-}
-
-.skip-link:focus {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: auto;
-  height: auto;
-  padding: 1rem 2rem;
-  background: var(--color-primary, #0066cc);
-  color: white;
-  z-index: 1000;
-  outline: 2px solid var(--color-focus, #0066cc);
-  outline-offset: 2px;
-}
-
 /* Mobile responsiveness */
 @media (max-width: 640px) {
-  .create-run-header {
+  .edit-run-header {
     padding: 1.5rem 0;
   }
 
-  .create-run-main {
+  .edit-run-main {
     padding: 1.5rem 0;
   }
 
-  .create-run-container {
+  .edit-run-container {
     padding: 0 0.5rem;
   }
 

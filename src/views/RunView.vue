@@ -6,7 +6,19 @@
     <!-- Header -->
     <header class="run-header">
       <div class="run-header__content">
-        <h1 class="run-title">{{ locationName }}</h1>
+        <div class="run-header__title-row">
+          <h1 class="run-title">{{ locationName }}</h1>
+          <!-- Edit Run button - only visible to users who can manage this run -->
+          <AchillesButton
+            v-if="canUserManageRun"
+            variant="secondary"
+            size="small"
+            @click="navigateToEditRun"
+          >
+            <font-awesome-icon icon="pencil" aria-hidden="true" />
+            Edit Run
+          </AchillesButton>
+        </div>
         <p v-if="organizationName" class="run-subtitle">{{ organizationName }}</p>
       </div>
     </header>
@@ -337,6 +349,12 @@ function handleRSVPSubmitted(): void {
   closeRSVPModal()
 }
 
+// Navigate to the edit run page
+function navigateToEditRun(): void {
+  if (!runsStore.currentRun) return
+  router.push(`/organizations/${runsStore.currentRun.organizationId}/runs/${runId.value}/edit`)
+}
+
 // Navigate to the pairings management page for this run
 function navigateToPairings(): void {
   if (!runsStore.currentRun) return
@@ -359,12 +377,6 @@ onMounted(() => {
 
 /* Header */
 .run-header {
-  background: linear-gradient(
-    135deg,
-    var(--color-primary, #0066cc) 0%,
-    var(--color-primary-hover, #0052a3) 100%
-  );
-  color: white;
   padding: 2rem 0;
 }
 
@@ -374,19 +386,28 @@ onMounted(() => {
   padding: 0 1rem;
 }
 
+.run-header__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .run-title {
   font-size: 2.5rem;
   font-weight: 700;
-  margin: 0;
+  margin: 0 0 0.5rem 0;
   line-height: 1.2;
+  color: var(--color-text, #111827);
 }
 
 .run-subtitle {
   font-size: 1.25rem;
   font-weight: 400;
-  margin: 0.5rem 0 0 0;
+  margin: 0;
   line-height: 1.4;
-  opacity: 0.95;
+  color: var(--color-text-muted, #6b7280);
 }
 
 /* Main content */
@@ -569,10 +590,6 @@ onMounted(() => {
 }
 
 /* High contrast mode */
-.high-contrast .run-header {
-  background: var(--color-primary, #000000);
-}
-
 .high-contrast .run-actions {
   border-top-color: var(--color-text, #000000);
 }
