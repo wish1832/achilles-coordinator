@@ -6,7 +6,9 @@
     @close="$emit('close')"
   >
     <div class="instructions-content">
-      <h3 class="instructions-subheading">Pairing Athletes with Guides</h3>
+      <h3 class="instructions-subheading" tabindex="-1" autofocus>
+        Pairing Athletes with Guides
+      </h3>
       <ol class="instructions-list">
         <li>
           Click or press Enter/Space on an athlete, then click a guide to create a pairing

@@ -11,7 +11,14 @@
       @click="handleOverlayClick"
       @keydown="handleKeydown"
     >
-      <div ref="modalRef" class="modal" :class="modalClasses" role="document" @click.stop>
+      <div
+        ref="modalRef"
+        class="modal"
+        :class="modalClasses"
+        role="document"
+        tabindex="-1"
+        @click.stop
+      >
         <!-- Modal header -->
         <header v-if="title || $slots.header" class="modal__header">
           <slot name="header">
@@ -104,6 +111,7 @@ const emit = defineEmits<Emits>()
 // Refs
 const modalRef = ref<HTMLElement>()
 const previouslyFocusedElement = ref<HTMLElement | null>(null)
+let cleanupFocusTrap: (() => void) | null = null
 
 // Accessibility store
 const accessibilityStore = useAccessibilityStore()
@@ -191,20 +199,25 @@ watch(
       // Wait for DOM update
       await nextTick()
 
-      // Focus the modal
-      if (modalRef.value) {
-        modalRef.value.focus()
-      }
+      // Prefer an explicit [autofocus] target when provided by a modal consumer.
+      // Otherwise, focus the first interactive control. If none exist, focus the
+      // dialog container itself so keyboard and screen reader users are moved in.
+      const autofocusElement = modalRef.value?.querySelector<HTMLElement>('[autofocus]')
+      const focusableElements = modalRef.value?.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      )
+      const firstFocusableElement = focusableElements?.[0]
+      if (autofocusElement) autofocusElement.focus()
+      else if (firstFocusableElement) firstFocusableElement.focus()
+      else modalRef.value?.focus()
 
       // Set up focus trap
-      const cleanup = trapFocus()
-
-      // Store cleanup function for later
-      modalRef.value?.setAttribute('data-cleanup', 'true')
-
-      // Clean up on unmount
-      onUnmounted(cleanup)
+      cleanupFocusTrap = trapFocus() ?? null
     } else {
+      // Clean up focus trap listeners when the modal closes.
+      cleanupFocusTrap?.()
+      cleanupFocusTrap = null
+
       // Restore focus to previously focused element
       if (previouslyFocusedElement.value) {
         previouslyFocusedElement.value.focus()
@@ -235,6 +248,8 @@ watch(
 
 // Cleanup on unmount
 onUnmounted(() => {
+  cleanupFocusTrap?.()
+  cleanupFocusTrap = null
   unlockBodyScroll()
 })
 </script>

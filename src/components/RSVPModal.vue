@@ -19,6 +19,7 @@
             class="rsvp-option-button"
             :class="{ 'rsvp-option-button--selected': attendance === option.value }"
             :aria-pressed="attendance === option.value"
+            :autofocus="option.value === initialAutofocusAttendance"
             @click="attendance = option.value"
           >
             {{ option.label }}
@@ -173,6 +174,16 @@ const attendanceOptions = [
   { value: 'maybe' as SignUpStatus, label: 'Maybe' },
   { value: 'no' as SignUpStatus, label: 'No' },
 ]
+
+// Initial autofocus target for attendance options:
+// - New RSVP: default to "Yes"
+// - Edit RSVP: focus the previously selected attendance option
+const initialAutofocusAttendance = computed<SignUpStatus>(() => {
+  if (props.isEditing && props.existingSignUp) {
+    return props.existingSignUp.status
+  }
+  return 'yes'
+})
 
 // Activity options with Title case labels mapping to lowercase values
 const activityOptions = [
