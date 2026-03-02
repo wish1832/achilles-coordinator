@@ -1,8 +1,5 @@
 <template>
   <div class="settings-view">
-    <!-- Skip link for keyboard navigation -->
-    <a href="#main-content" class="skip-link">Skip to main content</a>
-
     <!-- Main content -->
     <main id="main-content" class="settings-main">
       <div class="settings-container">

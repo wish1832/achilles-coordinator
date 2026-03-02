@@ -1,8 +1,5 @@
 <template>
   <div class="login-view">
-    <!-- Skip link for keyboard navigation -->
-    <a href="#main-content" class="skip-link">Skip to main content</a>
-
     <!-- Main content -->
     <main id="main-content" class="login-main">
       <div class="login-container">
@@ -236,24 +233,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Skip link for keyboard navigation */
-.skip-link {
-  position: absolute;
-  top: -40px;
-  left: 6px;
-  background: var(--color-focus, #0066cc);
-  color: white;
-  padding: 8px;
-  text-decoration: none;
-  border-radius: 4px;
-  z-index: 1000;
-  transition: top 0.3s;
-}
-
-.skip-link:focus {
-  top: 6px;
-}
-
 /* Main layout */
 .login-view {
   min-height: 100vh;
@@ -452,10 +431,6 @@ onMounted(() => {
 }
 
 /* Reduced motion support */
-.reduced-motion .skip-link {
-  transition: none;
-}
-
 .reduced-motion .form-input {
   transition: none;
 }

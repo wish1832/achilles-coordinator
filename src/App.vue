@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAccessibilityStore } from '@/stores/accessibility'
 import { useAuthStore } from '@/stores/auth'
@@ -26,12 +26,47 @@ const showHeader = computed(() => {
   return authStore.isAuthenticated
 })
 
+// In non-production environments, verify each rendered route exposes
+// a #main-content target so the global skip link remains functional.
+const ensureMainContentTargetExists = async () => {
+  if (import.meta.env.MODE === 'production') {
+    return
+  }
+
+  // Wait for RouterView/KeepAlive content to finish mounting before checking.
+  await nextTick()
+  await nextTick()
+
+  if (!document.getElementById('main-content')) {
+    console.warn(
+      `[a11y] Missing #main-content on route "${String(route.name)}". Skip link target is required.`,
+    )
+  }
+}
+
+onMounted(() => {
+  void ensureMainContentTargetExists()
+})
+
+watch(
+  () => route.fullPath,
+  () => {
+    void ensureMainContentTargetExists()
+  },
+)
+
 // Note: Authentication is initialized in main.ts before router navigation
 // to ensure auth state is loaded before routing decisions are made
 </script>
 
 <template>
   <div id="app" :class="accessibilityStore.accessibilityClasses" class="app">
+    <!--
+      Place skip link first in the DOM so it is the first focusable element.
+      This ensures keyboard users can bypass global navigation on every route.
+    -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
     <!-- App header with user menu - shown on all pages except login when authenticated -->
     <AppHeader v-if="showHeader" :class="{ 'app-header--wide': wideHeader }" />
 

@@ -1,8 +1,5 @@
 <template>
   <div class="run-view">
-    <!-- Skip link for keyboard navigation -->
-    <a href="#main-content" class="skip-link">Skip to main content</a>
-
     <!-- Header -->
     <header class="run-header">
       <div class="run-header__content">

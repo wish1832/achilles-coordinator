@@ -1,8 +1,5 @@
 <template>
   <div class="dashboard-view">
-    <!-- Skip link for keyboard navigation -->
-    <a href="#main-content" class="skip-link">Skip to main content</a>
-
     <!-- Main content -->
     <main id="main-content" class="dashboard-main">
       <div class="dashboard-container">

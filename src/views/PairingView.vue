@@ -1,8 +1,5 @@
 <template>
   <div class="pairing-view">
-    <!-- Skip link for keyboard navigation -->
-    <a href="#main-content" class="skip-link">Skip to main content</a>
-
     <!-- Screen reader live region for announcements -->
     <div role="status" aria-live="polite" aria-atomic="true" class="sr-only">
       {{ srAnnouncement }}
@@ -814,22 +811,6 @@ onActivated(() => {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border-width: 0;
-}
-
-/* Skip link for keyboard navigation */
-.skip-link {
-  position: absolute;
-  top: -40px;
-  left: 0;
-  background: var(--color-primary, #0066cc);
-  color: white;
-  padding: 0.5rem 1rem;
-  text-decoration: none;
-  z-index: 100;
-}
-
-.skip-link:focus {
-  top: 0;
 }
 
 /* ==========================================
