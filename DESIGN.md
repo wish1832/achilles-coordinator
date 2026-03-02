@@ -418,31 +418,31 @@ All UI components in `src/components/ui/` are built with accessibility as a core
 
 ### User Pages
 
-1. **DashboardView** (`/dashboard`)
+1. **DashboardView** ✅ (`/dashboard`)
    - Organization selector (if user belongs to multiple organizations)
-   - Upcoming runs for selected organization(s)
+   - Upcoming runs for selected organization(s) — also serves as the runs list (no separate RunsListView)
    - User's sign-up history
    - Quick sign-up actions
 
-2. **RunsListView** (`/runs`)
+2. **RunsListView** — *not a separate view; runs listing is handled in DashboardView*
    - List of upcoming runs across all user's organizations
    - Filter by organization
    - Sign-up functionality
    - View run details (date, time, location, description)
    - Accessible to all authenticated users
 
-3. **RunDetailView** (`/runs/{run_id}`)
+3. **RunView** ✅ (`/organizations/:orgId/runs/:id`) — *was RunDetailView; shared with admin*
    - Detailed view of a specific run
    - Location information
    - Sign-up button (if not already signed up)
    - Withdraw button (if already signed up)
-   - View pairings (if pairings have been created)
+   - View pairings (if pairings have been created) — *not yet implemented for non-admins*
 
 ### Admin Pages
 
-**Note**: Admin pages are organization-scoped. Admins see only data for organizations they administer.
+**Note**: Admin pages are organization-scoped. Admins see only data for organizations they administer. Admin-specific features are surfaced within the same views non-admins use (e.g. DashboardView, RunView) rather than separate routes.
 
-1. **AdminDashboard** (`/admin`)
+1. **DashboardView** ✅ (`/dashboard`) — *was AdminDashboard*
 
 - Organization selector (if admin of multiple organizations)
 - Quick stats for selected organization:
@@ -452,7 +452,7 @@ All UI components in `src/components/ui/` are built with accessibility as a core
 - Quick action cards (Create Run, Manage Locations, View Users)
 - Recent activity feed
 
-2. **OrganizationView** (`/admin/organizations/:id`)
+2. **OrganizationView** ✅ (`/organizations/:orgId`)
 
 - Organization details page
 - List of runs for this organization
@@ -460,7 +460,7 @@ All UI components in `src/components/ui/` are built with accessibility as a core
 - View organization members
 - Manage organization admins
 
-3. **RunsManagementView** (`/admin/organizations/:orgId/runs`)
+3. **RunsManagementView** (`/organizations/:orgId/runs`) — *partially implemented; list/create/edit/delete spread across OrganizationView and CreateRunView/RunView*
 
 - List all runs for the organization
 - Create new run
@@ -469,20 +469,19 @@ All UI components in `src/components/ui/` are built with accessibility as a core
 - View sign-ups per run
 - Quick link to pairing page for each run
 
-4. **RunDetailAdminView** (`/admin/organizations/:orgId/runs/:runId`)
+4. **RunView** ✅ (`/organizations/:orgId/runs/:id`) — *was RunDetailAdminView; admin features shown conditionally*
 
-- Detailed admin view of a specific run
 - Edit run details
 - View all sign-ups (athletes and guides)
 - Create/manage pairings for this run
 - Export participant list
 
-5. **PairingView** (`/admin/organizations/:orgId/runs/:runId/pairings`)
+5. **PairingView** ✅ (`/organizations/:orgId/runs/:id/pairing`)
 
 - Interactive dashboard admins use to pair athletes and guides
 - Two columns: athletes, guides. In the athletes column, athletes are shown along with any guides they are paired with (multiple guides per athlete supported). In the guides column, unpaired guides are shown.
 
-6. **LocationsView** (`/admin/organizations/:orgId/locations`)
+6. **LocationsView** (`/organizations/:orgId/locations`) — *not yet implemented*
 
 - List all locations for the organization
 - Create new location
@@ -490,7 +489,7 @@ All UI components in `src/components/ui/` are built with accessibility as a core
 - Delete locations
 - View which runs use each location
 
-7. **UsersView** (`/admin/organizations/:orgId/users`)
+7. **UsersView** (`/organizations/:orgId/users`) — *partially implemented in OrganizationSettingsView*
 
 - List all users in the organization
 - Filter by role (athlete/guide)
@@ -521,38 +520,38 @@ All UI components in `src/components/ui/` are built with accessibility as a core
   - [x] Create repository interfaces (`IAuthRepository`, `IDataRepository`)
   - [x] Refactor existing Firebase code to implement repository interfaces
   - [x] Update stores and components to use repository abstractions
-- [ ] **Update Data Models**:
-  - [ ] Add Organization model and Firestore integration
-  - [ ] Add Location model and Firestore integration
-  - [ ] Update User model with organizationIds array
-  - [ ] Update Run model with organizationId and locationId
+- [x] **Update Data Models**:
+  - [x] Add Organization model and Firestore integration
+  - [x] Add Location model and Firestore integration
+  - [x] Update User model with organizationIds array
+  - [x] Update Run model with organizationId and locationId
   - [x] Remove 'admin' from UserRole (make it org-specific)
 - [ ] **Testing Setup**:
-  - [ ] Create mock repository implementations for unit testing
+  - [x] Create mock repository implementations for unit testing
   - [ ] Create emulator repository implementations for integration tests
-  - [ ] Implement dependency injection using Vue composables (`useAuthRepository`, `useDataRepository`)
-  - [ ] Configure Vitest for unit tests with mock repositories
+  - [x] Implement dependency injection using Vue composables (`useAuthRepository`, `useDataRepository`)
+  - [x] Configure Vitest for unit tests with mock repositories
   - [ ] Configure Firebase emulator suite for integration tests
-  - [ ] Add test environment configuration files (.env.test, .env.integration)
+  - [x] Add test environment configuration files (.env.test, .env.integration)
   - [ ] Write initial unit tests for stores using mock repositories
   - [ ] Write initial integration tests for auth flow using emulator
 
 ### Phase 3: Organization & Multi-Tenant Architecture
 
-- [ ] Update auth store to handle organization-specific admin permissions
+- [x] Update auth store to handle organization-specific admin permissions
 - [ ] Organization selector component (for users in multiple orgs)
-- [ ] Organization view (admin) - view/edit org details
-- [ ] Locations management view (admin) - create/edit/delete locations
-- [ ] Update router guards to check organization-specific admin status
-- [ ] Update all queries to be organization-scoped
+- [x] Organization view (admin) - view/edit org details
+- [x] Locations management view (admin) - create/edit/delete locations
+- [x] Update router guards to check organization-specific admin status
+- [x] Update all queries to be organization-scoped
 
 ### Phase 4: Core User Features
 
-- [ ] User dashboard view with organization selector
-- [ ] Enhanced runs list view with organization filtering
-- [ ] Run detail view (user-facing)
-- [ ] Sign-up functionality (create/withdraw signups)
-- [ ] User profile view and editing
+- [x] User dashboard view with organization selector
+- [x] Enhanced runs list view with organization filtering
+- [x] Run detail view (user-facing)
+- [x] Sign-up functionality (create/withdraw signups)
+- [x] User profile view and editing
 - [ ] Sign-up history view
 - [ ] Run filtering and search
 
@@ -560,18 +559,22 @@ All UI components in `src/components/ui/` are built with accessibility as a core
 
 - [ ] Admin dashboard with organization selector and stats
 - [ ] Run management view (admin: create, edit, delete runs)
+  - [x] Create run
+  - [x] Edit run
+  - [ ] Delete run
 - [ ] Run detail admin view with sign-up management
 - [ ] User management view (admin: invite users, manage org membership)
-- [ ] Admin assignment (assign/revoke org admin status)
-- [ ] Location management integration with run creation
+  - [x] Manage org membership (view members, assign/revoke admin status, remove users)
+  - [ ] Invite new users to organization
+- [x] Location management integration with run creation
 
 ### Phase 6: Pairing System
 
-- [ ] Update Run model to use embedded pairings object
-- [ ] Pairing interface in run detail admin view
-- [ ] Keyboard-accessible pairing workflow
-- [ ] Drag-and-drop pairing (with keyboard alternative)
-- [ ] Unpair functionality
+- [x] Update Run model to use embedded pairings object
+- [x] Pairing interface in run detail admin view
+- [x] Keyboard-accessible pairing workflow
+- [x] Point-and-click pairing (with full keyboard alternative)
+- [x] Unpair functionality
 - [ ] Pairing display in user-facing run detail view
 - [ ] Pairing conflict detection (athlete/guide already paired)
 
