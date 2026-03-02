@@ -203,7 +203,9 @@
       </p>
       <template #footer>
         <div class="modal-actions">
-          <AchillesButton variant="secondary" @click="closeAllModals"> Cancel </AchillesButton>
+          <AchillesButton variant="secondary" autofocus @click="closeAllModals">
+            Cancel
+          </AchillesButton>
           <AchillesButton variant="primary" @click="confirmMakeAdmin"> Confirm </AchillesButton>
         </div>
       </template>
@@ -233,7 +235,9 @@
       </p>
       <template #footer>
         <div class="modal-actions">
-          <AchillesButton variant="secondary" @click="closeAllModals"> Cancel </AchillesButton>
+          <AchillesButton variant="secondary" autofocus @click="closeAllModals">
+            Cancel
+          </AchillesButton>
           <AchillesButton variant="danger" :disabled="isOnlyAdmin" @click="confirmRemoveAdmin">
             {{ isSelectedUserCurrentUser ? 'Step Down' : 'Remove Admin Role' }}
           </AchillesButton>
@@ -273,7 +277,9 @@
       </template>
       <template #footer>
         <div class="modal-actions">
-          <AchillesButton variant="secondary" @click="closeAllModals"> Cancel </AchillesButton>
+          <AchillesButton variant="secondary" autofocus @click="closeAllModals">
+            Cancel
+          </AchillesButton>
           <AchillesButton
             variant="danger"
             :disabled="isSelectedUserCurrentUser && isOnlyAdmin"
