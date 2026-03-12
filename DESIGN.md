@@ -211,8 +211,8 @@ interface Run {
   notes?: string
   pairings?: {
     [athleteId: string]: {
-      guides: string[]    // Guide user IDs paired with this athlete
-      athletes: string[]  // Athlete user IDs paired with this athlete (for multi-athlete single-guide scenarios)
+      guides: string[] // Guide user IDs paired with this athlete
+      athletes: string[] // Athlete user IDs paired with this athlete (for multi-athlete single-guide scenarios)
     }
   }
 }
@@ -424,25 +424,25 @@ All UI components in `src/components/ui/` are built with accessibility as a core
    - User's sign-up history
    - Quick sign-up actions
 
-2. **RunsListView** — *not a separate view; runs listing is handled in DashboardView*
+2. **RunsListView** — _not a separate view; runs listing is handled in DashboardView_
    - List of upcoming runs across all user's organizations
    - Filter by organization
    - Sign-up functionality
    - View run details (date, time, location, description)
    - Accessible to all authenticated users
 
-3. **RunView** ✅ (`/organizations/:orgId/runs/:id`) — *was RunDetailView; shared with admin*
+3. **RunView** ✅ (`/organizations/:orgId/runs/:id`) — _was RunDetailView; shared with admin_
    - Detailed view of a specific run
    - Location information
    - Sign-up button (if not already signed up)
    - Withdraw button (if already signed up)
-   - View pairings (if pairings have been created) — *not yet implemented for non-admins*
+   - View pairings (if pairings have been created) — _not yet implemented for non-admins_
 
 ### Admin Pages
 
 **Note**: Admin pages are organization-scoped. Admins see only data for organizations they administer. Admin-specific features are surfaced within the same views non-admins use (e.g. DashboardView, RunView) rather than separate routes.
 
-1. **DashboardView** ✅ (`/dashboard`) — *was AdminDashboard*
+1. **DashboardView** ✅ (`/dashboard`) — _was AdminDashboard_
 
 - Organization selector (if admin of multiple organizations)
 - Quick stats for selected organization:
@@ -460,7 +460,7 @@ All UI components in `src/components/ui/` are built with accessibility as a core
 - View organization members
 - Manage organization admins
 
-3. **RunsManagementView** (`/organizations/:orgId/runs`) — *partially implemented; list/create/edit/delete spread across OrganizationView and CreateRunView/RunView*
+3. **RunsManagementView** (`/organizations/:orgId/runs`) — _partially implemented; list/create/edit/delete spread across OrganizationView and CreateRunView/RunView_
 
 - List all runs for the organization
 - Create new run
@@ -469,7 +469,7 @@ All UI components in `src/components/ui/` are built with accessibility as a core
 - View sign-ups per run
 - Quick link to pairing page for each run
 
-4. **RunView** ✅ (`/organizations/:orgId/runs/:id`) — *was RunDetailAdminView; admin features shown conditionally*
+4. **RunView** ✅ (`/organizations/:orgId/runs/:id`) — _was RunDetailAdminView; admin features shown conditionally_
 
 - Edit run details
 - View all sign-ups (athletes and guides)
@@ -481,7 +481,7 @@ All UI components in `src/components/ui/` are built with accessibility as a core
 - Interactive dashboard admins use to pair athletes and guides
 - Two columns: athletes, guides. In the athletes column, athletes are shown along with any guides they are paired with (multiple guides per athlete supported). In the guides column, unpaired guides are shown.
 
-6. **LocationsView** (`/organizations/:orgId/locations`) — *not yet implemented*
+6. **LocationsView** (`/organizations/:orgId/locations`) — _not yet implemented_
 
 - List all locations for the organization
 - Create new location
@@ -489,7 +489,7 @@ All UI components in `src/components/ui/` are built with accessibility as a core
 - Delete locations
 - View which runs use each location
 
-7. **UsersView** (`/organizations/:orgId/users`) — *partially implemented in OrganizationSettingsView*
+7. **UsersView** (`/organizations/:orgId/users`) — _partially implemented in OrganizationSettingsView_
 
 - List all users in the organization
 - Filter by role (athlete/guide)
@@ -539,7 +539,7 @@ All UI components in `src/components/ui/` are built with accessibility as a core
 ### Phase 3: Organization & Multi-Tenant Architecture
 
 - [x] Update auth store to handle organization-specific admin permissions
-- [ ] Organization selector component (for users in multiple orgs)
+- [x] Organization selector (implemented as organization cards in the dashboard)
 - [x] Organization view (admin) - view/edit org details
 - [x] Locations management view (admin) - create/edit/delete locations
 - [x] Update router guards to check organization-specific admin status
@@ -557,12 +557,16 @@ All UI components in `src/components/ui/` are built with accessibility as a core
 
 ### Phase 5: Admin Features
 
-- [ ] Admin dashboard with organization selector and stats
+- [ ] Admin features in dashboard
+  - [ ] Organization stats
+  - [ ] Quick actions for admins
 - [ ] Run management view (admin: create, edit, delete runs)
   - [x] Create run
   - [x] Edit run
   - [ ] Delete run
-- [ ] Run detail admin view with sign-up management
+- [ ] Sign-up management in pairing view
+  - [x] Add users to a run's sign-ups
+  - [ ] Remove users from a run's sign-ups
 - [ ] User management view (admin: invite users, manage org membership)
   - [x] Manage org membership (view members, assign/revoke admin status, remove users)
   - [ ] Invite new users to organization
@@ -586,7 +590,7 @@ All UI components in `src/components/ui/` are built with accessibility as a core
 - [ ] Toast notifications for actions
 - [ ] Confirmation dialogs for destructive actions
 - [ ] Export functionality (participant lists, run reports)
-- [ ] Email notifications (optional)
+- [ ] Email notifications
 - [ ] Run templates for common events
 
 ### Phase 8: Testing & Accessibility Audit
@@ -782,26 +786,31 @@ app.provide('authRepository', authRepository)
 const authRepository = inject<IAuthRepository>('authRepository')
 ```
 
-#### Repositories to Implement
+#### Implemented Repositories
 
-All Firebase services must be abstracted into repositories following this pattern:
+All Firebase services are abstracted into repositories following this pattern. Each repository has a Firebase implementation (`src/repositories/firebase/`) and a mock implementation (`src/repositories/mock/`) for testing.
 
 1. **Authentication Repository** (`IAuthRepository`)
    - Sign in/out operations
    - User state management
    - Auth state change listeners
+
+2. **User Repository** (`IUserRepository`)
+   - User CRUD operations
    - User creation (admin only)
 
-2. **Data Repository** (`IDataRepository`)
-   - CRUD operations for all Firestore collections
-   - Real-time listeners for data changes
-   - Query operations with filtering and sorting
-   - Batch operations
+3. **Organization Repository** (`IOrganizationRepository`)
+   - Organization CRUD operations
+   - Member and admin management
 
-3. **Storage Repository** (`IStorageRepository`) - if file uploads are added
-   - File uploads to Firebase Storage
-   - File downloads and URL generation
-   - File deletion
+4. **Run Repository** (`IRunRepository`)
+   - Run CRUD operations
+   - Real-time listeners for run changes
+
+5. **Sign-Up Repository** (`ISignUpRepository`)
+   - Invite/sign-up flow operations
+
+> **Note**: `IDataRepository` is a legacy interface that is being phased out as its responsibilities have been split into the typed repositories above. `FirebaseDataRepository` and `MockDataRepository` still exist but will be removed once all usages are migrated.
 
 #### Testing Strategy
 
