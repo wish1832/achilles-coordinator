@@ -46,7 +46,12 @@ export const useRunsStore = defineStore('runs', () => {
         throw new Error(`Run with id ${id} not found`)
       }
 
-      currentRun.value = run
+      // Deep-clone the run before storing it so that mutations to nested
+      // objects (like pairings) in views do not bleed back into store state
+      // through Vue's shared reactive proxy backing.
+      // structuredClone is used instead of JSON.parse/stringify to correctly
+      // preserve Date objects on the run (date, createdAt, updatedAt).
+      currentRun.value = structuredClone(run)
 
       // Update the run in the runs array if it exists
       const index = runs.value.findIndex((r) => r.id === id)
@@ -223,6 +228,23 @@ export const useRunsStore = defineStore('runs', () => {
     }
   }
 
+  /**
+   * Save pairings for a run to the database.
+   * Updates the run document with the new pairings object,
+   * then refreshes local store state to reflect the saved values.
+   * @param runId - The ID of the run to update
+   * @param newPairings - The pairings object mapping athlete IDs to their paired guides and athletes
+   */
+  async function savePairings(
+    runId: string,
+    newPairings: Record<string, { guides: string[]; athletes: string[] }>,
+  ): Promise<void> {
+    await dataRepository.updateRun(runId, { pairings: newPairings })
+
+    // Reload the run so local state reflects the saved values
+    await loadRun(runId)
+  }
+
   function clearError(): void {
     error.value = null
   }
@@ -252,5 +274,6 @@ export const useRunsStore = defineStore('runs', () => {
     editRunSaveSuccess,
     initializeEditRunDraft,
     saveEditRunChanges,
+    savePairings,
   }
 })

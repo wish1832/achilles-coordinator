@@ -186,19 +186,19 @@ function handleKeydown(event: KeyboardEvent): void {
 
 /* Size variants */
 .button--small {
-  padding: 0.5rem 0.75rem;
+  padding: 0.75rem 1.125rem;
   font-size: 0.875rem;
   min-height: 2rem;
 }
 
 .button--medium {
-  padding: 0.75rem 1rem;
+  padding: 1.125rem 1.5rem;
   font-size: 1rem;
   min-height: 2.5rem;
 }
 
 .button--large {
-  padding: 1rem 1.5rem;
+  padding: 1.5rem 2.25rem;
   font-size: 1.125rem;
   min-height: 3rem;
 }
