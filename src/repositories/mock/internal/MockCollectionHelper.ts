@@ -52,6 +52,10 @@ export class MockCollectionHelper {
     // Merge updates into the existing document, then remove any fields
     // set to null (mirrors Firestore's deleteField() convention).
     const merged = { ...items[index], ...this.deps.clone(data) } as T
+
+    // Automatically set updatedAt to mirror the Firebase repository's
+    // includeUpdatedAt behavior, keeping both implementations consistent.
+    ;(merged as Record<string, unknown>).updatedAt = new Date()
     for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
       if (value === null) {
         delete (merged as Record<string, unknown>)[key]

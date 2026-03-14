@@ -205,7 +205,6 @@ export const useRunsStore = defineStore('runs', () => {
         time: draftRunTime.value,
         locationId: draftRunLocationId.value,
         description: draftRunDescription.value.trim(),
-        updatedAt: new Date(),
       }
 
       // Include optional fields: pass the value when set, or null to clear
