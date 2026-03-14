@@ -48,7 +48,16 @@ export class MockCollectionHelper {
     if (index === -1) {
       throw new Error(`Document ${id} not found in ${collectionName}`)
     }
-    items[index] = { ...items[index], ...this.deps.clone(data) } as T
+
+    // Merge updates into the existing document, then remove any fields
+    // set to null (mirrors Firestore's deleteField() convention).
+    const merged = { ...items[index], ...this.deps.clone(data) } as T
+    for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+      if (value === null) {
+        delete (merged as Record<string, unknown>)[key]
+      }
+    }
+    items[index] = merged
   }
 
   async deleteDocument(collectionName: CollectionName, id: string): Promise<void> {
