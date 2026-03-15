@@ -218,7 +218,7 @@ export const useRunsStore = defineStore('runs', () => {
       updates.notes = trimmedNotes || null
 
       // Persist to the database
-      await dataRepository.updateRun(runId, updates as Partial<Omit<Run, 'id'>>)
+      await runRepository.updateRun(runId, updates as Partial<Omit<Run, 'id'>>)
 
       // Reload the run so local state reflects the saved values
       await loadRun(runId)
@@ -245,7 +245,7 @@ export const useRunsStore = defineStore('runs', () => {
     runId: string,
     newPairings: Record<string, { guides: string[]; athletes: string[] }>,
   ): Promise<void> {
-    await dataRepository.updateRun(runId, { pairings: newPairings })
+    await runRepository.updateRun(runId, { pairings: newPairings })
 
     // Reload the run so local state reflects the saved values
     await loadRun(runId)
