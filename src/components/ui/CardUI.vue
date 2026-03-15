@@ -27,6 +27,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useId } from '@/composables/internal/useId'
 import { useAccessibilityStore } from '@/stores/accessibility'
 
 // Props with accessibility support
@@ -63,10 +64,9 @@ const props = withDefaults(defineProps<Props>(), {
 // Accessibility store for theme classes
 const accessibilityStore = useAccessibilityStore()
 
-// Generate unique ID for title if provided
-const titleId = computed(() => {
-  return props.title ? `card-title-${Math.random().toString(36).substr(2, 9)}` : undefined
-})
+// Keep the heading ID stable for the life of this component instance.
+const generatedTitleId = useId('card-title')
+const titleId = computed(() => (props.title ? generatedTitleId : undefined))
 
 // Computed classes for styling
 const cardClasses = computed(() => {

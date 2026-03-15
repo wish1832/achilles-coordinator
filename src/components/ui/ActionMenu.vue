@@ -52,7 +52,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { useId } from '@/composables/internal/useId'
 import { useAccessibilityStore } from '@/stores/accessibility'
 
 // Interface for menu items
@@ -90,9 +91,8 @@ const menuRef = ref<HTMLUListElement>()
 const isOpen = ref(false)
 const activeIndex = ref(-1)
 
-// Generate unique ID for accessibility associations
-const uniqueId = Math.random().toString(36).substring(2, 9)
-const menuId = computed(() => `action-menu-${uniqueId}`)
+// Generate the menu ID once so the trigger keeps a stable aria-controls target.
+const menuId = useId('action-menu')
 
 /**
  * Toggle the menu open/closed

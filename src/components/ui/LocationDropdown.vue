@@ -168,6 +168,7 @@ Accessibility Features:
 -->
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { useId } from '@/composables/internal/useId'
 import { useAccessibilityStore } from '@/stores/accessibility'
 import type { Location } from '@/types'
 
@@ -213,11 +214,10 @@ const accessibilityStore = useAccessibilityStore()
 const isOpen = ref(false)
 const activeIndex = ref(-1)
 
-// Generate unique IDs for accessibility associations
-const uniqueId = Math.random().toString(36).substring(2, 9)
-const buttonId = computed(() => `location-dropdown-button-${uniqueId}`)
-const listboxId = computed(() => `location-dropdown-listbox-${uniqueId}`)
-const labelId = computed(() => `location-dropdown-label-${uniqueId}`)
+// Generate IDs once so label, trigger, and listbox references remain stable.
+const buttonId = useId('location-dropdown-button')
+const listboxId = useId('location-dropdown-listbox')
+const labelId = useId('location-dropdown-label')
 
 // Computed: whether there's an error state
 const hasError = computed(() => props.error || !!props.errorMessage)
@@ -225,7 +225,7 @@ const hasError = computed(() => props.error || !!props.errorMessage)
 // Computed: ID of the currently active option for aria-activedescendant
 const activeDescendantId = computed(() => {
   if (!isOpen.value || activeIndex.value < 0) return undefined
-  return `${listboxId.value}-option-${activeIndex.value}`
+  return `${listboxId}-option-${activeIndex.value}`
 })
 
 // Computed: the currently selected location object
@@ -312,7 +312,7 @@ function selectLocation(location: Location): void {
 function scrollActiveOptionIntoView(): void {
   if (activeIndex.value < 0) return
 
-  const optionId = `${listboxId.value}-option-${activeIndex.value}`
+  const optionId = `${listboxId}-option-${activeIndex.value}`
   const optionElement = document.getElementById(optionId)
   optionElement?.scrollIntoView({ block: 'nearest' })
 }

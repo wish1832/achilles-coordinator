@@ -106,7 +106,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useId } from '@/composables/internal/useId'
 import { useAccessibilityStore } from '@/stores/accessibility'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 
@@ -116,9 +117,9 @@ const accessibilityStore = useAccessibilityStore()
 // State
 const isOpen = ref(false)
 
-// Generate unique IDs for accessibility
-const panelTitleId = computed(() => 'accessibility-panel-title')
-const panelDescriptionId = computed(() => 'accessibility-panel-description')
+// Use instance-specific IDs so multiple panels do not collide.
+const panelTitleId = useId('accessibility-panel-title')
+const panelDescriptionId = useId('accessibility-panel-description')
 
 // Event handlers
 function togglePanel(): void {

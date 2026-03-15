@@ -106,6 +106,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useId } from '@/composables/internal/useId'
 import ModalElement from '@/components/ui/ModalElement.vue'
 import SelectInput from '@/components/ui/SelectInput.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
@@ -164,9 +165,9 @@ const activity = ref<SignUpActivity | null>(null)
 const paceMinutes = ref<number | undefined>(undefined)
 const paceSeconds = ref<number | undefined>(undefined)
 
-// Generate unique IDs for accessibility
-const minutesSelectId = computed(() => `pace-minutes-${Math.random().toString(36).substring(2, 11)}`)
-const secondsSelectId = computed(() => `pace-seconds-${Math.random().toString(36).substring(2, 11)}`)
+// Keep the select IDs stable so the external labels remain correctly associated.
+const minutesSelectId = useId('pace-minutes')
+const secondsSelectId = useId('pace-seconds')
 
 // Attendance options
 const attendanceOptions = [

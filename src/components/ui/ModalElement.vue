@@ -65,6 +65,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
+import { useId } from '@/composables/internal/useId'
 import { useAccessibilityStore } from '@/stores/accessibility'
 import AchillesButton from './AchillesButton.vue'
 
@@ -118,13 +119,11 @@ const inertedElements: Set<Element> = new Set()
 // Accessibility store
 const accessibilityStore = useAccessibilityStore()
 
-// Generate unique IDs for accessibility
-const titleId = computed(() =>
-  props.title ? `modal-title-${Math.random().toString(36).substr(2, 9)}` : undefined,
-)
-const descriptionId = computed(() =>
-  props.description ? `modal-description-${Math.random().toString(36).substr(2, 9)}` : undefined,
-)
+// Generate IDs once so dialog relationships stay stable while the modal rerenders.
+const generatedTitleId = useId('modal-title')
+const generatedDescriptionId = useId('modal-description')
+const titleId = computed(() => (props.title ? generatedTitleId : undefined))
+const descriptionId = computed(() => (props.description ? generatedDescriptionId : undefined))
 
 // Computed classes
 const overlayClasses = computed(() => {
