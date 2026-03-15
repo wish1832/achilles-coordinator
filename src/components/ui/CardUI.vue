@@ -1,7 +1,7 @@
 <template>
   <article
     :class="cardClasses"
-    :aria-labelledby="ariaLabelledby"
+    :aria-labelledby="resolvedAriaLabelledby"
     :aria-describedby="ariaDescribedby"
     :role="role"
   >
@@ -65,8 +65,8 @@ const props = withDefaults(defineProps<Props>(), {
 const accessibilityStore = useAccessibilityStore()
 
 // Keep the heading ID stable for the life of this component instance.
-const generatedTitleId = useId('card-title')
-const titleId = computed(() => (props.title ? generatedTitleId : undefined))
+const titleId = useId('card-title')
+const resolvedAriaLabelledby = computed(() => props.ariaLabelledby || (props.title ? titleId : undefined))
 
 // Computed classes for styling
 const cardClasses = computed(() => {

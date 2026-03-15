@@ -6,7 +6,7 @@
     @close="$emit('close')"
   >
     <div class="instructions-content">
-      <h3 class="instructions-subheading" tabindex="-1" autofocus>
+      <h3 class="instructions-subheading" tabindex="-1" data-dialog-initial-focus>
         Pairing Athletes with Guides
       </h3>
       <ol class="instructions-list">

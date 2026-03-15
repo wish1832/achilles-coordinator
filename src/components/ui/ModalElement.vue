@@ -6,8 +6,8 @@
       :class="overlayClasses"
       role="dialog"
       :aria-modal="true"
-      :aria-labelledby="titleId"
-      :aria-describedby="descriptionId"
+      :aria-labelledby="title ? titleId : undefined"
+      :aria-describedby="description ? descriptionId : undefined"
       @click="handleOverlayClick"
       @keydown="handleKeydown"
     >
@@ -22,8 +22,8 @@
         <!-- Modal header -->
         <header v-if="title || $slots.header" class="modal__header">
           <slot name="header">
-            <h2 :id="titleId" class="modal__title">{{ title }}</h2>
-            <p v-if="description" :id="descriptionId" class="modal__description">
+            <h2 v-if="title" :id="titleId" class="modal__title" tabindex="-1">{{ title }}</h2>
+            <p v-if="description" :id="descriptionId" class="modal__description" tabindex="-1">
               {{ description }}
             </p>
           </slot>
@@ -120,10 +120,8 @@ const inertedElements: Set<Element> = new Set()
 const accessibilityStore = useAccessibilityStore()
 
 // Generate IDs once so dialog relationships stay stable while the modal rerenders.
-const generatedTitleId = useId('modal-title')
-const generatedDescriptionId = useId('modal-description')
-const titleId = computed(() => (props.title ? generatedTitleId : undefined))
-const descriptionId = computed(() => (props.description ? generatedDescriptionId : undefined))
+const titleId = useId('modal-title')
+const descriptionId = useId('modal-description')
 
 // Computed classes
 const overlayClasses = computed(() => {
@@ -186,15 +184,27 @@ watch(
       await nextTick()
 
       // Prefer an explicit [autofocus] target when provided by a modal consumer.
-      // Otherwise, focus the first interactive control. If none exist, focus the
-      // dialog container itself so keyboard and screen reader users are moved in.
+      // For content-heavy dialogs, allow a static reading target via
+      // [data-dialog-initial-focus] with tabindex="-1". Otherwise, focus the
+      // first interactive control. If none exist, fall back to dialog text
+      // before finally focusing the dialog container itself.
       const autofocusElement = modalRef.value?.querySelector<HTMLElement>('[autofocus]')
-      const focusableElements = modalRef.value?.querySelectorAll<HTMLElement>(
+      const initialFocusElement =
+        modalRef.value?.querySelector<HTMLElement>('[data-dialog-initial-focus]')
+      // Find all tabbable elements inside the modal, excluding those with tabindex="-1".
+      // Elements with tabindex="-1" are intentionally removed from the tab order, so
+      // they should not be treated as the default interactive landing point.
+      const tabbableElements = modalRef.value?.querySelectorAll<HTMLElement>(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
       )
-      const firstFocusableElement = focusableElements?.[0]
+      const firstTabbableElement = tabbableElements?.[0]
+      const titleElement = modalRef.value?.querySelector<HTMLElement>(`#${titleId}`)
+      const descriptionElement = modalRef.value?.querySelector<HTMLElement>(`#${descriptionId}`)
       if (autofocusElement) autofocusElement.focus()
-      else if (firstFocusableElement) firstFocusableElement.focus()
+      else if (initialFocusElement) initialFocusElement.focus()
+      else if (firstTabbableElement) firstTabbableElement.focus()
+      else if (titleElement) titleElement.focus()
+      else if (descriptionElement) descriptionElement.focus()
       else modalRef.value?.focus()
 
       // Mark all sibling elements as inert so focus stays within the modal
