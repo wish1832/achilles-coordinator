@@ -23,6 +23,24 @@
       </div>
     </header>
 
+    <!-- Success toast shown after saving run edits -->
+    <div
+      v-if="showSuccessToast"
+      class="success-toast"
+      role="status"
+      aria-live="polite"
+    >
+      <font-awesome-icon icon="circle-check" aria-hidden="true" class="success-toast__icon" />
+      <span class="success-toast__message">Run updated successfully</span>
+      <button
+        class="success-toast__dismiss"
+        aria-label="Dismiss notification"
+        @click="dismissToast"
+      >
+        &times;
+      </button>
+    </div>
+
     <!-- Main content -->
     <main id="main-content" class="run-main">
       <div class="run-content">
@@ -140,7 +158,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onActivated, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
@@ -173,6 +191,21 @@ const error = ref<string | null>(null)
 // RSVP Modal state
 const isRSVPModalOpen = ref(false)
 const isEditingRSVP = ref(false)
+
+// Success toast state — shown after navigating back from a successful edit
+const showSuccessToast = ref(false)
+let toastDismissTimer: ReturnType<typeof setTimeout> | null = null
+
+/**
+ * Dismiss the success toast and clear the auto-dismiss timer.
+ */
+function dismissToast(): void {
+  showSuccessToast.value = false
+  if (toastDismissTimer) {
+    clearTimeout(toastDismissTimer)
+    toastDismissTimer = null
+  }
+}
 
 // Get the run ID from the route parameter
 const runId = computed(() => route.params.id as string)
@@ -361,10 +394,27 @@ function navigateToPairings(): void {
   router.push(`/organizations/${runsStore.currentRun.organizationId}/runs/${runId.value}/pairing`)
 }
 
-// Initialize on mount
-// Load all run data when the component mounts
+// Initialize on mount — load all run data
 onMounted(() => {
   loadRunData()
+})
+
+// Check for a pending success toast each time the component is re-activated.
+// With <KeepAlive> in App.vue, onMounted only fires once; onActivated fires
+// every time the user navigates back to this view.
+onActivated(() => {
+  if (runsStore.editRunSaveSuccess) {
+    showSuccessToast.value = true
+    runsStore.editRunSaveSuccess = false
+    toastDismissTimer = setTimeout(dismissToast, 8000)
+  }
+})
+
+// Clean up the auto-dismiss timer if the component unmounts before it fires
+onBeforeUnmount(() => {
+  if (toastDismissTimer) {
+    clearTimeout(toastDismissTimer)
+  }
 })
 </script>
 
@@ -645,5 +695,69 @@ onMounted(() => {
   .detail-label {
     min-width: auto;
   }
+}
+
+/* Success toast */
+.success-toast {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0.75rem 1rem;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 0.5rem;
+  color: var(--color-success, #008b00);
+  font-weight: 500;
+  animation: toast-slide-down 0.3s ease-out;
+}
+
+.success-toast__icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.success-toast__message {
+  flex: 1;
+}
+
+.success-toast__dismiss {
+  background: none;
+  border: none;
+  color: var(--color-success, #008b00);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  flex-shrink: 0;
+}
+
+.success-toast__dismiss:hover {
+  background-color: #dcfce7;
+}
+
+@keyframes toast-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* High contrast mode */
+.high-contrast .success-toast {
+  background-color: #ffffff;
+  border-color: var(--color-success, #008b00);
+  border-width: 2px;
+}
+
+/* Reduced motion — no animation */
+.reduced-motion .success-toast {
+  animation: none;
 }
 </style>
