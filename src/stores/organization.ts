@@ -506,7 +506,7 @@ export const useOrganizationStore = defineStore('organization', () => {
       }
 
       // Use the existing updateOrganization method to persist changes
-      await dataRepository.updateOrganization(organizationId, updates)
+      await organizationRepository.updateOrganization(organizationId, updates)
 
       // Update local state
       const index = organizations.value.findIndex((org) => org.id === organizationId)
