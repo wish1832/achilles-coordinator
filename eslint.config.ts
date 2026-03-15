@@ -35,5 +35,14 @@ export default defineConfigWithVueTs(
       'cypress/support/**/*.{js,ts,jsx,tsx}'
     ],
   },
+  // Firebase Cloud Functions uses CommonJS (require/module.exports), so
+  // disable the TypeScript-only no-require-imports rule for that directory.
+  {
+    name: 'functions/commonjs-compat',
+    files: ['functions/**/*.js'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
   skipFormatting,
 )
