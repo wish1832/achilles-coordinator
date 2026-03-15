@@ -111,7 +111,9 @@ const emit = defineEmits<Emits>()
 // Refs
 const modalRef = ref<HTMLElement>()
 const previouslyFocusedElement = ref<HTMLElement | null>(null)
-let cleanupFocusTrap: (() => void) | null = null
+
+// Tracks elements we've marked inert so we can restore them when the modal closes
+const inertedElements: Set<Element> = new Set()
 
 // Accessibility store
 const accessibilityStore = useAccessibilityStore()
@@ -133,41 +135,26 @@ const modalClasses = computed(() => {
   return [`modal--${props.size}`, `modal--${props.variant}`].join(' ')
 })
 
-// Focus management
-function trapFocus() {
-  if (!modalRef.value) return
+// Inert management — marks all sibling elements of the modal overlay as inert
+// so the browser natively prevents focus from leaving the modal.
+function setInert() {
+  const overlay = modalRef.value?.closest('.modal-overlay')
+  if (!overlay?.parentElement) return
 
-  const focusableElements = modalRef.value.querySelectorAll(
-    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-  )
-
-  const firstElement = focusableElements[0] as HTMLElement
-  const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
-
-  function handleTabKey(e: KeyboardEvent) {
-    if (e.key !== 'Tab') return
-
-    if (e.shiftKey) {
-      // Shift + Tab
-      if (document.activeElement === firstElement) {
-        e.preventDefault()
-        lastElement?.focus()
-      }
-    } else {
-      // Tab
-      if (document.activeElement === lastElement) {
-        e.preventDefault()
-        firstElement?.focus()
-      }
-    }
+  for (const sibling of overlay.parentElement.children) {
+    if (sibling === overlay) continue
+    if (sibling.hasAttribute('inert')) continue
+    sibling.setAttribute('inert', '')
+    inertedElements.add(sibling)
   }
+}
 
-  modalRef.value.addEventListener('keydown', handleTabKey)
-
-  // Return cleanup function
-  return () => {
-    modalRef.value?.removeEventListener('keydown', handleTabKey)
+// Removes the inert attribute from all elements we previously marked
+function clearInert() {
+  for (const element of inertedElements) {
+    element.removeAttribute('inert')
   }
+  inertedElements.clear()
 }
 
 // Event handlers
@@ -211,12 +198,11 @@ watch(
       else if (firstFocusableElement) firstFocusableElement.focus()
       else modalRef.value?.focus()
 
-      // Set up focus trap
-      cleanupFocusTrap = trapFocus() ?? null
+      // Mark all sibling elements as inert so focus stays within the modal
+      setInert()
     } else {
-      // Clean up focus trap listeners when the modal closes.
-      cleanupFocusTrap?.()
-      cleanupFocusTrap = null
+      // Remove inert from sibling elements when the modal closes
+      clearInert()
 
       // Restore focus to previously focused element
       if (previouslyFocusedElement.value) {
@@ -248,8 +234,7 @@ watch(
 
 // Cleanup on unmount
 onUnmounted(() => {
-  cleanupFocusTrap?.()
-  cleanupFocusTrap = null
+  clearInert()
   unlockBodyScroll()
 })
 </script>
