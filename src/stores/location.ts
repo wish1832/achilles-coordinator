@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { useDataRepository } from '@/composables/useRepositories'
+import { useOrganizationRepository } from '@/composables/useRepositories'
 import type { Location, LoadingState } from '@/types'
 
 /**
@@ -11,7 +11,7 @@ import type { Location, LoadingState } from '@/types'
 export const useLocationStore = defineStore('location', () => {
   // Get repository instance via dependency injection
   // This allows for easy testing with mock implementations
-  const dataRepository = useDataRepository()
+  const organizationRepository = useOrganizationRepository()
 
   // State
   // All locations currently loaded in memory
@@ -57,7 +57,7 @@ export const useLocationStore = defineStore('location', () => {
   // Actions
 
   /**
-   * Load all locations for a specific organization from Firestore
+   * Load all locations for a specific organization from a backend
    * Sets locations state with all locations for the organization, ordered by name
    * @param organizationId - Organization ID to load locations for
    */
@@ -68,8 +68,8 @@ export const useLocationStore = defineStore('location', () => {
       loading.value = 'loading'
       error.value = null
 
-      // Fetch locations from Firestore via repository
-      const locs = await dataRepository.getLocationsForOrganization(organizationId)
+      // Fetch locations from a backend via repository
+      const locs = await organizationRepository.getLocationsForOrganization(organizationId)
 
       // Check if this is still the latest request (race condition check)
       if (flight !== loadSequence.value) return
@@ -104,8 +104,8 @@ export const useLocationStore = defineStore('location', () => {
       loading.value = 'loading'
       error.value = null
 
-      // Fetch location from Firestore via repository
-      const loc = await dataRepository.getLocation(id)
+      // Fetch location from a backend via repository
+      const loc = await organizationRepository.getLocation(id)
 
       if (!loc) {
         throw new Error(`Location with id ${id} not found`)
@@ -140,8 +140,8 @@ export const useLocationStore = defineStore('location', () => {
       loading.value = 'loading'
       error.value = null
 
-      // Create location in Firestore via repository
-      const id = await dataRepository.createLocation(locationData)
+      // Create location in a backend via repository
+      const id = await organizationRepository.createLocation(locationData)
 
       // Reload locations for the organization to include the new one
       if (locationData.organizationId) {
@@ -170,8 +170,8 @@ export const useLocationStore = defineStore('location', () => {
       loading.value = 'loading'
       error.value = null
 
-      // Update location in Firestore via repository
-      await dataRepository.updateLocation(id, updates)
+      // Update location in a backend via repository
+      await organizationRepository.updateLocation(id, updates)
 
       // Update local state
       const index = locations.value.findIndex((loc) => loc.id === id)
@@ -201,8 +201,8 @@ export const useLocationStore = defineStore('location', () => {
       loading.value = 'loading'
       error.value = null
 
-      // Delete location from Firestore via repository
-      await dataRepository.deleteLocation(id)
+      // Delete location from a backend via repository
+      await organizationRepository.deleteLocation(id)
 
       // Remove from local state
       locations.value = locations.value.filter((loc) => loc.id !== id)
