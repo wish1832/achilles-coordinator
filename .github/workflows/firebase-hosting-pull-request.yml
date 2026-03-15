@@ -38,9 +38,11 @@ jobs:
           node-version: "24"
           cache: "pnpm" # Enable caching for faster builds
 
-      - name: Build Project
+      - name: Validate and Build Project
         run: |
-          pnpm install --frozen-lockfile && pnpm build
+          pnpm install --frozen-lockfile
+          pnpm presubmit
+          pnpm build-only
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0

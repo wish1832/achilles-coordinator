@@ -3,6 +3,9 @@
     <!-- Skip link for keyboard navigation -->
     <a href="#main-content" class="skip-link">Skip to main content</a>
 
+    <!-- Hidden page heading remains available before the visible title is rendered. -->
+    <h1 class="sr-only">Organization Settings</h1>
+
     <!-- Loading state -->
     <LoadingUI
       v-if="organizationLoading === 'loading'"

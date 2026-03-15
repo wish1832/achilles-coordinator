@@ -3,6 +3,9 @@
     <!-- Skip link for keyboard navigation -->
     <a href="#main-content" class="skip-link">Skip to main content</a>
 
+    <!-- Hidden page heading keeps a level-one heading available during loading and fallback states. -->
+    <h1 class="sr-only">Create Run</h1>
+
     <!-- Loading state for initial data -->
     <LoadingUI
       v-if="pageLoading === 'loading'"

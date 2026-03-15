@@ -3,6 +3,9 @@
     <!-- Skip link for keyboard navigation -->
     <a href="#main-content" class="skip-link">Skip to main content</a>
 
+    <!-- Hidden page heading keeps a level-one heading available during loading and fallback states. -->
+    <h1 class="sr-only">Edit Run</h1>
+
     <!-- Loading state for initial data -->
     <LoadingUI
       v-if="pageLoading === 'loading'"
@@ -23,7 +26,7 @@
       <!-- Header with organization name -->
       <header class="edit-run-header">
         <div class="edit-run-header__content">
-          <h1 class="edit-run-title">Edit Run</h1>
+          <h1 class="edit-run-title">Edit {{ editRunTitle }}</h1>
           <p class="edit-run-subtitle">{{ organization.name }}</p>
         </div>
       </header>
@@ -245,6 +248,16 @@ const runId = computed(() => route.params.id as string)
 
 // Get current organization from store
 const organization = computed(() => organizationStore.getOrganizationById(orgId.value))
+
+// Show the current location name in the page title so the edit screen identifies the run clearly.
+const editRunTitle = computed(() => {
+  const locationId = runsStore.draftRunLocationId || runsStore.currentRun?.locationId
+  if (!locationId) {
+    return 'Run'
+  }
+
+  return locationStore.getLocationById(locationId)?.name || 'Run'
+})
 
 // Loading state for page initialization
 const pageLoading = ref<LoadingState>('idle')
