@@ -193,27 +193,32 @@ export const useRunsStore = defineStore('runs', () => {
       const month = dateParts[1]!
       const day = dateParts[2]!
       // month - 1 because JS Date months are zero-indexed (0 = Jan, 1 = Feb, etc.)
-      const updates: Partial<Omit<Run, 'id'>> = {
+      // Allow null values for optional fields — the repository layer interprets
+      // null as "remove this field from the document" (Firestore deleteField()).
+      type ClearableFields = 'maxAthletes' | 'maxGuides' | 'notes'
+      const updates: Omit<Partial<Omit<Run, 'id'>>, ClearableFields> & {
+        maxAthletes?: number | null
+        maxGuides?: number | null
+        notes?: string | null
+      } = {
         date: new Date(year, month - 1, day),
         time: draftRunTime.value,
         locationId: draftRunLocationId.value,
         description: draftRunDescription.value.trim(),
-        updatedAt: new Date(),
       }
 
-      // Only include optional fields if they have values
-      if (draftRunMaxAthletes.value !== undefined) {
-        updates.maxAthletes = draftRunMaxAthletes.value
-      }
-      if (draftRunMaxGuides.value !== undefined) {
-        updates.maxGuides = draftRunMaxGuides.value
-      }
-      if (draftRunNotes.value) {
-        updates.notes = draftRunNotes.value.trim()
-      }
+      // Include optional fields: pass the value when set, or null to clear
+      // a previously stored value from the database.
+      updates.maxAthletes = draftRunMaxAthletes.value ?? null
+      updates.maxGuides = draftRunMaxGuides.value ?? null
+
+      // Normalize empty or whitespace-only notes to null so the field
+      // is removed rather than stored as an empty string.
+      const trimmedNotes = draftRunNotes.value?.trim()
+      updates.notes = trimmedNotes || null
 
       // Persist to the database
-      await dataRepository.updateRun(runId, updates)
+      await dataRepository.updateRun(runId, updates as Partial<Omit<Run, 'id'>>)
 
       // Reload the run so local state reflects the saved values
       await loadRun(runId)

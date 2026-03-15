@@ -2,6 +2,7 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -81,9 +82,16 @@ export class FirestoreCollectionHelper {
   ): Promise<void> {
     try {
       const docRef = doc(this.getDb(), collectionName, id)
-      await updateDoc(docRef, {
-        ...this.withTimestamps(data, options),
-      })
+
+      // Convert null values to Firestore deleteField() sentinels so that
+      // callers can use null to mean "remove this field from the document".
+      const timestamped = this.withTimestamps(data, options)
+      const payload: Record<string, unknown> = {}
+      for (const [key, value] of Object.entries(timestamped as Record<string, unknown>)) {
+        payload[key] = value === null ? deleteField() : value
+      }
+
+      await updateDoc(docRef, payload)
     } catch (error) {
       console.error(`Error updating document ${id} in ${collectionName}:`, error)
       throw error
