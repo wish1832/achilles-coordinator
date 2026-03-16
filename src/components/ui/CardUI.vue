@@ -66,7 +66,7 @@ const accessibilityStore = useAccessibilityStore()
 
 // Keep the heading ID stable for the life of this component instance.
 const titleId = useId('card-title')
-const resolvedAriaLabelledby = computed(() => props.ariaLabelledby || (props.title ? titleId : undefined))
+const resolvedAriaLabelledby = titleId 
 
 // Computed classes for styling
 const cardClasses = computed(() => {
