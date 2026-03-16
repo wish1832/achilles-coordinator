@@ -7,12 +7,7 @@
     <h1 class="sr-only">Edit Run</h1>
 
     <!-- Loading state for initial data -->
-    <LoadingUI
-      v-if="pageLoading === 'loading'"
-      type="spinner"
-      text="Loading run..."
-      centered
-    />
+    <LoadingUI v-if="pageLoading === 'loading'" type="spinner" text="Loading run..." centered />
 
     <!-- Error state for initial data loading -->
     <div v-else-if="pageLoading === 'error'" class="edit-run-error">
@@ -26,7 +21,8 @@
       <!-- Header with organization name -->
       <header class="edit-run-header">
         <div class="edit-run-header__content">
-          <h1 class="edit-run-title">Edit {{ editRunTitle }}</h1>
+          <h1 class="edit-run-title">Edit Run</h1>
+          <p class="edit-run-subtitle">{{ editRunTitle }}, {{ formattedRunDateTime }}</p>
           <p class="edit-run-subtitle">{{ organization.name }}</p>
         </div>
       </header>
@@ -113,16 +109,19 @@
                   @blur="validateField('description')"
                   @input="markDirty"
                 />
-                <div v-if="errors.description" id="description-error" class="form-error" role="alert">
+                <div
+                  v-if="errors.description"
+                  id="description-error"
+                  class="form-error"
+                  role="alert"
+                >
                   {{ errors.description }}
                 </div>
               </div>
 
               <!-- Max Athletes - optional -->
               <div class="form-field">
-                <label for="maxAthletes" class="form-label">
-                  Maximum Athletes
-                </label>
+                <label for="maxAthletes" class="form-label"> Maximum Athletes </label>
                 <input
                   id="maxAthletes"
                   v-model.number="runsStore.draftRunMaxAthletes"
@@ -131,11 +130,18 @@
                   class="form-input"
                   :class="{ 'form-input--error': errors.maxAthletes }"
                   :aria-invalid="!!errors.maxAthletes"
-                  :aria-describedby="errors.maxAthletes ? 'maxAthletes-error' : 'maxAthletes-helper'"
+                  :aria-describedby="
+                    errors.maxAthletes ? 'maxAthletes-error' : 'maxAthletes-helper'
+                  "
                   @blur="validateField('maxAthletes')"
                   @input="markDirty"
                 />
-                <div v-if="errors.maxAthletes" id="maxAthletes-error" class="form-error" role="alert">
+                <div
+                  v-if="errors.maxAthletes"
+                  id="maxAthletes-error"
+                  class="form-error"
+                  role="alert"
+                >
                   {{ errors.maxAthletes }}
                 </div>
                 <div v-else id="maxAthletes-helper" class="form-helper">
@@ -145,9 +151,7 @@
 
               <!-- Max Guides - optional -->
               <div class="form-field">
-                <label for="maxGuides" class="form-label">
-                  Maximum Guides
-                </label>
+                <label for="maxGuides" class="form-label"> Maximum Guides </label>
                 <input
                   id="maxGuides"
                   v-model.number="runsStore.draftRunMaxGuides"
@@ -163,16 +167,12 @@
                 <div v-if="errors.maxGuides" id="maxGuides-error" class="form-error" role="alert">
                   {{ errors.maxGuides }}
                 </div>
-                <div v-else id="maxGuides-helper" class="form-helper">
-                  Leave blank for no limit
-                </div>
+                <div v-else id="maxGuides-helper" class="form-helper">Leave blank for no limit</div>
               </div>
 
               <!-- Notes - optional -->
               <div class="form-field">
-                <label for="notes" class="form-label">
-                  Additional Notes
-                </label>
+                <label for="notes" class="form-label"> Additional Notes </label>
                 <textarea
                   id="notes"
                   v-model="runsStore.draftRunNotes"
@@ -188,11 +188,7 @@
 
               <!-- Form actions: Cancel and Save Changes buttons -->
               <div class="form-actions">
-                <AchillesButton
-                  type="button"
-                  variant="secondary"
-                  @click="handleCancel"
-                >
+                <AchillesButton type="button" variant="secondary" @click="handleCancel">
                   Cancel
                 </AchillesButton>
                 <AchillesButton
@@ -206,7 +202,11 @@
               </div>
 
               <!-- Global error message for submission failures -->
-              <div v-if="runsStore.editRunSaveError" class="form-error form-error--global" role="alert">
+              <div
+                v-if="runsStore.editRunSaveError"
+                class="form-error form-error--global"
+                role="alert"
+              >
                 {{ runsStore.editRunSaveError }}
               </div>
             </form>
@@ -257,6 +257,73 @@ const editRunTitle = computed(() => {
   }
 
   return locationStore.getLocationById(locationId)?.name || 'Run'
+})
+
+// Format the run's date and time for display in the subtitle.
+// Uses the draft values (which are initialized from the current run on load).
+const formattedRunDateTime = computed(() => {
+  const date = runsStore.draftRunDate || runsStore.currentRun?.date
+  const time = runsStore.draftRunTime || runsStore.currentRun?.time
+
+  if (!date) {
+    return ''
+  }
+
+  // Convert date to string if it's a Date object
+  let dateString: string | undefined
+  if (typeof date === 'string') {
+    dateString = date
+  } else if (date instanceof Date) {
+    dateString = date.toISOString().split('T')[0]
+  }
+
+  if (!dateString) {
+    return ''
+  }
+
+  // Parse the date string (YYYY-MM-DD) into a readable format
+  const dateParts = dateString.split('-').map(Number)
+  if (dateParts.length !== 3 || dateParts.some(isNaN)) {
+    return ''
+  }
+
+  const year = dateParts[0] as number
+  const month = dateParts[1] as number
+  const day = dateParts[2] as number
+  const dateObj = new Date(year, month - 1, day)
+  const formattedDate = dateObj.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
+
+  if (!time) {
+    return formattedDate
+  }
+
+  // Parse the time string (HH:MM) into a readable format
+  let timeString: string
+  if (typeof time === 'string') {
+    timeString = time
+  } else {
+    timeString = String(time)
+  }
+
+  const timeParts = timeString.split(':').map(Number)
+  if (timeParts.length < 2 || timeParts.some(isNaN)) {
+    return formattedDate
+  }
+
+  const hours = timeParts[0] as number
+  const minutes = timeParts[1] as number
+  const timeObj = new Date(0, 0, 0, hours, minutes)
+  const formattedTime = timeObj.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+
+  return `${formattedDate} at ${formattedTime}`
 })
 
 // Loading state for page initialization
