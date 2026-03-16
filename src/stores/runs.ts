@@ -251,6 +251,23 @@ export const useRunsStore = defineStore('runs', () => {
     await loadRun(runId)
   }
 
+  /**
+   * Delete a run by ID.
+   * Removes the run from the database and clears it from local store state.
+   * @param runId - The ID of the run to delete
+   */
+  async function deleteRun(runId: string): Promise<void> {
+    await runRepository.deleteRun(runId)
+
+    // Remove from local runs array
+    runs.value = runs.value.filter((r) => r.id !== runId)
+
+    // Clear currentRun if it was the deleted run
+    if (currentRun.value?.id === runId) {
+      currentRun.value = null
+    }
+  }
+
   function clearError(): void {
     error.value = null
   }
@@ -266,6 +283,7 @@ export const useRunsStore = defineStore('runs', () => {
     setCurrentRun,
     isUserRunAdmin,
     clearError,
+    deleteRun,
     // Edit run draft state
     draftRunDate,
     draftRunTime,
