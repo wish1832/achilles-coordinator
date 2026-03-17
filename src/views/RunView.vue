@@ -118,7 +118,10 @@
             <!-- Run Admins -->
             <div class="detail-section">
               <h3 class="subsection-title">Run Organizers:</h3>
-              <ul v-if="adminNames.length > 0" class="admin-list">
+              <p v-if="isAdminUsersLoading && adminIds.length > 0" class="no-data">
+                Loading organizers...
+              </p>
+              <ul v-else-if="adminNames.length > 0" class="admin-list">
                 <li v-for="(name, index) in adminNames" :key="index" class="admin-item">
                   {{ name }}
                 </li>
@@ -243,8 +246,8 @@ import { useLocationStore } from '@/stores/location'
 import { useOrganizationStore } from '@/stores/organization'
 import { useSignUpsStore } from '@/stores/signups'
 import { useAuthStore } from '@/stores/auth'
-import { useUsersStore } from '@/stores/users'
 import { useAdminCapabilities } from '@/composables/useAdminCapabilities'
+import { useUsersByIdsQuery } from '@/composables/queries/useUsersByIdsQuery'
 import type { Location, LoadingState } from '@/types'
 
 // Router and stores
@@ -255,7 +258,6 @@ const locationStore = useLocationStore()
 const organizationStore = useOrganizationStore()
 const signUpsStore = useSignUpsStore()
 const authStore = useAuthStore()
-const usersStore = useUsersStore()
 const { canManageRun } = useAdminCapabilities()
 
 // Local state for tracking loading and errors
@@ -370,12 +372,12 @@ const adminIds = computed(() => {
   )
 })
 
+const adminUsersQuery = useUsersByIdsQuery(adminIds)
+const isAdminUsersLoading = computed(() => adminUsersQuery.isPending.value)
+
 // Get the display names of the admins
 const adminNames = computed(() => {
-  return adminIds.value
-    .map((id) => usersStore.getUserById(id))
-    .filter((user) => user !== undefined)
-    .map((user) => user!.displayName)
+  return (adminUsersQuery.data.value ?? []).map((user) => user.displayName)
 })
 
 // Check if the current user can manage this run (is org admin or run admin)
@@ -456,18 +458,6 @@ async function loadRunData(): Promise<void> {
 
     // Load the organization for this run
     await organizationStore.loadOrganization(runsStore.currentRun.organizationId)
-
-    // Determine which admin IDs to load
-    // Use run-specific admins if available, otherwise use org admins
-    let adminIdsToLoad: string[] = []
-    if (runsStore.currentRun.runAdminIds && runsStore.currentRun.runAdminIds.length > 0) {
-      adminIdsToLoad = runsStore.currentRun.runAdminIds
-    } else if (organization.value) {
-      adminIdsToLoad = organization.value.adminIds
-    }
-
-    // Load admin user data for all admin IDs
-    await usersStore.loadUsers(adminIdsToLoad)
 
     // Load sign-ups for this run
     await signUpsStore.loadSignUpsForRun(runId.value)
