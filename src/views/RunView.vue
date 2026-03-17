@@ -87,31 +87,31 @@
       <div class="run-content">
         <!-- Loading state -->
         <LoadingUI
-          v-if="loading === 'loading'"
+          v-if="isPageLoading"
           type="spinner"
           text="Loading run details..."
           centered
         />
 
         <!-- Error state -->
-        <div v-else-if="loading === 'error'" class="run-error">
+        <div v-else-if="hasPageError" class="run-error">
           <h2>Unable to load run details</h2>
           <p>{{ 'Please try again and contact us if the problem persists.' }}</p>
-          <AchillesButton @click="loadRunData">Try Again</AchillesButton>
+          <AchillesButton @click="retryLoadRunPage">Try Again</AchillesButton>
         </div>
 
         <!-- Run details -->
-        <div v-else-if="runsStore.currentRun" class="run-details-container">
+        <div v-else-if="run" class="run-details-container">
           <CardUI class="run-details-card" title="Run Details">
             <!-- Date and Time -->
             <div class="detail-section">
               <div class="detail-row">
                 <span class="detail-label">Date:</span>
-                <span class="detail-value">{{ formatDate(runsStore.currentRun.date) }}</span>
+                <span class="detail-value">{{ formatDate(run.date) }}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">Time:</span>
-                <span class="detail-value">{{ runsStore.currentRun.time }}</span>
+                <span class="detail-value">{{ run.time }}</span>
               </div>
             </div>
 
@@ -222,7 +222,7 @@
     <!-- RSVP Modal -->
     <RSVPModal
       :is-open="isRSVPModalOpen"
-      :run="runsStore.currentRun"
+      :run="run"
       :location-name="locationName"
       :is-editing="isEditingRSVP"
       :existing-sign-up="existingSignUpData"
@@ -242,27 +242,20 @@ import LoadingUI from '@/components/ui/LoadingUI.vue'
 import ModalElement from '@/components/ui/ModalElement.vue'
 import RSVPModal from '@/components/RSVPModal.vue'
 import { useRunsStore } from '@/stores/runs'
-import { useLocationStore } from '@/stores/location'
-import { useOrganizationStore } from '@/stores/organization'
-import { useSignUpsStore } from '@/stores/signups'
 import { useAuthStore } from '@/stores/auth'
 import { useAdminCapabilities } from '@/composables/useAdminCapabilities'
+import { useRunQuery } from '@/composables/queries/useRunQuery'
+import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
+import { useLocationQuery } from '@/composables/queries/useLocationQuery'
+import { useRunSignUpsQuery } from '@/composables/queries/useRunSignUpsQuery'
 import { useUsersByIdsQuery } from '@/composables/queries/useUsersByIdsQuery'
-import type { Location, LoadingState } from '@/types'
 
 // Router and stores
 const router = useRouter()
 const route = useRoute()
 const runsStore = useRunsStore()
-const locationStore = useLocationStore()
-const organizationStore = useOrganizationStore()
-const signUpsStore = useSignUpsStore()
 const authStore = useAuthStore()
 const { canManageRun } = useAdminCapabilities()
-
-// Local state for tracking loading and errors
-const loading = ref<LoadingState>('idle')
-const error = ref<string | null>(null)
 
 // RSVP Modal state
 const isRSVPModalOpen = ref(false)
@@ -341,23 +334,19 @@ function dismissToast(): void {
 
 // Get the run ID from the route parameter
 const runId = computed(() => route.params.id as string)
+const runQuery = useRunQuery(runId)
+const run = computed(() => runQuery.data.value ?? null)
+const organizationQuery = useOrganizationQuery(computed(() => run.value?.organizationId))
+const organization = computed(() => organizationQuery.data.value ?? undefined)
+const locationQuery = useLocationQuery(computed(() => run.value?.locationId))
+const location = computed(() => locationQuery.data.value ?? undefined)
+const signUpsQuery = useRunSignUpsQuery(runId)
+const signUps = computed(() => signUpsQuery.data.value ?? [])
 
 // Computed properties
 
-// Get the location for the current run
-const location = computed((): Location | undefined => {
-  if (!runsStore.currentRun) return undefined
-  return locationStore.getLocationById(runsStore.currentRun.locationId)
-})
-
 // Get the location name from the loaded location
 const locationName = computed(() => location.value?.name || 'Unknown Location')
-
-// Get the organization for the current run
-const organization = computed(() => {
-  if (!runsStore.currentRun) return undefined
-  return organizationStore.getOrganizationById(runsStore.currentRun.organizationId)
-})
 
 // Get the organization name from the loaded organization
 const organizationName = computed(() => organization.value?.name || 'Unknown Organization')
@@ -366,7 +355,7 @@ const organizationName = computed(() => organization.value?.name || 'Unknown Org
 const adminIds = computed(() => {
   return Array.from(
     new Set([
-      ...(runsStore.currentRun?.runAdminIds ?? []),
+      ...(run.value?.runAdminIds ?? []),
       ...(organization.value?.adminIds ?? []),
     ]),
   )
@@ -382,8 +371,8 @@ const adminNames = computed(() => {
 
 // Check if the current user can manage this run (is org admin or run admin)
 const canUserManageRun = computed(() => {
-  if (!runsStore.currentRun) return false
-  return canManageRun(runsStore.currentRun.organizationId, runsStore.currentRun.runAdminIds)
+  if (!run.value) return false
+  return canManageRun(run.value.organizationId, run.value.runAdminIds)
 })
 
 // Check if the current user has signed up for this run
@@ -394,23 +383,20 @@ const isUserSignedUp = computed(() => {
   }
 
   // Get all sign-ups for this run
-  const signUps = signUpsStore.getSignUpsForRun(runId.value)
-
   // Check if any sign-up with status 'yes' or 'maybe' belongs to the current user
-  return signUps.some(
+  return signUps.value.some(
     (signup) => signup.userId === authStore.currentUser!.id && (signup.status === 'yes' || signup.status === 'maybe'),
   )
 })
 
 // Computed: Get existing sign-up data for editing
 const existingSignUpData = computed(() => {
-  if (!runsStore.currentRun || !authStore.currentUser || !isEditingRSVP.value) {
+  if (!run.value || !authStore.currentUser || !isEditingRSVP.value) {
     return undefined
   }
 
   // Find the user's sign-up for this run
-  const signUps = signUpsStore.getSignUpsForRun(runId.value)
-  const userSignUp = signUps.find(
+  const userSignUp = signUps.value.find(
     (signup) => signup.userId === authStore.currentUser!.id && (signup.status === 'yes' || signup.status === 'maybe'),
   )
 
@@ -437,38 +423,28 @@ function formatDate(date: Date): string {
   return runDate.toLocaleDateString('en-US', options)
 }
 
-// Load all data for the run
-async function loadRunData(): Promise<void> {
-  try {
-    loading.value = 'loading'
-    error.value = null
+const isPageLoading = computed(() => {
+  if (runQuery.isPending.value) return true
+  if (!run.value) return false
+  return organizationQuery.isPending.value || locationQuery.isPending.value || signUpsQuery.isPending.value
+})
 
-    // Load the run by ID using the runs store
-    await runsStore.loadRun(runId.value)
+const hasPageError = computed(() => {
+  return Boolean(
+    runQuery.isError.value ||
+      organizationQuery.isError.value ||
+      locationQuery.isError.value ||
+      signUpsQuery.isError.value,
+  )
+})
 
-    // Check if the run was loaded successfully
-    if (!runsStore.currentRun) {
-      // Run not found
-      loading.value = 'success'
-      return
-    }
-
-    // Load the location for this run
-    await locationStore.loadLocation(runsStore.currentRun.locationId)
-
-    // Load the organization for this run
-    await organizationStore.loadOrganization(runsStore.currentRun.organizationId)
-
-    // Load sign-ups for this run
-    await signUpsStore.loadSignUpsForRun(runId.value)
-
-    loading.value = 'success'
-    lastLoadedRunId = runId.value
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load run details'
-    loading.value = 'error'
-    console.error('Error loading run data:', err)
-  }
+async function retryLoadRunPage(): Promise<void> {
+  await Promise.all([
+    runQuery.refetch(),
+    organizationQuery.refetch(),
+    locationQuery.refetch(),
+    signUpsQuery.refetch(),
+  ])
 }
 
 /**
@@ -645,7 +621,7 @@ function closeDeleteRunModal(): void {
  * Deletes the run via the store, then navigates to the dashboard.
  */
 async function confirmDeleteRun(): Promise<void> {
-  if (!runsStore.currentRun) return
+  if (!run.value) return
 
   try {
     isDeletingRun.value = true
@@ -666,35 +642,24 @@ async function confirmDeleteRun(): Promise<void> {
 
 // Navigate to the edit run page
 function navigateToEditRun(): void {
-  if (!runsStore.currentRun) return
-  router.push(`/organizations/${runsStore.currentRun.organizationId}/runs/${runId.value}/edit`)
+  if (!run.value) return
+  router.push(`/organizations/${run.value.organizationId}/runs/${runId.value}/edit`)
 }
 
 // Navigate to the pairings management page for this run
 function navigateToPairings(): void {
-  if (!runsStore.currentRun) return
-  router.push(`/organizations/${runsStore.currentRun.organizationId}/runs/${runId.value}/pairing`)
+  if (!run.value) return
+  router.push(`/organizations/${run.value.organizationId}/runs/${runId.value}/pairing`)
 }
 
 // Initialize on mount — load all run data and register click-outside listener
 onMounted(() => {
-  loadRunData()
   document.addEventListener('click', handleActionsMenuClickOutside, true)
 })
-
-// Track the last loaded run ID so we can detect when the route changes
-// while the component is cached by <KeepAlive>.
-let lastLoadedRunId: string | null = null
 
 // Re-activate the component each time the user navigates to this view.
 // With <KeepAlive>, onMounted only fires once; onActivated fires every time.
 onActivated(() => {
-  // Reload data if the route points to a different run than what was
-  // previously loaded (e.g. navigating from run-1 to run-2).
-  if (runId.value !== lastLoadedRunId) {
-    loadRunData()
-  }
-
   if (runsStore.editRunSaveSuccess) {
     showSuccessToast.value = true
     runsStore.editRunSaveSuccess = false
