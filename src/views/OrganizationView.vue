@@ -1,5 +1,9 @@
 <template>
   <div class="organization-view">
+
+    <!-- Hidden page heading remains available before the organization name has loaded. -->
+    <h1 class="sr-only">Organization</h1>
+
     <!-- Loading state for organization data -->
     <main v-if="organizationLoading === 'loading'" id="main-content" class="organization-main">
       <LoadingUI type="spinner" text="Loading organization..." centered />

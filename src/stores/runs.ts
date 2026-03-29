@@ -1,14 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { useDataRepository } from '@/composables/useRepositories'
+import { useRunRepository } from '@/composables/useRepositories'
 import type { Run, LoadingState } from '@/types'
 
 /**
  * Runs store using Pinia
- * Centralizes run list loading via the data repository.
+ * Centralizes run list loading via the run repository.
  */
 export const useRunsStore = defineStore('runs', () => {
-  const dataRepository = useDataRepository()
+  const runRepository = useRunRepository()
 
   const runs = ref<Run[]>([])
   const currentRun = ref<Run | null>(null)
@@ -20,7 +20,7 @@ export const useRunsStore = defineStore('runs', () => {
       loading.value = 'loading'
       error.value = null
 
-      runs.value = await dataRepository.getUpcomingRuns()
+      runs.value = await runRepository.getUpcomingRuns()
       loading.value = 'success'
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load runs'
@@ -39,8 +39,8 @@ export const useRunsStore = defineStore('runs', () => {
       loading.value = 'loading'
       error.value = null
 
-      // Fetch run from Firestore via repository
-      const run = await dataRepository.getRun(id)
+      // Fetch run from backend via repository
+      const run = await runRepository.getRun(id)
 
       if (!run) {
         throw new Error(`Run with id ${id} not found`)
@@ -112,7 +112,7 @@ export const useRunsStore = defineStore('runs', () => {
 
     // If not found locally, fetch from the repository
     if (!run) {
-      run = await dataRepository.getRun(runId)
+      run = await runRepository.getRun(runId)
     }
 
     if (!run) {
@@ -193,27 +193,32 @@ export const useRunsStore = defineStore('runs', () => {
       const month = dateParts[1]!
       const day = dateParts[2]!
       // month - 1 because JS Date months are zero-indexed (0 = Jan, 1 = Feb, etc.)
-      const updates: Partial<Omit<Run, 'id'>> = {
+      // Allow null values for optional fields — the repository layer interprets
+      // null as "remove this field from the document" (Firestore deleteField()).
+      type ClearableFields = 'maxAthletes' | 'maxGuides' | 'notes'
+      const updates: Omit<Partial<Omit<Run, 'id'>>, ClearableFields> & {
+        maxAthletes?: number | null
+        maxGuides?: number | null
+        notes?: string | null
+      } = {
         date: new Date(year, month - 1, day),
         time: draftRunTime.value,
         locationId: draftRunLocationId.value,
         description: draftRunDescription.value.trim(),
-        updatedAt: new Date(),
       }
 
-      // Only include optional fields if they have values
-      if (draftRunMaxAthletes.value !== undefined) {
-        updates.maxAthletes = draftRunMaxAthletes.value
-      }
-      if (draftRunMaxGuides.value !== undefined) {
-        updates.maxGuides = draftRunMaxGuides.value
-      }
-      if (draftRunNotes.value) {
-        updates.notes = draftRunNotes.value.trim()
-      }
+      // Include optional fields: pass the value when set, or null to clear
+      // a previously stored value from the database.
+      updates.maxAthletes = draftRunMaxAthletes.value ?? null
+      updates.maxGuides = draftRunMaxGuides.value ?? null
+
+      // Normalize empty or whitespace-only notes to null so the field
+      // is removed rather than stored as an empty string.
+      const trimmedNotes = draftRunNotes.value?.trim()
+      updates.notes = trimmedNotes || null
 
       // Persist to the database
-      await dataRepository.updateRun(runId, updates)
+      await runRepository.updateRun(runId, updates as Partial<Omit<Run, 'id'>>)
 
       // Reload the run so local state reflects the saved values
       await loadRun(runId)
@@ -240,10 +245,27 @@ export const useRunsStore = defineStore('runs', () => {
     runId: string,
     newPairings: Record<string, { guides: string[]; athletes: string[] }>,
   ): Promise<void> {
-    await dataRepository.updateRun(runId, { pairings: newPairings })
+    await runRepository.updateRun(runId, { pairings: newPairings })
 
     // Reload the run so local state reflects the saved values
     await loadRun(runId)
+  }
+
+  /**
+   * Delete a run by ID.
+   * Removes the run from the database and clears it from local store state.
+   * @param runId - The ID of the run to delete
+   */
+  async function deleteRun(runId: string): Promise<void> {
+    await runRepository.deleteRun(runId)
+
+    // Remove from local runs array
+    runs.value = runs.value.filter((r) => r.id !== runId)
+
+    // Clear currentRun if it was the deleted run
+    if (currentRun.value?.id === runId) {
+      currentRun.value = null
+    }
   }
 
   function clearError(): void {
@@ -261,6 +283,7 @@ export const useRunsStore = defineStore('runs', () => {
     setCurrentRun,
     isUserRunAdmin,
     clearError,
+    deleteRun,
     // Edit run draft state
     draftRunDate,
     draftRunTime,

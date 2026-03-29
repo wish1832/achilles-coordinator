@@ -1,5 +1,7 @@
 <template>
   <div class="create-run-view">
+    <!-- Hidden page heading keeps a level-one heading available during loading and fallback states. -->
+    <h1 class="sr-only">Create Run</h1>
     <!-- Loading state for initial data -->
     <div v-if="pageLoading === 'loading'" id="main-content" class="create-run-main" tabindex="-1">
       <LoadingUI type="spinner" text="Loading form..." centered />

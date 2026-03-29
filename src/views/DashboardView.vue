@@ -3,6 +3,9 @@
     <!-- Main content -->
     <main id="main-content" class="dashboard-main">
       <div class="dashboard-container">
+        <!-- Hidden page heading ensures the dashboard always exposes a single top-level heading. -->
+        <h1 class="sr-only">Dashboard</h1>
+
         <!-- Organizations Section -->
         <section class="dashboard-section" aria-labelledby="organizations-heading">
           <h2 id="organizations-heading" class="section-title">Organizations</h2>

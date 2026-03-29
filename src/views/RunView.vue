@@ -5,20 +5,79 @@
       <div class="run-header__content">
         <div class="run-header__title-row">
           <h1 class="run-title">{{ locationName }}</h1>
-          <!-- Edit Run button - only visible to users who can manage this run -->
-          <AchillesButton
+          <!-- Actions dropdown menu - only visible to users who can manage this run -->
+          <div
             v-if="canUserManageRun"
-            variant="secondary"
-            size="small"
-            @click="navigateToEditRun"
+            class="actions-dropdown"
+            :class="{ 'actions-dropdown--open': isActionsMenuOpen }"
           >
-            <font-awesome-icon icon="pencil" aria-hidden="true" />
-            Edit Run
-          </AchillesButton>
+            <AchillesButton
+              :ref="(el) => setActionsMenuTriggerRef(el)"
+              variant="secondary"
+              size="small"
+              aria-haspopup="menu"
+              :aria-expanded="isActionsMenuOpen"
+              aria-controls="run-actions-dropdown-menu"
+              @click="toggleActionsMenu"
+              @keydown="handleActionsMenuTriggerKeydown"
+            >
+              Actions
+              <font-awesome-icon icon="caret-down" aria-hidden="true" />
+            </AchillesButton>
+
+            <ul
+              v-show="isActionsMenuOpen"
+              id="run-actions-dropdown-menu"
+              ref="actionsMenuRef"
+              role="menu"
+              class="actions-dropdown__menu"
+              tabindex="-1"
+              @keydown="handleActionsMenuKeydown"
+            >
+              <li
+                role="menuitem"
+                class="actions-dropdown__item"
+                :class="{ 'actions-dropdown__item--active': actionsMenuActiveIndex === 0 }"
+                tabindex="-1"
+                @click="handleActionsMenuSelect('edit-run')"
+                @mouseenter="actionsMenuActiveIndex = 0"
+              >
+                Edit Run
+              </li>
+              <li
+                role="menuitem"
+                class="actions-dropdown__item actions-dropdown__item--danger"
+                :class="{ 'actions-dropdown__item--active': actionsMenuActiveIndex === 1 }"
+                tabindex="-1"
+                @click="handleActionsMenuSelect('delete-run')"
+                @mouseenter="actionsMenuActiveIndex = 1"
+              >
+                Delete Run
+              </li>
+            </ul>
+          </div>
         </div>
         <p v-if="organizationName" class="run-subtitle">{{ organizationName }}</p>
       </div>
     </header>
+
+    <!-- Success toast shown after saving run edits -->
+    <div
+      v-if="showSuccessToast"
+      class="success-toast"
+      role="status"
+      aria-live="polite"
+    >
+      <font-awesome-icon icon="circle-check" aria-hidden="true" class="success-toast__icon" />
+      <span class="success-toast__message">Run updated successfully</span>
+      <button
+        class="success-toast__dismiss"
+        aria-label="Dismiss notification"
+        @click="dismissToast"
+      >
+        &times;
+      </button>
+    </div>
 
     <!-- Main content -->
     <main id="main-content" class="run-main">
@@ -122,6 +181,38 @@
       </div>
     </main>
 
+    <!-- Delete Run Confirmation Modal -->
+    <ModalElement
+      :is-open="isDeleteRunModalOpen"
+      title="Delete Run"
+      size="small"
+      @close="closeDeleteRunModal"
+    >
+      <p>Are you sure you want to delete this run?</p>
+      <p class="modal-warning">
+        Warning! This action can't be undone. All sign-ups and pairings associated with this run
+        will be permanently lost.
+      </p>
+      <template #footer>
+        <div class="modal-actions">
+          <AchillesButton
+              :ref="(el) => setDeleteCancelRef(el)"
+              variant="secondary"
+              @click="closeDeleteRunModal"
+            >
+              Cancel
+            </AchillesButton>
+          <AchillesButton
+            variant="danger"
+            :disabled="isDeletingRun"
+            @click="confirmDeleteRun"
+          >
+            {{ isDeletingRun ? 'Deleting...' : 'Delete Run' }}
+          </AchillesButton>
+        </div>
+      </template>
+    </ModalElement>
+
     <!-- RSVP Modal -->
     <RSVPModal
       :is-open="isRSVPModalOpen"
@@ -137,11 +228,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onActivated, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
+import ModalElement from '@/components/ui/ModalElement.vue'
 import RSVPModal from '@/components/RSVPModal.vue'
 import { useRunsStore } from '@/stores/runs'
 import { useLocationStore } from '@/stores/location'
@@ -170,6 +262,77 @@ const error = ref<string | null>(null)
 // RSVP Modal state
 const isRSVPModalOpen = ref(false)
 const isEditingRSVP = ref(false)
+
+// ==========================================
+// Actions Dropdown State
+// ==========================================
+
+const isActionsMenuOpen = ref(false)
+const actionsMenuActiveIndex = ref(-1)
+const actionsMenuItemCount = 2
+
+const actionsMenuTriggerRef = ref<HTMLButtonElement | null>(null)
+const actionsMenuRef = ref<HTMLUListElement | null>(null)
+
+/**
+ * Set the reference to the AchillesButton's underlying button element
+ */
+function setActionsMenuTriggerRef(el: unknown): void {
+  if (el && typeof el === 'object' && '$el' in el) {
+    actionsMenuTriggerRef.value = (el as Record<string, unknown>).$el as HTMLButtonElement
+  } else if (el instanceof HTMLButtonElement) {
+    actionsMenuTriggerRef.value = el
+  } else {
+    actionsMenuTriggerRef.value = null
+  }
+}
+
+// ==========================================
+// Delete Run Modal State
+// ==========================================
+
+const isDeleteRunModalOpen = ref(false)
+const isDeletingRun = ref(false)
+const deleteCancelRef = ref<HTMLButtonElement | null>(null)
+
+/**
+ * Set the reference to the Cancel button's underlying element inside the delete modal.
+ * Uses the same pattern as setActionsMenuTriggerRef to unwrap AchillesButton.
+ */
+function setDeleteCancelRef(el: unknown): void {
+  if (el && typeof el === 'object' && '$el' in el) {
+    deleteCancelRef.value = (el as Record<string, unknown>).$el as HTMLButtonElement
+  } else if (el instanceof HTMLButtonElement) {
+    deleteCancelRef.value = el
+  } else {
+    deleteCancelRef.value = null
+  }
+}
+
+// Focus the Cancel button when the delete modal opens so that the
+// dangerous action is not the default keyboard target.
+watch(isDeleteRunModalOpen, (isOpen) => {
+  if (isOpen) {
+    nextTick(() => {
+      deleteCancelRef.value?.focus()
+    })
+  }
+})
+
+// Success toast state — shown after navigating back from a successful edit
+const showSuccessToast = ref(false)
+let toastDismissTimer: ReturnType<typeof setTimeout> | null = null
+
+/**
+ * Dismiss the success toast and clear the auto-dismiss timer.
+ */
+function dismissToast(): void {
+  showSuccessToast.value = false
+  if (toastDismissTimer) {
+    clearTimeout(toastDismissTimer)
+    toastDismissTimer = null
+  }
+}
 
 // Get the run ID from the route parameter
 const runId = computed(() => route.params.id as string)
@@ -307,6 +470,7 @@ async function loadRunData(): Promise<void> {
     await signUpsStore.loadSignUpsForRun(runId.value)
 
     loading.value = 'success'
+    lastLoadedRunId = runId.value
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load run details'
     loading.value = 'error'
@@ -346,6 +510,167 @@ function handleRSVPSubmitted(): void {
   closeRSVPModal()
 }
 
+// ==========================================
+// Actions Dropdown Functions
+// ==========================================
+
+/**
+ * Open the Actions dropdown and focus the menu element
+ */
+function openActionsMenu(): void {
+  isActionsMenuOpen.value = true
+  actionsMenuActiveIndex.value = 0
+  nextTick(() => {
+    actionsMenuRef.value?.focus()
+  })
+}
+
+/**
+ * Close the Actions dropdown and return focus to the trigger button
+ */
+function closeActionsMenu(): void {
+  isActionsMenuOpen.value = false
+  actionsMenuActiveIndex.value = -1
+  actionsMenuTriggerRef.value?.focus()
+}
+
+/**
+ * Toggle the Actions dropdown open or closed
+ */
+function toggleActionsMenu(): void {
+  if (isActionsMenuOpen.value) {
+    closeActionsMenu()
+  } else {
+    openActionsMenu()
+  }
+}
+
+/**
+ * Handle keyboard events on the Actions trigger button
+ */
+function handleActionsMenuTriggerKeydown(event: KeyboardEvent): void {
+  switch (event.key) {
+    case 'ArrowDown':
+    case 'ArrowUp':
+    case ' ':
+    case 'Enter':
+      event.preventDefault()
+      openActionsMenu()
+      break
+    case 'Escape':
+      if (isActionsMenuOpen.value) {
+        event.preventDefault()
+        closeActionsMenu()
+      }
+      break
+  }
+}
+
+/**
+ * Handle keyboard navigation inside the Actions dropdown menu
+ */
+function handleActionsMenuKeydown(event: KeyboardEvent): void {
+  const lastIndex = actionsMenuItemCount - 1
+
+  switch (event.key) {
+    case 'ArrowDown':
+      event.preventDefault()
+      actionsMenuActiveIndex.value =
+        actionsMenuActiveIndex.value < lastIndex ? actionsMenuActiveIndex.value + 1 : 0
+      break
+    case 'ArrowUp':
+      event.preventDefault()
+      actionsMenuActiveIndex.value =
+        actionsMenuActiveIndex.value > 0 ? actionsMenuActiveIndex.value - 1 : lastIndex
+      break
+    case 'Home':
+      event.preventDefault()
+      actionsMenuActiveIndex.value = 0
+      break
+    case 'End':
+      event.preventDefault()
+      actionsMenuActiveIndex.value = lastIndex
+      break
+    case 'Enter':
+    case ' ': {
+      event.preventDefault()
+      const keys: Array<'edit-run' | 'delete-run'> = ['edit-run', 'delete-run']
+      const key = keys[actionsMenuActiveIndex.value]
+      if (key) handleActionsMenuSelect(key)
+      break
+    }
+    case 'Escape':
+      event.preventDefault()
+      closeActionsMenu()
+      break
+    case 'Tab':
+      closeActionsMenu()
+      break
+  }
+}
+
+/**
+ * Handle selection of an item from the Actions dropdown
+ */
+function handleActionsMenuSelect(action: 'edit-run' | 'delete-run'): void {
+  closeActionsMenu()
+  if (action === 'edit-run') {
+    navigateToEditRun()
+  } else if (action === 'delete-run') {
+    isDeleteRunModalOpen.value = true
+  }
+}
+
+/**
+ * Close the Actions dropdown when the user clicks outside of it
+ */
+function handleActionsMenuClickOutside(event: MouseEvent): void {
+  const target = event.target as HTMLElement
+
+  if (
+    isActionsMenuOpen.value &&
+    !actionsMenuTriggerRef.value?.contains(target) &&
+    !actionsMenuRef.value?.contains(target)
+  ) {
+    closeActionsMenu()
+  }
+}
+
+// ==========================================
+// Delete Run Functions
+// ==========================================
+
+/**
+ * Close the delete run confirmation modal
+ */
+function closeDeleteRunModal(): void {
+  isDeleteRunModalOpen.value = false
+}
+
+/**
+ * Confirm and execute run deletion.
+ * Deletes the run via the store, then navigates to the dashboard.
+ */
+async function confirmDeleteRun(): Promise<void> {
+  if (!runsStore.currentRun) return
+
+  try {
+    isDeletingRun.value = true
+    await runsStore.deleteRun(runId.value)
+
+    // Close the modal and reset state before navigating.
+    // Because <KeepAlive> keeps this component alive, we must
+    // explicitly clean up — otherwise the modal stays visible.
+    isDeleteRunModalOpen.value = false
+    isDeletingRun.value = false
+
+    router.push('/dashboard')
+  } catch (err) {
+    console.error('Error deleting run:', err)
+    isDeletingRun.value = false
+  }
+}
+
 // Navigate to the edit run page
 function navigateToEditRun(): void {
   if (!runsStore.currentRun) return
@@ -358,10 +683,38 @@ function navigateToPairings(): void {
   router.push(`/organizations/${runsStore.currentRun.organizationId}/runs/${runId.value}/pairing`)
 }
 
-// Initialize on mount
-// Load all run data when the component mounts
+// Initialize on mount — load all run data and register click-outside listener
 onMounted(() => {
   loadRunData()
+  document.addEventListener('click', handleActionsMenuClickOutside, true)
+})
+
+// Track the last loaded run ID so we can detect when the route changes
+// while the component is cached by <KeepAlive>.
+let lastLoadedRunId: string | null = null
+
+// Re-activate the component each time the user navigates to this view.
+// With <KeepAlive>, onMounted only fires once; onActivated fires every time.
+onActivated(() => {
+  // Reload data if the route points to a different run than what was
+  // previously loaded (e.g. navigating from run-1 to run-2).
+  if (runId.value !== lastLoadedRunId) {
+    loadRunData()
+  }
+
+  if (runsStore.editRunSaveSuccess) {
+    showSuccessToast.value = true
+    runsStore.editRunSaveSuccess = false
+    toastDismissTimer = setTimeout(dismissToast, 8000)
+  }
+})
+
+// Clean up timers and listeners when the component unmounts
+onBeforeUnmount(() => {
+  if (toastDismissTimer) {
+    clearTimeout(toastDismissTimer)
+  }
+  document.removeEventListener('click', handleActionsMenuClickOutside, true)
 })
 </script>
 
@@ -642,5 +995,136 @@ onMounted(() => {
   .detail-label {
     min-width: auto;
   }
+}
+
+/* Success toast */
+.success-toast {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0.75rem 1rem;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 0.5rem;
+  color: var(--color-success, #008b00);
+  font-weight: 500;
+  animation: toast-slide-down 0.3s ease-out;
+}
+
+.success-toast__icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.success-toast__message {
+  flex: 1;
+}
+
+.success-toast__dismiss {
+  background: none;
+  border: none;
+  color: var(--color-success, #008b00);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  flex-shrink: 0;
+}
+
+.success-toast__dismiss:hover {
+  background-color: #dcfce7;
+}
+
+@keyframes toast-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* High contrast mode */
+.high-contrast .success-toast {
+  background-color: #ffffff;
+  border-color: var(--color-success, #008b00);
+  border-width: 2px;
+}
+
+/* Reduced motion — no animation */
+.reduced-motion .success-toast {
+  animation: none;
+}
+
+/* ==========================================
+   Actions Dropdown
+   ========================================== */
+
+.actions-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.actions-dropdown__menu {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 50;
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0;
+  min-width: 10rem;
+  background-color: var(--color-bg, #ffffff);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 0.375rem;
+  box-shadow:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.actions-dropdown__item {
+  display: block;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: var(--color-text, #111827);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.actions-dropdown__item:hover,
+.actions-dropdown__item--active {
+  background-color: var(--color-bg-hover, #f3f4f6);
+}
+
+/* Danger variant for destructive actions like Delete Run */
+.actions-dropdown__item--danger {
+  color: var(--color-error, #dc2626);
+}
+
+.actions-dropdown__item--danger:hover,
+.actions-dropdown__item--danger.actions-dropdown__item--active {
+  background-color: #fef2f2;
+}
+
+/* ==========================================
+   Modal Styles
+   ========================================== */
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.modal-warning {
+  margin-top: 1rem;
+  color: var(--color-error, #dc2626);
+  font-weight: 600;
 }
 </style>

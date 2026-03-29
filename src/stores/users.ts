@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { useDataRepository } from '@/composables/useRepositories'
+import { useUserRepository } from '@/composables/useRepositories'
 import type { User, LoadingState } from '@/types'
 
 /**
@@ -9,7 +9,7 @@ import type { User, LoadingState } from '@/types'
  */
 export const useUsersStore = defineStore('users', () => {
   // Get repository instance via dependency injection
-  const dataRepository = useDataRepository()
+  const userRepository = useUserRepository()
 
   // State
   // Cache of loaded users by ID for efficient lookup
@@ -35,7 +35,7 @@ export const useUsersStore = defineStore('users', () => {
       }
 
       // Fetch user from Firestore via repository
-      const user = await dataRepository.getUser(id)
+      const user = await userRepository.getUser(id)
 
       if (user) {
         // Cache the user

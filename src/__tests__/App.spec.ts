@@ -13,7 +13,7 @@ vi.mock('vue-router', () => ({
 
 vi.mock('@/stores/accessibility', () => ({
   useAccessibilityStore: () => ({
-    accessibilityClasses: '',
+    accessibilityClasses: ['text-size-medium'],
   }),
 }))
 
@@ -51,7 +51,7 @@ describe('App', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined)
   })
 
-  it('renders skip link as the first focusable element', () => {
+  it('renders skip link as the first focusable element and applies accessibility classes', () => {
     const wrapper = mount(App, {
       global: {
         stubs: {
@@ -70,6 +70,7 @@ describe('App', () => {
     expect(firstFocusableElement).not.toBeNull()
     expect(firstFocusableElement?.classList.contains('skip-link')).toBe(true)
     expect(firstFocusableElement?.getAttribute('href')).toBe('#main-content')
+    expect(wrapper.find('#app').classes()).toContain('text-size-medium')
   })
 
   it('still renders the skip link on the login route', () => {

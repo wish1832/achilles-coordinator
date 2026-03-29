@@ -1,5 +1,7 @@
 <template>
   <div class="org-settings-view">
+    <!-- Hidden page heading remains available before the visible title is rendered. -->
+    <h1 class="sr-only">Organization Settings</h1>
     <!-- Loading state -->
     <main v-if="organizationLoading === 'loading'" id="main-content" class="org-settings-main">
       <LoadingUI type="spinner" text="Loading organization..." centered />
