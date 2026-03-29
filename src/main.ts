@@ -1,4 +1,5 @@
 import { createApp } from 'vue'
+import { VueQueryPlugin } from '@tanstack/vue-query'
 import { createPinia } from 'pinia'
 
 // Font Awesome setup: register icons in the library so they can be used
@@ -31,6 +32,7 @@ library.add(
 
 import App from './App.vue'
 import router from './router'
+import { queryClient } from './lib/queryClient'
 import { useAuthStore } from './stores/auth'
 
 const app = createApp(App)
@@ -40,6 +42,7 @@ app.component('font-awesome-icon', FontAwesomeIcon)
 
 // Initialize Pinia first so stores are available
 app.use(createPinia())
+app.use(VueQueryPlugin, { queryClient })
 
 // Initialize authentication state before router navigation
 // This ensures auth state is loaded from sessionStorage/localStorage before routing decisions are made
