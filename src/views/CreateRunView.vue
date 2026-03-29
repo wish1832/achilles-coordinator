@@ -1,21 +1,19 @@
 <template>
   <div class="create-run-view">
-    <!-- Skip link for keyboard navigation -->
-    <a href="#main-content" class="skip-link">Skip to main content</a>
-
     <!-- Hidden page heading keeps a level-one heading available during loading and fallback states. -->
     <h1 class="sr-only">Create Run</h1>
-
     <!-- Loading state for initial data -->
-    <LoadingUI
-      v-if="pageLoading === 'loading'"
-      type="spinner"
-      text="Loading form..."
-      centered
-    />
+    <div v-if="pageLoading === 'loading'" id="main-content" class="create-run-main" tabindex="-1">
+      <LoadingUI type="spinner" text="Loading form..." centered />
+    </div>
 
     <!-- Error state for initial data loading -->
-    <div v-else-if="pageLoading === 'error'" class="create-run-error">
+    <div
+      v-else-if="pageLoading === 'error'"
+      id="main-content"
+      class="create-run-main create-run-error"
+      tabindex="-1"
+    >
       <h1>Unable to load form</h1>
       <p>There was an error loading the form. Please try again.</p>
       <AchillesButton @click="loadFormData">Try Again</AchillesButton>
@@ -633,30 +631,6 @@ onMounted(() => {
 .create-run-error p {
   color: var(--color-text-muted, #6b7280);
   margin: 0 0 1.5rem 0;
-}
-
-/* Skip link for keyboard navigation */
-.skip-link {
-  position: absolute;
-  left: -10000px;
-  top: auto;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-}
-
-.skip-link:focus {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: auto;
-  height: auto;
-  padding: 1rem 2rem;
-  background: var(--color-primary, #0066cc);
-  color: white;
-  z-index: 1000;
-  outline: 2px solid var(--color-focus, #0066cc);
-  outline-offset: 2px;
 }
 
 /* Mobile responsiveness */

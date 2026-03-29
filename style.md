@@ -24,6 +24,9 @@ Agents: read this file for style guidance before making UI changes.
 - Provide clear success and error feedback for form actions.
 - Prefer simple, step-by-step flows over complex, multi-panel layouts.
 - Use plain language labels for form fields and actions.
+- Avoid overriding whole blocks of elements with aria-label, as it's easy to break an entire subtree with aria-label.
+
+- use `<main id="main-content" ` for the main content to ensure skip links work. Every page *MUST* have a skip link.
 
 ## Visual Language
 

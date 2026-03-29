@@ -1,31 +1,40 @@
 <template>
   <div class="organization-view">
-    <!-- Skip link for keyboard navigation -->
-    <a href="#main-content" class="skip-link">Skip to main content</a>
 
     <!-- Hidden page heading remains available before the organization name has loaded. -->
     <h1 class="sr-only">Organization</h1>
 
     <!-- Loading state for organization data -->
-    <LoadingUI
-      v-if="organizationLoading === 'loading'"
-      type="spinner"
-      text="Loading organization..."
-      centered
-    />
+    <main v-if="organizationLoading === 'loading'" id="main-content" class="organization-main">
+      <LoadingUI type="spinner" text="Loading organization..." centered />
+    </main>
 
     <!-- Error state -->
-    <div v-else-if="organizationLoading === 'error'" class="organization-error">
-      <h1>Unable to load organization</h1>
-      <p>There was an error loading the organization. Please try again.</p>
-      <AchillesButton @click="loadOrganizationData">Try Again</AchillesButton>
-    </div>
+    <main
+      v-else-if="organizationLoading === 'error'"
+      id="main-content"
+      class="organization-main"
+      tabindex="-1"
+    >
+      <div class="organization-error">
+        <h1>Unable to load organization</h1>
+        <p>There was an error loading the organization. Please try again.</p>
+        <AchillesButton @click="loadOrganizationData">Try Again</AchillesButton>
+      </div>
+    </main>
 
     <!-- Organization not found -->
-    <div v-else-if="organizationLoading === 'success' && !organization" class="organization-error">
-      <h1>Organization not found</h1>
-      <p>The organization you're looking for doesn't exist or has been removed.</p>
-    </div>
+    <main
+      v-else-if="organizationLoading === 'success' && !organization"
+      id="main-content"
+      class="organization-main"
+      tabindex="-1"
+    >
+      <div class="organization-error">
+        <h1>Organization not found</h1>
+        <p>The organization you're looking for doesn't exist or has been removed.</p>
+      </div>
+    </main>
 
     <!-- Organization loaded successfully -->
     <template v-else-if="organization">

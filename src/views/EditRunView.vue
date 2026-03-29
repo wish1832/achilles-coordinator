@@ -1,16 +1,20 @@
 <template>
   <div class="edit-run-view">
-    <!-- Skip link for keyboard navigation -->
-    <a href="#main-content" class="skip-link">Skip to main content</a>
-
     <!-- Hidden page heading keeps a level-one heading available during loading and fallback states. -->
     <h1 class="sr-only">Edit Run</h1>
 
     <!-- Loading state for initial data -->
-    <LoadingUI v-if="pageLoading === 'loading'" type="spinner" text="Loading run..." centered />
+    <div v-if="pageLoading === 'loading'" id="main-content" class="edit-run-main" tabindex="-1">
+      <LoadingUI type="spinner" text="Loading run..." centered />
+    </div>
 
     <!-- Error state for initial data loading -->
-    <div v-else-if="pageLoading === 'error'" class="edit-run-error">
+    <div
+      v-else-if="pageLoading === 'error'"
+      id="main-content"
+      class="edit-run-main edit-run-error"
+      tabindex="-1"
+    >
       <h1>Unable to load run</h1>
       <p>There was an error loading the run. Please try again.</p>
       <AchillesButton @click="loadFormData">Try Again</AchillesButton>

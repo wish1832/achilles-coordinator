@@ -1,47 +1,113 @@
-import { describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { defineComponent } from 'vue'
 import App from '../App.vue'
 
-// App.vue reads the current route name to decide whether the authenticated header should show.
-// The smoke test fixes the route to Login so it can verify the app shell without real router setup.
+let mockedRouteName = 'Dashboard'
+let mockedIsAuthenticated = true
+let mockedRouteFullPath = '/dashboard'
+
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ name: 'Login' }),
+  useRoute: () => ({ name: mockedRouteName, fullPath: mockedRouteFullPath }),
 }))
 
-// The app shell applies whatever CSS utility classes the accessibility store exposes.
-// This mock keeps the test focused on that binding instead of testing store implementation details.
 vi.mock('@/stores/accessibility', () => ({
   useAccessibilityStore: () => ({
     accessibilityClasses: ['text-size-medium'],
   }),
 }))
 
-// The header is only shown for authenticated users on non-login routes.
-// Keeping auth false makes this a narrow shell-render smoke test.
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => ({
-    isAuthenticated: false,
+    isAuthenticated: mockedIsAuthenticated,
   }),
 }))
 
-describe('App shell smoke test', () => {
-  it('renders routed content and applies accessibility classes from the store output', () => {
+const MainContentComponent = defineComponent({
+  template: '<main id="main-content">Main content</main>',
+})
+
+const LoginContentComponent = defineComponent({
+  template: '<main id="main-content">Login content</main>',
+})
+
+const MissingMainContentComponent = defineComponent({
+  template: '<div>Missing main target</div>',
+})
+
+const createRouterViewStub = (routedComponent: object) =>
+  defineComponent({
+    setup(_, { slots }) {
+      return () => slots.default?.({ Component: routedComponent })
+    },
+  })
+
+describe('App', () => {
+  beforeEach(() => {
+    mockedRouteName = 'Dashboard'
+    mockedIsAuthenticated = true
+    mockedRouteFullPath = '/dashboard'
+    vi.restoreAllMocks()
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+  })
+
+  it('renders skip link as the first focusable element and applies accessibility classes', () => {
     const wrapper = mount(App, {
       global: {
         stubs: {
-          AppHeader: true,
-          RouterView: {
-            // App.vue uses RouterView's slot API, so the stub provides a simple component target.
-            template: '<div data-test="router-view"><slot :Component="\'main\'" /></div>',
+          AppHeader: {
+            template: '<header><a href="#header-menu">Header Menu</a></header>',
           },
+          RouterView: createRouterViewStub(MainContentComponent),
         },
       },
     })
 
-    // This only checks that App.vue renders routed content into its shell.
-    expect(wrapper.find('[data-test="router-view"]').exists()).toBe(true)
+    const firstFocusableElement = wrapper.element.querySelector(
+      'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    ) as HTMLAnchorElement | null
 
-    // This verifies the shell keeps binding accessibility classes from the store onto #app.
+    expect(firstFocusableElement).not.toBeNull()
+    expect(firstFocusableElement?.classList.contains('skip-link')).toBe(true)
+    expect(firstFocusableElement?.getAttribute('href')).toBe('#main-content')
     expect(wrapper.find('#app').classes()).toContain('text-size-medium')
+  })
+
+  it('still renders the skip link on the login route', () => {
+    mockedRouteName = 'Login'
+    mockedIsAuthenticated = false
+    mockedRouteFullPath = '/login'
+
+    const wrapper = mount(App, {
+      global: {
+        stubs: {
+          RouterView: createRouterViewStub(LoginContentComponent),
+        },
+      },
+    })
+
+    const skipLink = wrapper.find('a.skip-link')
+    expect(skipLink.exists()).toBe(true)
+    expect(skipLink.attributes('href')).toBe('#main-content')
+  })
+
+  it('warns in non-production mode when main-content target is missing', async () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn')
+
+    mount(App, {
+      global: {
+        stubs: {
+          AppHeader: {
+            template: '<header><a href="#header-menu">Header Menu</a></header>',
+          },
+          RouterView: createRouterViewStub(MissingMainContentComponent),
+        },
+      },
+    })
+
+    await flushPromises()
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Missing #main-content on route "Dashboard"'),
+    )
   })
 })
