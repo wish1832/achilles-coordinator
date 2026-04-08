@@ -19,6 +19,7 @@
             class="rsvp-option-button"
             :class="{ 'rsvp-option-button--selected': attendance === option.value }"
             :aria-pressed="attendance === option.value"
+            :autofocus="option.value === initialAutofocusAttendance"
             @click="attendance = option.value"
           >
             {{ option.label }}
@@ -105,6 +106,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useId } from '@/composables/internal/useId'
 import ModalElement from '@/components/ui/ModalElement.vue'
 import SelectInput from '@/components/ui/SelectInput.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
@@ -163,9 +165,9 @@ const activity = ref<SignUpActivity | null>(null)
 const paceMinutes = ref<number | undefined>(undefined)
 const paceSeconds = ref<number | undefined>(undefined)
 
-// Generate unique IDs for accessibility
-const minutesSelectId = computed(() => `pace-minutes-${Math.random().toString(36).substring(2, 11)}`)
-const secondsSelectId = computed(() => `pace-seconds-${Math.random().toString(36).substring(2, 11)}`)
+// Keep the select IDs stable so the external labels remain correctly associated.
+const minutesSelectId = useId('pace-minutes')
+const secondsSelectId = useId('pace-seconds')
 
 // Attendance options
 const attendanceOptions = [
@@ -173,6 +175,16 @@ const attendanceOptions = [
   { value: 'maybe' as SignUpStatus, label: 'Maybe' },
   { value: 'no' as SignUpStatus, label: 'No' },
 ]
+
+// Initial autofocus target for attendance options:
+// - New RSVP: default to "Yes"
+// - Edit RSVP: focus the previously selected attendance option
+const initialAutofocusAttendance = computed<SignUpStatus>(() => {
+  if (props.isEditing && props.existingSignUp) {
+    return props.existingSignUp.status
+  }
+  return 'yes'
+})
 
 // Activity options with Title case labels mapping to lowercase values
 const activityOptions = [

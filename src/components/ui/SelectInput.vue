@@ -138,6 +138,7 @@ Example:
 -->
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useId } from '@/composables/internal/useId'
 import { useAccessibilityStore } from '@/stores/accessibility'
 
 // Option type - can be string, object with value/label, or custom object
@@ -151,6 +152,7 @@ interface Props {
   // Value
   modelValue?: string | number
   options: SelectOption[]
+  id?: string
 
   // Content
   label?: string
@@ -211,8 +213,9 @@ const selectRef = ref<HTMLSelectElement>()
 // Accessibility store
 const accessibilityStore = useAccessibilityStore()
 
-// Generate unique ID for accessibility
-const inputId = computed(() => `select-${Math.random().toString(36).substr(2, 9)}`)
+// Allow callers to provide an explicit ID, otherwise generate one once.
+const generatedInputId = useId('select')
+const inputId = computed(() => props.id || generatedInputId)
 
 // Computed properties
 const hasError = computed(() => props.error || !!props.errorMessage)

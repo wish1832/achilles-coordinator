@@ -6,17 +6,24 @@
       :class="overlayClasses"
       role="dialog"
       :aria-modal="true"
-      :aria-labelledby="titleId"
-      :aria-describedby="descriptionId"
+      :aria-labelledby="title ? titleId : undefined"
+      :aria-describedby="description ? descriptionId : undefined"
       @click="handleOverlayClick"
       @keydown="handleKeydown"
     >
-      <div ref="modalRef" class="modal" :class="modalClasses" role="document" @click.stop>
+      <div
+        ref="modalRef"
+        class="modal"
+        :class="modalClasses"
+        role="document"
+        tabindex="-1"
+        @click.stop
+      >
         <!-- Modal header -->
         <header v-if="title || $slots.header" class="modal__header">
           <slot name="header">
-            <h2 :id="titleId" class="modal__title">{{ title }}</h2>
-            <p v-if="description" :id="descriptionId" class="modal__description">
+            <h2 v-if="title" :id="titleId" class="modal__title" tabindex="-1">{{ title }}</h2>
+            <p v-if="description" :id="descriptionId" class="modal__description" tabindex="-1">
               {{ description }}
             </p>
           </slot>
@@ -58,6 +65,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
+import { useId } from '@/composables/internal/useId'
 import { useAccessibilityStore } from '@/stores/accessibility'
 import AchillesButton from './AchillesButton.vue'
 
@@ -105,16 +113,15 @@ const emit = defineEmits<Emits>()
 const modalRef = ref<HTMLElement>()
 const previouslyFocusedElement = ref<HTMLElement | null>(null)
 
+// Tracks elements we've marked inert so we can restore them when the modal closes
+const inertedElements: Set<Element> = new Set()
+
 // Accessibility store
 const accessibilityStore = useAccessibilityStore()
 
-// Generate unique IDs for accessibility
-const titleId = computed(() =>
-  props.title ? `modal-title-${Math.random().toString(36).substr(2, 9)}` : undefined,
-)
-const descriptionId = computed(() =>
-  props.description ? `modal-description-${Math.random().toString(36).substr(2, 9)}` : undefined,
-)
+// Generate IDs once so dialog relationships stay stable while the modal rerenders.
+const titleId = useId('modal-title')
+const descriptionId = useId('modal-description')
 
 // Computed classes
 const overlayClasses = computed(() => {
@@ -125,41 +132,26 @@ const modalClasses = computed(() => {
   return [`modal--${props.size}`, `modal--${props.variant}`].join(' ')
 })
 
-// Focus management
-function trapFocus() {
-  if (!modalRef.value) return
+// Inert management — marks all sibling elements of the modal overlay as inert
+// so the browser natively prevents focus from leaving the modal.
+function setInert() {
+  const overlay = modalRef.value?.closest('.modal-overlay')
+  if (!overlay?.parentElement) return
 
-  const focusableElements = modalRef.value.querySelectorAll(
-    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-  )
-
-  const firstElement = focusableElements[0] as HTMLElement
-  const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
-
-  function handleTabKey(e: KeyboardEvent) {
-    if (e.key !== 'Tab') return
-
-    if (e.shiftKey) {
-      // Shift + Tab
-      if (document.activeElement === firstElement) {
-        e.preventDefault()
-        lastElement?.focus()
-      }
-    } else {
-      // Tab
-      if (document.activeElement === lastElement) {
-        e.preventDefault()
-        firstElement?.focus()
-      }
-    }
+  for (const sibling of overlay.parentElement.children) {
+    if (sibling === overlay) continue
+    if (sibling.hasAttribute('inert')) continue
+    sibling.setAttribute('inert', '')
+    inertedElements.add(sibling)
   }
+}
 
-  modalRef.value.addEventListener('keydown', handleTabKey)
-
-  // Return cleanup function
-  return () => {
-    modalRef.value?.removeEventListener('keydown', handleTabKey)
+// Removes the inert attribute from all elements we previously marked
+function clearInert() {
+  for (const element of inertedElements) {
+    element.removeAttribute('inert')
   }
+  inertedElements.clear()
 }
 
 // Event handlers
@@ -191,20 +183,36 @@ watch(
       // Wait for DOM update
       await nextTick()
 
-      // Focus the modal
-      if (modalRef.value) {
-        modalRef.value.focus()
-      }
+      // Prefer an explicit [autofocus] target when provided by a modal consumer.
+      // For content-heavy dialogs, allow a static reading target via
+      // [data-dialog-initial-focus] with tabindex="-1". Otherwise, focus the
+      // first interactive control. If none exist, fall back to dialog text
+      // before finally focusing the dialog container itself.
+      const autofocusElement = modalRef.value?.querySelector<HTMLElement>('[autofocus]')
+      const initialFocusElement =
+        modalRef.value?.querySelector<HTMLElement>('[data-dialog-initial-focus]')
+      // Find all tabbable elements inside the modal, excluding those with tabindex="-1".
+      // Elements with tabindex="-1" are intentionally removed from the tab order, so
+      // they should not be treated as the default interactive landing point.
+      const tabbableElements = modalRef.value?.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      )
+      const firstTabbableElement = tabbableElements?.[0]
+      const titleElement = modalRef.value?.querySelector<HTMLElement>(`#${titleId}`)
+      const descriptionElement = modalRef.value?.querySelector<HTMLElement>(`#${descriptionId}`)
+      if (autofocusElement) autofocusElement.focus()
+      else if (initialFocusElement) initialFocusElement.focus()
+      else if (firstTabbableElement) firstTabbableElement.focus()
+      else if (titleElement) titleElement.focus()
+      else if (descriptionElement) descriptionElement.focus()
+      else modalRef.value?.focus()
 
-      // Set up focus trap
-      const cleanup = trapFocus()
-
-      // Store cleanup function for later
-      modalRef.value?.setAttribute('data-cleanup', 'true')
-
-      // Clean up on unmount
-      onUnmounted(cleanup)
+      // Mark all sibling elements as inert so focus stays within the modal
+      setInert()
     } else {
+      // Remove inert from sibling elements when the modal closes
+      clearInert()
+
       // Restore focus to previously focused element
       if (previouslyFocusedElement.value) {
         previouslyFocusedElement.value.focus()
@@ -235,6 +243,7 @@ watch(
 
 // Cleanup on unmount
 onUnmounted(() => {
+  clearInert()
   unlockBodyScroll()
 })
 </script>
