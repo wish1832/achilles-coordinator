@@ -198,20 +198,16 @@
                 <AchillesButton
                   type="submit"
                   :variant="runsStore.isEditRunDirty ? 'primary' : 'secondary'"
-                  :loading="runsStore.isEditRunSaving"
-                  :disabled="!runsStore.isEditRunDirty || !isFormValid || runsStore.isEditRunSaving"
+                  :loading="isSaving"
+                  :disabled="!runsStore.isEditRunDirty || !isFormValid || isSaving"
                 >
-                  {{ runsStore.isEditRunSaving ? 'Saving...' : 'Save Changes' }}
+                  {{ isSaving ? 'Saving...' : 'Save Changes' }}
                 </AchillesButton>
               </div>
 
               <!-- Global error message for submission failures -->
-              <div
-                v-if="runsStore.editRunSaveError"
-                class="form-error form-error--global"
-                role="alert"
-              >
-                {{ runsStore.editRunSaveError }}
+              <div v-if="saveError" class="form-error form-error--global" role="alert">
+                {{ saveError }}
               </div>
             </form>
           </CardUI>
@@ -232,7 +228,8 @@ import LocationDropdown from '@/components/ui/LocationDropdown.vue'
 import { useOrganizationStore } from '@/stores/organization'
 import { useLocationStore } from '@/stores/location'
 import { useRunsStore } from '@/stores/runs'
-import type { LoadingState } from '@/types'
+import { useUpdateRunMutation } from '@/composables/mutations/useUpdateRunMutation'
+import type { LoadingState, Run } from '@/types'
 
 // Router and route for navigation and params
 const route = useRoute()
@@ -242,6 +239,20 @@ const router = useRouter()
 const organizationStore = useOrganizationStore()
 const locationStore = useLocationStore()
 const runsStore = useRunsStore()
+
+// Mutation that persists run edits through TanStack Query.
+// On success, it invalidates the run detail cache so RunView refetches.
+const updateRunMutation = useUpdateRunMutation()
+
+// Saving state is derived from the mutation so the Save button reflects
+// the in-flight network request without any store involvement.
+const isSaving = computed(() => updateRunMutation.isPending.value)
+// Surface the mutation's error (if any) as a user-facing message.
+const saveError = computed(() =>
+  updateRunMutation.isError.value
+    ? updateRunMutation.error.value?.message ?? 'Failed to save run changes'
+    : null,
+)
 
 // Get reactive reference to locations from the store
 const { locations } = storeToRefs(locationStore)
@@ -468,8 +479,52 @@ function validateAllFields(): boolean {
 }
 
 /**
+ * Build the run update payload from the current draft state.
+ * Lives in the view because the draft-to-payload transform is specific
+ * to this form; the mutation itself is a generic run updater.
+ */
+function buildRunUpdates(): Partial<Omit<Run, 'id'>> {
+  // Parse date parts manually to avoid UTC interpretation —
+  // new Date('YYYY-MM-DD') is treated as UTC midnight, which shifts
+  // the day back in US timezones when displayed with toLocaleDateString.
+  const dateParts = runsStore.draftRunDate.split('-').map(Number)
+  const year = dateParts[0]!
+  const month = dateParts[1]!
+  const day = dateParts[2]!
+
+  // month - 1 because JS Date months are zero-indexed (0 = Jan, 1 = Feb).
+  // Allow null values for optional fields — the repository layer interprets
+  // null as "remove this field from the document" (Firestore deleteField()).
+  type ClearableFields = 'maxAthletes' | 'maxGuides' | 'notes'
+  const updates: Omit<Partial<Omit<Run, 'id'>>, ClearableFields> & {
+    maxAthletes?: number | null
+    maxGuides?: number | null
+    notes?: string | null
+  } = {
+    date: new Date(year, month - 1, day),
+    time: runsStore.draftRunTime,
+    locationId: runsStore.draftRunLocationId,
+    description: runsStore.draftRunDescription.trim(),
+  }
+
+  // Include optional fields: pass the value when set, or null to clear
+  // a previously stored value from the database.
+  updates.maxAthletes = runsStore.draftRunMaxAthletes ?? null
+  updates.maxGuides = runsStore.draftRunMaxGuides ?? null
+
+  // Normalize empty or whitespace-only notes to null so the field
+  // is removed rather than stored as an empty string.
+  const trimmedNotes = runsStore.draftRunNotes?.trim()
+  updates.notes = trimmedNotes || null
+
+  return updates as Partial<Omit<Run, 'id'>>
+}
+
+/**
  * Handle form submission.
- * Saves changes to the database and navigates back to the run view.
+ * Saves changes to the database via the update-run mutation and navigates
+ * back to the run view. The mutation invalidates the run detail cache on
+ * success so RunView reflects the saved values automatically.
  */
 async function handleSubmit(): Promise<void> {
   // Validate all fields before attempting to save
@@ -478,12 +533,23 @@ async function handleSubmit(): Promise<void> {
   }
 
   try {
-    await runsStore.saveEditRunChanges(runId.value)
+    await updateRunMutation.mutateAsync({
+      runId: runId.value,
+      updates: buildRunUpdates(),
+    })
+
+    // Clear the dirty flag and signal success to the run view so it can
+    // display the post-edit toast. editRunSaveSuccess is cross-view state
+    // the store still owns; the mutation itself is decoupled from it.
+    runsStore.isEditRunDirty = false
+    runsStore.editRunSaveSuccess = true
 
     // Navigate back to the run view on success
     router.push(`/organizations/${orgId.value}/runs/${runId.value}`)
   } catch {
-    // Error is already set in the store by saveEditRunChanges
+    // The mutation's error ref drives the inline error message; nothing
+    // else to do here beyond swallowing the rejection so Vue doesn't log
+    // an unhandled promise warning.
   }
 }
 

@@ -246,6 +246,7 @@ import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery
 import { useLocationQuery } from '@/composables/queries/useLocationQuery'
 import { useRunSignUpsQuery } from '@/composables/queries/useRunSignUpsQuery'
 import { useUsersByIdsQuery } from '@/composables/queries/useUsersByIdsQuery'
+import { useDeleteRunMutation } from '@/composables/mutations/useDeleteRunMutation'
 
 // Router and stores
 const router = useRouter()
@@ -287,7 +288,8 @@ function setActionsMenuTriggerRef(el: unknown): void {
 // ==========================================
 
 const isDeleteRunModalOpen = ref(false)
-const isDeletingRun = ref(false)
+const deleteRunMutation = useDeleteRunMutation()
+const isDeletingRun = computed(() => deleteRunMutation.isPending.value)
 const deleteCancelRef = ref<HTMLButtonElement | null>(null)
 
 /**
@@ -621,19 +623,16 @@ async function confirmDeleteRun(): Promise<void> {
   if (!run.value) return
 
   try {
-    isDeletingRun.value = true
-    await runsStore.deleteRun(runId.value)
+    await deleteRunMutation.mutateAsync(runId.value)
 
-    // Close the modal and reset state before navigating.
-    // Because <KeepAlive> keeps this component alive, we must
-    // explicitly clean up — otherwise the modal stays visible.
+    // Close the modal before navigating. Because <KeepAlive> keeps this
+    // component alive, we must explicitly clean up — otherwise the modal
+    // stays visible. The mutation's isPending resets on its own.
     isDeleteRunModalOpen.value = false
-    isDeletingRun.value = false
 
     router.push('/dashboard')
   } catch (err) {
     console.error('Error deleting run:', err)
-    isDeletingRun.value = false
   }
 }
 

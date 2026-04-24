@@ -78,10 +78,10 @@
                   <div class="run-detail"><strong>Time:</strong> {{ run.time }}</div>
                   <div class="run-detail run-signup-counts">
                     <span class="signup-count">
-                      <strong>Athletes:</strong> {{ signUpsStore.getSignUpCounts(run.id).athletes }}
+                      <strong>Athletes:</strong> {{ getSignUpCounts(run.id).athletes }}
                     </span>
                     <span class="signup-count">
-                      <strong>Guides:</strong> {{ signUpsStore.getSignUpCounts(run.id).guides }}
+                      <strong>Guides:</strong> {{ getSignUpCounts(run.id).guides }}
                     </span>
                   </div>
                 </div>
@@ -146,16 +146,15 @@ import LoadingUI from '@/components/ui/LoadingUI.vue'
 import RSVPModal from '@/components/RSVPModal.vue'
 import { useRunsStore } from '@/stores/runs'
 import { useLocationStore } from '@/stores/location'
-import { useSignUpsStore } from '@/stores/signups'
 import { useAuthStore } from '@/stores/auth'
 import { useOrganizationStore } from '@/stores/organization'
-import type { Run } from '@/types'
+import { useRunsSignUpsQuery } from '@/composables/queries/useRunsSignUpsQuery'
+import type { Run, SignUp } from '@/types'
 
 // Router and stores
 const router = useRouter()
 const runsStore = useRunsStore()
 const locationStore = useLocationStore()
-const signUpsStore = useSignUpsStore()
 const authStore = useAuthStore()
 const organizationStore = useOrganizationStore()
 
@@ -163,6 +162,38 @@ const organizationStore = useOrganizationStore()
 const { runs, loading: runsLoading } = storeToRefs(runsStore)
 const { currentUser } = storeToRefs(authStore)
 const { loading: organizationsLoading } = storeToRefs(organizationStore)
+
+// Load sign-ups for every loaded run via TanStack Query. Each run's
+// sign-ups live under their own cache entry, so the RSVP mutation's
+// invalidation updates exactly the rows that changed.
+const runIdsForSignUps = computed(() => runs.value.map((run) => run.id))
+const { signUpsByRun } = useRunsSignUpsQuery(runIdsForSignUps)
+
+/**
+ * Get the sign-ups for a run from the TanStack Query cache.
+ * Returns an empty array if the query hasn't resolved yet.
+ */
+function getSignUpsForRun(runId: string): SignUp[] {
+  return signUpsByRun.value[runId] ?? []
+}
+
+/**
+ * Get athlete and guide counts for a run. Only counts sign-ups with
+ * status 'yes' or 'maybe' (not 'no') so declined RSVPs don't inflate
+ * the displayed attendance.
+ */
+function getSignUpCounts(runId: string): { athletes: number; guides: number } {
+  const signUps = getSignUpsForRun(runId)
+  const athletes = signUps.filter(
+    (signup) =>
+      signup.role === 'athlete' && (signup.status === 'yes' || signup.status === 'maybe'),
+  ).length
+  const guides = signUps.filter(
+    (signup) =>
+      signup.role === 'guide' && (signup.status === 'yes' || signup.status === 'maybe'),
+  ).length
+  return { athletes, guides }
+}
 
 // RSVP Modal state
 const isRSVPModalOpen = ref(false)
@@ -187,8 +218,8 @@ const existingSignUpData = computed(() => {
     return undefined
   }
 
-  // Find the user's sign-up for this run
-  const signUps = signUpsStore.getSignUpsForRun(selectedRun.value.id)
+  // Find the user's sign-up for this run from the query cache
+  const signUps = getSignUpsForRun(selectedRun.value.id)
   const userSignUp = signUps.find(
     (signup) => signup.userId === currentUser.value!.id && signup.status !== 'no',
   )
@@ -273,8 +304,8 @@ function isUserSignedUpForRun(runId: string): boolean {
     return false
   }
 
-  // Get all sign-ups for this run
-  const signUps = signUpsStore.getSignUpsForRun(runId)
+  // Get all sign-ups for this run from the query cache
+  const signUps = getSignUpsForRun(runId)
 
   // Check if any sign-up with status 'yes' or 'maybe' belongs to the current user
   return signUps.some(
@@ -332,12 +363,8 @@ onMounted(async () => {
     await locationStore.loadLocationsForOrganization(orgId)
   }
 
-  // Load sign-ups for all runs
-  // This allows us to display athlete and guide counts for each run
-  const runIds = runs.value.map((run) => run.id)
-  if (runIds.length > 0) {
-    await signUpsStore.loadSignUpsForRuns(runIds)
-  }
+  // Sign-ups are loaded reactively by useRunsSignUpsQuery as the
+  // runs list populates, so no explicit preload is needed here.
 })
 </script>
 

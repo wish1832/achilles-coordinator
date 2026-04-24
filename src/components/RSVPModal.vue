@@ -109,7 +109,7 @@ import ModalElement from '@/components/ui/ModalElement.vue'
 import SelectInput from '@/components/ui/SelectInput.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import { useAuthStore } from '@/stores/auth'
-import { useSignUpsStore } from '@/stores/signups'
+import { useCreateOrUpdateSignUpMutation } from '@/composables/mutations/useCreateOrUpdateSignUpMutation'
 import type { SignUpStatus, SignUpActivity, Run } from '@/types'
 
 // Props definition
@@ -147,10 +147,10 @@ const emit = defineEmits<Emits>()
 
 // Stores
 const authStore = useAuthStore()
-const signUpsStore = useSignUpsStore()
+const createOrUpdateSignUpMutation = useCreateOrUpdateSignUpMutation()
 
 // Submission state
-const isSubmitting = ref(false)
+const isSubmitting = computed(() => createOrUpdateSignUpMutation.isPending.value)
 const submitError = ref<string | null>(null)
 
 // Tracks whether the user has attempted to submit, so pace validation
@@ -345,9 +345,8 @@ async function handleSubmit(): Promise<void> {
     return
   }
 
-  // Clear any previous error and set submitting state
+  // Clear any previous error. The mutation's isPending drives isSubmitting.
   submitError.value = null
-  isSubmitting.value = true
 
   try {
     // Build the sign-up data object
@@ -364,8 +363,10 @@ async function handleSubmit(): Promise<void> {
           : undefined,
     }
 
-    // Create or update the sign-up using the store
-    const signUpId = await signUpsStore.createOrUpdateSignUp(signUpData)
+    // Create or update the sign-up via the TanStack Query mutation.
+    // On success, the mutation invalidates the sign-ups query for this run
+    // so any listening views refetch automatically.
+    const signUpId = await createOrUpdateSignUpMutation.mutateAsync(signUpData)
 
     // Emit success event and close the modal
     emit('submitted', signUpId)
@@ -375,8 +376,6 @@ async function handleSubmit(): Promise<void> {
     console.error('Failed to save RSVP:', error)
     // Display a user-friendly error message
     submitError.value = 'An error occurred. Please try again later and contact us if the issue persists.'
-  } finally {
-    isSubmitting.value = false
   }
 }
 </script>

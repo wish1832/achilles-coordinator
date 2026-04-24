@@ -137,9 +137,9 @@ export const useRunsStore = defineStore('runs', () => {
   // Tracks whether any draft field differs from the persisted values
   const isEditRunDirty = ref(false)
 
-  // Saving state for the edit run form
-  const isEditRunSaving = ref(false)
-  const editRunSaveError = ref<string | null>(null)
+  // Cross-view flag: set true by EditRunView on save so RunView shows a
+  // post-edit success toast. Saving/error state are owned by the
+  // update-run mutation in EditRunView, not the store.
   const editRunSaveSuccess = ref(false)
 
   /**
@@ -168,70 +168,7 @@ export const useRunsStore = defineStore('runs', () => {
 
     // Reset dirty and status flags
     isEditRunDirty.value = false
-    editRunSaveError.value = null
     editRunSaveSuccess.value = false
-  }
-
-  /**
-   * Save edit run draft changes to the database.
-   * Updates only the fields that the user can edit, then refreshes
-   * the local store state to reflect the saved values.
-   * @param runId - The ID of the run to update
-   */
-  async function saveEditRunChanges(runId: string): Promise<void> {
-    try {
-      isEditRunSaving.value = true
-      editRunSaveError.value = null
-      editRunSaveSuccess.value = false
-
-      // Build the partial update object with only the editable fields.
-      // Parse date parts manually to avoid UTC interpretation —
-      // new Date('YYYY-MM-DD') is treated as UTC midnight, which shifts
-      // the day back in US timezones when displayed with toLocaleDateString.
-      const dateParts = draftRunDate.value.split('-').map(Number)
-      const year = dateParts[0]!
-      const month = dateParts[1]!
-      const day = dateParts[2]!
-      // month - 1 because JS Date months are zero-indexed (0 = Jan, 1 = Feb, etc.)
-      // Allow null values for optional fields — the repository layer interprets
-      // null as "remove this field from the document" (Firestore deleteField()).
-      type ClearableFields = 'maxAthletes' | 'maxGuides' | 'notes'
-      const updates: Omit<Partial<Omit<Run, 'id'>>, ClearableFields> & {
-        maxAthletes?: number | null
-        maxGuides?: number | null
-        notes?: string | null
-      } = {
-        date: new Date(year, month - 1, day),
-        time: draftRunTime.value,
-        locationId: draftRunLocationId.value,
-        description: draftRunDescription.value.trim(),
-      }
-
-      // Include optional fields: pass the value when set, or null to clear
-      // a previously stored value from the database.
-      updates.maxAthletes = draftRunMaxAthletes.value ?? null
-      updates.maxGuides = draftRunMaxGuides.value ?? null
-
-      // Normalize empty or whitespace-only notes to null so the field
-      // is removed rather than stored as an empty string.
-      const trimmedNotes = draftRunNotes.value?.trim()
-      updates.notes = trimmedNotes || null
-
-      // Persist to the database
-      await runRepository.updateRun(runId, updates as Partial<Omit<Run, 'id'>>)
-
-      // Reload the run so local state reflects the saved values
-      await loadRun(runId)
-
-      isEditRunDirty.value = false
-      editRunSaveSuccess.value = true
-    } catch (err) {
-      editRunSaveError.value =
-        err instanceof Error ? err.message : 'Failed to save run changes'
-      throw err
-    } finally {
-      isEditRunSaving.value = false
-    }
   }
 
   /**
@@ -293,11 +230,8 @@ export const useRunsStore = defineStore('runs', () => {
     draftRunMaxGuides,
     draftRunNotes,
     isEditRunDirty,
-    isEditRunSaving,
-    editRunSaveError,
     editRunSaveSuccess,
     initializeEditRunDraft,
-    saveEditRunChanges,
     savePairings,
   }
 })
