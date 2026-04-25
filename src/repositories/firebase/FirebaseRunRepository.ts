@@ -1,4 +1,11 @@
-import { Timestamp, orderBy, where, type Firestore } from 'firebase/firestore'
+import {
+  Timestamp,
+  limit as firestoreLimit,
+  orderBy,
+  where,
+  type Firestore,
+  type QueryConstraint,
+} from 'firebase/firestore'
 import { getFirebaseDb } from '@/firebase/client'
 import type { Run, SignUp } from '@/types/models'
 import type { IRunRepository } from '../interfaces/IRunRepository'
@@ -52,6 +59,35 @@ export class FirebaseRunRepository implements IRunRepository {
       where('organizationId', '==', organizationId),
       orderBy('date', 'asc'),
     ])
+  }
+
+  async getRunsForOrganizationInTimeframe(
+    organizationId: string,
+    options: {
+      from?: Date
+      to?: Date
+      direction?: 'asc' | 'desc'
+      limit?: number
+    },
+  ): Promise<Run[]> {
+    const direction = options.direction ?? 'asc'
+
+    // Build the constraint list dynamically. Firestore requires the orderBy
+    // field to match the inequality field, which is `date` here — so the
+    // composite index `(organizationId, date)` covers both directions.
+    const constraints: QueryConstraint[] = [where('organizationId', '==', organizationId)]
+    if (options.from) {
+      constraints.push(where('date', '>=', Timestamp.fromDate(options.from)))
+    }
+    if (options.to) {
+      constraints.push(where('date', '<=', Timestamp.fromDate(options.to)))
+    }
+    constraints.push(orderBy('date', direction))
+    if (options.limit !== undefined) {
+      constraints.push(firestoreLimit(options.limit))
+    }
+
+    return this.collectionHelper.getDocuments('runs', constraints)
   }
 
   async getRunsAtLocation(locationId: string): Promise<Run[]> {

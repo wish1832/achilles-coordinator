@@ -19,7 +19,7 @@
       <div class="organization-error">
         <h1>Unable to load organization</h1>
         <p>There was an error loading the organization. Please try again.</p>
-        <AchillesButton @click="loadOrganizationData">Try Again</AchillesButton>
+        <AchillesButton @click="retryOrganization">Try Again</AchillesButton>
       </div>
     </main>
 
@@ -78,7 +78,7 @@
             <!-- Error loading runs -->
             <div v-else-if="runsLoading === 'error'" class="runs-error">
               <p>There was an error loading runs. Please try again.</p>
-              <AchillesButton @click="loadRunsData">Try Again</AchillesButton>
+              <AchillesButton @click="retryRuns">Try Again</AchillesButton>
             </div>
 
             <!-- Runs list -->
@@ -100,10 +100,10 @@
                     <div class="run-detail"><strong>Time:</strong> {{ run.time }}</div>
                     <div class="run-detail run-signup-counts">
                       <span class="signup-count">
-                        <strong>Athletes:</strong> {{ signUpsStore.getSignUpCounts(run.id).athletes }}
+                        <strong>Athletes:</strong> {{ getSignUpCountsForRun(run.id).athletes }}
                       </span>
                       <span class="signup-count">
-                        <strong>Guides:</strong> {{ signUpsStore.getSignUpCounts(run.id).guides }}
+                        <strong>Guides:</strong> {{ getSignUpCountsForRun(run.id).guides }}
                       </span>
                     </div>
                   </div>
@@ -158,7 +158,9 @@
         <font-awesome-icon icon="plus" aria-hidden="true" />
       </button>
 
-      <!-- RSVP Modal -->
+      <!-- RSVP Modal. The modal owns the create-or-update mutation; we just
+           keep the open/close state and provide context (selected run,
+           location name, whether we're editing). -->
       <RSVPModal
         :is-open="isRSVPModalOpen"
         :run="selectedRun"
@@ -167,49 +169,38 @@
         :existing-sign-up="existingSignUpData"
         @update:is-open="isRSVPModalOpen = $event"
         @close="closeRSVPModal"
-        @submit="handleRSVPSubmit"
       />
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onActivated, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import RSVPModal from '@/components/RSVPModal.vue'
-import { useOrganizationStore } from '@/stores/organization'
 import { useAuthStore } from '@/stores/auth'
-import { useRunsStore } from '@/stores/runs'
-import { useLocationStore } from '@/stores/location'
-import { useSignUpsStore } from '@/stores/signups'
 import { useAdminCapabilities } from '@/composables/useAdminCapabilities'
-import type { LoadingState, Run, SignUpStatus, SignUpActivity } from '@/types'
+import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
+import { useRunsForOrganizationQuery } from '@/composables/queries/useRunsForOrganizationQuery'
+import { useLocationsForOrganizationQuery } from '@/composables/queries/useLocationsForOrganizationQuery'
+import { useRunsSignUpsQuery } from '@/composables/queries/useRunsSignUpsQuery'
+import type { LoadingState, Location, Run } from '@/types'
 
 // Router and route
 const route = useRoute()
 const router = useRouter()
 
-// Stores
-const organizationStore = useOrganizationStore()
+// Auth is the only Pinia store still in use here — it owns client-side
+// session state, which is not server data and stays out of TanStack.
 const authStore = useAuthStore()
-const runsStore = useRunsStore()
-const locationStore = useLocationStore()
-const signUpsStore = useSignUpsStore()
-
-// Admin capabilities for checking org admin status
-const { isOrgAdmin } = useAdminCapabilities()
-
-// Get reactive references from stores
 const { currentUser } = storeToRefs(authStore)
-const { runs } = storeToRefs(runsStore)
 
-// Local loading states (organization loading is handled by the store, but we track it locally too)
-const organizationLoading = ref<LoadingState>('idle')
-const runsLoading = ref<LoadingState>('idle')
+// Admin capabilities for checking org admin status (also client-state).
+const { isOrgAdmin } = useAdminCapabilities()
 
 // RSVP Modal state
 const isRSVPModalOpen = ref(false)
@@ -219,25 +210,87 @@ const isEditingRSVP = ref(false)
 // Get organization ID from route params
 const orgId = computed(() => route.params.orgId as string)
 
-// Get current organization from store
-const organization = computed(() => organizationStore.getOrganizationById(orgId.value))
+// === Server state via TanStack Query ===
 
-// Check if current user is a member of this organization
+// Organization detail. The hook handles its own loading/error/refetch — we
+// only adapt its status into the LoadingState string the template uses.
+const organizationQuery = useOrganizationQuery(orgId)
+const organization = computed(() => organizationQuery.data.value ?? undefined)
+
+// Membership is derived from the cached organization document. Declared
+// before the queries that gate on it to avoid a temporal-dead-zone error:
+// each query's `organizationId` getter reads `isMember` synchronously when
+// the hook registers, so the binding must already exist.
 const isMember = computed(() => {
-  // User must be authenticated to be a member
-  if (!currentUser.value) {
-    return false
-  }
-  return organizationStore.isUserOrgMember(orgId.value, currentUser.value.id)
+  if (!currentUser.value || !organization.value) return false
+  return organization.value.memberIds.includes(currentUser.value.id)
 })
 
-// Check if current user is an admin of this organization
+// Runs for this organization (upcoming only, ascending by date). Gated by
+// `isMember` via the hook's reactive enabled flag — non-members never
+// trigger the fetch.
+const runsQuery = useRunsForOrganizationQuery(
+  // Pass undefined when the user is not a member so `enabled` short-circuits
+  // and the query doesn't run for non-members.
+  computed(() => (isMember.value ? orgId.value : undefined)),
+  { timeframe: 'upcoming' },
+)
+const organizationRuns = computed<Run[]>(() => runsQuery.data.value ?? [])
+
+// Locations for this organization. Used to resolve a run's locationId to a
+// human-readable name without fanning out one query per run.
+const locationsQuery = useLocationsForOrganizationQuery(
+  computed(() => (isMember.value ? orgId.value : undefined)),
+)
+// Build a Map for O(1) lookups in `getLocationName`. Recomputes only when
+// the locations array reference changes.
+const locationsById = computed<Map<string, Location>>(() => {
+  const map = new Map<string, Location>()
+  for (const location of locationsQuery.data.value ?? []) {
+    map.set(location.id, location)
+  }
+  return map
+})
+
+// Sign-ups for every run in the org list. Returns a reactive map keyed by
+// runId; entries default to [] until the per-run query resolves.
+const runIds = computed(() => organizationRuns.value.map((run) => run.id))
+const { signUpsByRun } = useRunsSignUpsQuery(runIds)
+
+// === Derived state ===
+
+// Admin status is derived from the auth-side admin capabilities composable.
 const isUserOrgAdmin = computed(() => isOrgAdmin(orgId.value))
 
-// Filter runs for this organization
-const organizationRuns = computed(() => {
-  return runs.value.filter((run) => run.organizationId === orgId.value)
+// Map TanStack's pending/error/success status to the LoadingState string the
+// template already expects. Keeps the template untouched while still
+// reflecting the query lifecycle accurately.
+const organizationLoading = computed<LoadingState>(() => {
+  if (organizationQuery.isPending.value) return 'loading'
+  if (organizationQuery.isError.value) return 'error'
+  return 'success'
 })
+
+// Runs loading state aggregates the runs list, locations, and per-run
+// sign-ups — the section can't render correctly until all three resolve.
+const runsLoading = computed<LoadingState>(() => {
+  // If the user is not a member, we never load this section.
+  if (!isMember.value) return 'idle'
+  if (runsQuery.isError.value || locationsQuery.isError.value) return 'error'
+  if (runsQuery.isPending.value || locationsQuery.isPending.value) return 'loading'
+  return 'success'
+})
+
+// Retry handlers used by the template's "Try Again" buttons. TanStack
+// re-runs the queryFn and updates status without any manual state juggling.
+function retryOrganization(): void {
+  organizationQuery.refetch()
+}
+
+function retryRuns(): void {
+  runsQuery.refetch()
+  locationsQuery.refetch()
+}
 
 // Computed: Get the location name for the selected run
 const selectedRunLocationName = computed(() => {
@@ -245,16 +298,18 @@ const selectedRunLocationName = computed(() => {
   return getLocationName(selectedRun.value.locationId)
 })
 
-// Computed: Get existing sign-up data for editing
+// Computed: Get existing sign-up data for editing. Reads from the cached
+// runs-sign-ups map so it updates automatically after the user RSVPs.
 const existingSignUpData = computed(() => {
   if (!selectedRun.value || !currentUser.value || !isEditingRSVP.value) {
     return undefined
   }
 
-  // Find the user's sign-up for this run
-  const signUps = signUpsStore.getSignUpsForRun(selectedRun.value.id)
+  const signUps = signUpsByRun.value[selectedRun.value.id] ?? []
   const userSignUp = signUps.find(
-    (signup) => signup.userId === currentUser.value!.id && (signup.status === 'yes' || signup.status === 'maybe'),
+    (signup) =>
+      signup.userId === currentUser.value!.id &&
+      (signup.status === 'yes' || signup.status === 'maybe'),
   )
 
   if (!userSignUp) {
@@ -269,54 +324,30 @@ const existingSignUpData = computed(() => {
 })
 
 /**
- * Load organization data from the store
- */
-async function loadOrganizationData(): Promise<void> {
-  try {
-    organizationLoading.value = 'loading'
-    await organizationStore.loadOrganization(orgId.value)
-    organizationLoading.value = 'success'
-  } catch {
-    organizationLoading.value = 'error'
-  }
-}
-
-/**
- * Load runs data for members
- * Loads upcoming runs, locations, and sign-up counts
- */
-async function loadRunsData(): Promise<void> {
-  console.log('[OrganizationView] loadRunsData called')
-  try {
-    runsLoading.value = 'loading'
-
-    // Load upcoming runs
-    await runsStore.loadUpcomingRuns()
-    console.log('[OrganizationView] All runs from store:', runs.value)
-    console.log('[OrganizationView] Runs for this org:', organizationRuns.value)
-
-    // Load locations for this organization
-    await locationStore.loadLocationsForOrganization(orgId.value)
-
-    // Load sign-ups for runs in this organization
-    const runIds = organizationRuns.value.map((run) => run.id)
-    if (runIds.length > 0) {
-      await signUpsStore.loadSignUpsForRuns(runIds)
-    }
-
-    runsLoading.value = 'success'
-  } catch {
-    runsLoading.value = 'error'
-  }
-}
-
-/**
- * Get location name by ID
- * Returns the location name if found, otherwise returns 'Unknown Location'
+ * Get location name by ID via the cached locations map.
+ * Returns 'Unknown Location' if the location hasn't loaded or doesn't exist.
  */
 function getLocationName(locationId: string): string {
-  const location = locationStore.getLocationById(locationId)
-  return location ? location.name : 'Unknown Location'
+  return locationsById.value.get(locationId)?.name ?? 'Unknown Location'
+}
+
+/**
+ * Compute athlete + guide sign-up counts for a run from the cached map.
+ * Mirrors the count semantics the previous store helper exposed.
+ */
+function getSignUpCountsForRun(runId: string): { athletes: number; guides: number } {
+  const signUps = signUpsByRun.value[runId] ?? []
+  let athletes = 0
+  let guides = 0
+  for (const signUp of signUps) {
+    // Only RSVPs of 'yes' or 'maybe' count toward the headcount; 'no'
+    // sign-ups exist as a record of the response but shouldn't inflate the
+    // displayed numbers.
+    if (signUp.status !== 'yes' && signUp.status !== 'maybe') continue
+    if (signUp.role === 'athlete') athletes += 1
+    else if (signUp.role === 'guide') guides += 1
+  }
+  return { athletes, guides }
 }
 
 /**
@@ -379,12 +410,15 @@ function isUserSignedUpForRun(runId: string): boolean {
     return false
   }
 
-  // Get all sign-ups for this run
-  const signUps = signUpsStore.getSignUpsForRun(runId)
+  // Read sign-ups from the cached map populated by useRunsSignUpsQuery.
+  // Defaults to [] when the per-run query hasn't resolved yet.
+  const signUps = signUpsByRun.value[runId] ?? []
 
   // Check if any sign-up with status 'yes' or 'maybe' belongs to the current user
   return signUps.some(
-    (signup) => signup.userId === currentUser.value!.id && (signup.status === 'yes' || signup.status === 'maybe'),
+    (signup) =>
+      signup.userId === currentUser.value!.id &&
+      (signup.status === 'yes' || signup.status === 'maybe'),
   )
 }
 
@@ -415,49 +449,6 @@ function closeRSVPModal(): void {
   isEditingRSVP.value = false
 }
 
-/**
- * Handle RSVP form submission
- */
-function handleRSVPSubmit(data: {
-  status: SignUpStatus
-  activity: SignUpActivity
-  pace?: { minutes: number; seconds: number }
-}): void {
-  // TODO: Implement sign up creation/update logic via signups store
-  console.log('RSVP submitted:', data, 'for run:', selectedRun.value?.id)
-
-  // Close the modal after submission
-  closeRSVPModal()
-}
-
-// Load organization data on mount
-onMounted(async () => {
-  console.log('[OrganizationView] onMounted called')
-  await loadOrganizationData()
-
-  // If user is a member, also load runs data
-  if (isMember.value) {
-    await loadRunsData()
-  }
-})
-
-// Watch for changes in membership status (e.g., user logs in after page load)
-// and load runs if they become a member
-watch(isMember, async (newValue) => {
-  if (newValue && runsLoading.value === 'idle') {
-    await loadRunsData()
-  }
-})
-
-// Reload runs data when component is activated (e.g., navigating back from create run page)
-// With KeepAlive, the component is cached instead of destroyed, so onMounted won't run again.
-// onActivated runs each time the cached component becomes visible.
-onActivated(async () => {
-  console.log('[OrganizationView] onActivated called')
-  if (isMember.value) {
-    await loadRunsData()
-  }
-})
 </script>
 
 <style scoped>

@@ -18,6 +18,11 @@ export function useDeleteRunMutation() {
     onSuccess: (_result, runId) => {
       queryClient.removeQueries({ queryKey: queryKeys.runs.detail(runId) })
       queryClient.removeQueries({ queryKey: queryKeys.signUps.forRun(runId) })
+      // The deleted run still appears in any cached org-scoped run list.
+      // We don't know which org it belonged to from this mutation, so
+      // invalidate the entire `by-organization` branch and let active
+      // queries refetch without the deleted run.
+      queryClient.invalidateQueries({ queryKey: ['runs', 'by-organization'] })
     },
   })
 }

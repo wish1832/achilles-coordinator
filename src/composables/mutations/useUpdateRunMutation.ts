@@ -29,6 +29,13 @@ export function useUpdateRunMutation() {
       runRepository.updateRun(runId, updates),
     onSuccess: (_result, { runId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.runs.detail(runId) })
+      // Org-scoped run lists may now be stale (date, location, or
+      // organization-relevant fields could have changed). The mutation
+      // doesn't know which org this run belongs to, so invalidate every
+      // by-organization entry by passing only the prefix — TanStack
+      // matches partially. Inactive entries just get marked stale; only
+      // mounted queries refetch, so the cost is bounded.
+      queryClient.invalidateQueries({ queryKey: ['runs', 'by-organization'] })
     },
   })
 }

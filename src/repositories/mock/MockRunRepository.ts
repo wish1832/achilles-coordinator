@@ -64,6 +64,36 @@ export class MockRunRepository implements IRunRepository {
     return sortByRunDateAscending(runs.filter((entry) => entry.organizationId === organizationId))
   }
 
+  async getRunsForOrganizationInTimeframe(
+    organizationId: string,
+    options: {
+      from?: Date
+      to?: Date
+      direction?: 'asc' | 'desc'
+      limit?: number
+    },
+  ): Promise<Run[]> {
+    const direction = options.direction ?? 'asc'
+    const fromTime = options.from?.getTime()
+    const toTime = options.to?.getTime()
+
+    const runs = await this.collectionHelper.getDocuments<Run>('runs')
+    const filtered = runs.filter((entry) => {
+      if (entry.organizationId !== organizationId) return false
+      const runTime = new Date(entry.date).getTime()
+      if (fromTime !== undefined && runTime < fromTime) return false
+      if (toTime !== undefined && runTime > toTime) return false
+      return true
+    })
+
+    const sorted = filtered.sort((a, b) => {
+      const diff = new Date(a.date).getTime() - new Date(b.date).getTime()
+      return direction === 'asc' ? diff : -diff
+    })
+
+    return options.limit !== undefined ? sorted.slice(0, options.limit) : sorted
+  }
+
   async getRunsAtLocation(locationId: string): Promise<Run[]> {
     const runs = await this.collectionHelper.getDocuments<Run>('runs')
     return sortByRunDateAscending(runs.filter((entry) => entry.locationId === locationId))
