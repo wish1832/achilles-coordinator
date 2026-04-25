@@ -16,7 +16,7 @@
     >
       <h1>Unable to load form</h1>
       <p>There was an error loading the form. Please try again.</p>
-      <AchillesButton @click="loadFormData">Try Again</AchillesButton>
+      <AchillesButton @click="retryLoad">Try Again</AchillesButton>
     </div>
 
     <!-- Main form content -->
@@ -209,49 +209,70 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { storeToRefs } from 'pinia'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import LocationDropdown from '@/components/ui/LocationDropdown.vue'
-import { useOrganizationStore } from '@/stores/organization'
-import { useLocationStore } from '@/stores/location'
 import { useAuthStore } from '@/stores/auth'
-import { useDataRepository } from '@/composables/useRepositories'
-import type { CreateRunForm, LoadingState, Run } from '@/types'
+import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
+import { useLocationsForOrganizationQuery } from '@/composables/queries/useLocationsForOrganizationQuery'
+import { useCreateRunMutation } from '@/composables/mutations/useCreateRunMutation'
+import type { CreateRunForm, Location, LoadingState, Run } from '@/types'
 
 // Router and route for navigation and params
 const route = useRoute()
 const router = useRouter()
 
-// Stores for organization, location, and auth data
-const organizationStore = useOrganizationStore()
-const locationStore = useLocationStore()
+// Auth is the only Pinia store still in use here — it owns client-side
+// session state, which isn't server data and stays out of TanStack.
 const authStore = useAuthStore()
-
-// Repository for creating the run in the database
-const dataRepository = useDataRepository()
-
-// Get reactive reference to locations from the store
-const { locations } = storeToRefs(locationStore)
 
 // Get organization ID from route params
 const orgId = computed(() => route.params.orgId as string)
 
-// Get current organization from store
-const organization = computed(() => organizationStore.getOrganizationById(orgId.value))
+// === Server state via TanStack Query ===
 
-// Loading states for page initialization and form submission
-const pageLoading = ref<LoadingState>('idle')
-const submitting = ref(false)
+// Organization detail (used for the page header/subtitle).
+const organizationQuery = useOrganizationQuery(orgId)
+const organization = computed(() => organizationQuery.data.value ?? undefined)
+
+// Locations for this organization (powers the dropdown). Default to an empty
+// array while loading so the LocationDropdown receives a stable shape.
+const locationsQuery = useLocationsForOrganizationQuery(orgId)
+const locations = computed<Location[]>(() => locationsQuery.data.value ?? [])
+
+// === Mutations ===
+
+// useCreateRunMutation invalidates the by-organization runs cache on success,
+// so the OrganizationView's runs list picks up the new run immediately.
+const createRunMutation = useCreateRunMutation()
+// Drives the submit button's loading state and disabled state.
+const submitting = computed(() => createRunMutation.isPending.value)
 const submitError = ref<string | null>(null)
 
-// Form state with all fields from CreateRunForm interface
-// organizationId is set from route params, not user input
+// Map the two queries' status to the LoadingState string the template uses.
+// We aggregate both because the form needs the org name *and* the locations
+// list before it can render meaningfully.
+const pageLoading = computed<LoadingState>(() => {
+  if (organizationQuery.isError.value || locationsQuery.isError.value) return 'error'
+  if (organizationQuery.isPending.value || locationsQuery.isPending.value) return 'loading'
+  return 'success'
+})
+
+// Retry both underlying queries when the user clicks "Try Again". Either
+// one failing puts the page in the error state, so refetching both is the
+// safe default.
+function retryLoad(): void {
+  organizationQuery.refetch()
+  locationsQuery.refetch()
+}
+
+// Form state with all fields from CreateRunForm interface.
+// organizationId is set from route params, not user input.
 const form = ref<CreateRunForm>({
-  organizationId: '',
+  organizationId: orgId.value,
   date: '',
   time: '',
   locationId: '',
@@ -275,32 +296,6 @@ const isFormValid = computed(() => {
     Object.keys(errors.value).length === 0
   )
 })
-
-/**
- * Load initial data needed for the form:
- * - Organization details for display
- * - Locations for the dropdown
- */
-async function loadFormData(): Promise<void> {
-  try {
-    pageLoading.value = 'loading'
-
-    // Set organization ID from route params
-    form.value.organizationId = orgId.value
-
-    // Load organization if not already in cache
-    if (!organization.value) {
-      await organizationStore.loadOrganization(orgId.value)
-    }
-
-    // Load locations for this organization to populate the dropdown
-    await locationStore.loadLocationsForOrganization(orgId.value)
-
-    pageLoading.value = 'success'
-  } catch {
-    pageLoading.value = 'error'
-  }
-}
 
 /**
  * Validate an individual field
@@ -384,8 +379,12 @@ function validateAllFields(): boolean {
 }
 
 /**
- * Handle form submission
- * Creates the run in the database and navigates back to the organization page
+ * Handle form submission. Builds the run payload, fires the create-run
+ * mutation, and navigates back to the organization page on success.
+ *
+ * The mutation's `isPending` drives the `submitting` flag, and its onSuccess
+ * invalidates `['runs', 'by-organization']` so the OrganizationView's runs
+ * list reflects the new run as soon as the user lands there.
  */
 async function handleSubmit(): Promise<void> {
   // Clear previous submission error
@@ -396,47 +395,42 @@ async function handleSubmit(): Promise<void> {
     return
   }
 
+  // Build the run data object for creation. Uses Omit<Run, 'id'> since the
+  // id is generated by the database. Parse date parts manually to avoid
+  // UTC interpretation — `new Date('YYYY-MM-DD')` is treated as UTC
+  // midnight, which shifts the day back in US timezones when displayed
+  // with toLocaleDateString.
+  const dateParts = form.value.date.split('-').map(Number)
+  const year = dateParts[0]!
+  const month = dateParts[1]!
+  const day = dateParts[2]!
+  // month - 1 because JS Date months are zero-indexed (0 = Jan, 1 = Feb).
+  const runData: Omit<Run, 'id'> = {
+    organizationId: form.value.organizationId,
+    date: new Date(year, month - 1, day),
+    time: form.value.time,
+    locationId: form.value.locationId,
+    description: form.value.description.trim(),
+    createdBy: authStore.currentUser!.id,
+    createdAt: new Date(),
+    status: 'upcoming',
+    // Only include optional fields if they have values
+    ...(form.value.maxAthletes !== undefined && { maxAthletes: form.value.maxAthletes }),
+    ...(form.value.maxGuides !== undefined && { maxGuides: form.value.maxGuides }),
+    ...(form.value.notes && { notes: form.value.notes.trim() }),
+  }
+
   try {
-    submitting.value = true
+    // mutateAsync rethrows on failure so the catch below can surface a
+    // user-facing error; the mutation hook handles cache invalidation.
+    await createRunMutation.mutateAsync(runData)
 
-    // Build the run data object for creation
-    // Uses Omit<Run, 'id'> since ID is generated by the database
-    // Parse date parts manually to avoid UTC interpretation —
-    // new Date('YYYY-MM-DD') is treated as UTC midnight, which shifts
-    // the day back in US timezones when displayed with toLocaleDateString.
-    const dateParts = form.value.date.split('-').map(Number)
-    const year = dateParts[0]!
-    const month = dateParts[1]!
-    const day = dateParts[2]!
-    // month - 1 because JS Date months are zero-indexed (0 = Jan, 1 = Feb, etc.)
-    const runData: Omit<Run, 'id'> = {
-      organizationId: form.value.organizationId,
-      date: new Date(year, month - 1, day),
-      time: form.value.time,
-      locationId: form.value.locationId,
-      description: form.value.description.trim(),
-      createdBy: authStore.currentUser!.id,
-      createdAt: new Date(),
-      status: 'upcoming',
-      // Only include optional fields if they have values
-      ...(form.value.maxAthletes !== undefined && { maxAthletes: form.value.maxAthletes }),
-      ...(form.value.maxGuides !== undefined && { maxGuides: form.value.maxGuides }),
-      ...(form.value.notes && { notes: form.value.notes.trim() }),
-    }
-
-    // Create the run via the data repository
-    const newRunId = await dataRepository.createRun(runData)
-    console.log('[CreateRunView] Created run with ID:', newRunId)
-    console.log('[CreateRunView] Run data:', runData)
-
-    // Navigate back to the organization page on success
+    // Navigate back to the organization page on success.
     router.push(`/organizations/${orgId.value}`)
   } catch (err) {
     console.error('Failed to create run:', err)
     submitError.value =
       'Unable to create run. Please try again and contact us if the problem persists.'
-  } finally {
-    submitting.value = false
   }
 }
 
@@ -446,11 +440,6 @@ async function handleSubmit(): Promise<void> {
 function handleCancel(): void {
   router.push(`/organizations/${orgId.value}`)
 }
-
-// Load form data when component mounts
-onMounted(() => {
-  loadFormData()
-})
 </script>
 
 <style scoped>
