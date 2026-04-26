@@ -104,6 +104,7 @@ const emit = defineEmits<Emits>()
 // Refs
 const modalRef = ref<HTMLElement>()
 const previouslyFocusedElement = ref<HTMLElement | null>(null)
+const focusTrapCleanup = ref<(() => void) | undefined>()
 
 // Accessibility store
 const accessibilityStore = useAccessibilityStore()
@@ -196,15 +197,13 @@ watch(
         modalRef.value.focus()
       }
 
-      // Set up focus trap
-      const cleanup = trapFocus()
-
-      // Store cleanup function for later
-      modalRef.value?.setAttribute('data-cleanup', 'true')
-
-      // Clean up on unmount
-      onUnmounted(cleanup)
+      // Set up focus trap and store cleanup function
+      focusTrapCleanup.value = trapFocus()
     } else {
+      // Clean up focus trap when closing
+      focusTrapCleanup.value?.()
+      focusTrapCleanup.value = undefined
+
       // Restore focus to previously focused element
       if (previouslyFocusedElement.value) {
         previouslyFocusedElement.value.focus()
@@ -236,6 +235,7 @@ watch(
 // Cleanup on unmount
 onUnmounted(() => {
   unlockBodyScroll()
+  focusTrapCleanup.value?.()
 })
 </script>
 
