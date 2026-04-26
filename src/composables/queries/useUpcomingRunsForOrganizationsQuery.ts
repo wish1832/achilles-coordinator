@@ -29,11 +29,6 @@ export function useUpcomingRunsForOrganizationsQuery(
     Array.from(new Set(toValue(organizationIds))).sort(),
   )
 
-  // Anchor `now` to the moment the queries first register so the cache
-  // key stays stable across renders. A fresh `Date()` each render would
-  // otherwise churn the key and re-fetch on every reactivity tick.
-  const anchorTime = new Date()
-
   const queries = useQueries({
     queries: computed(() =>
       normalizedOrganizationIds.value.map((orgId) => ({
@@ -44,9 +39,11 @@ export function useUpcomingRunsForOrganizationsQuery(
           timeframe: 'upcoming' as const,
           limit: undefined,
         }),
+        // Compute `now` inside the queryFn so each refetch uses the current
+        // time rather than the timestamp frozen at composable creation.
         queryFn: () =>
           runRepository.getRunsForOrganizationInTimeframe(orgId, {
-            from: anchorTime,
+            from: new Date(),
             direction: 'asc' as const,
           }),
       })),
