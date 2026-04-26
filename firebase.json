@@ -6,7 +6,9 @@
       "**/.*",
       "**/node_modules/**"
     ],
-    "predeploy": ["pnpm run build"],
+    "predeploy": [
+      "pnpm run build"
+    ],
     "rewrites": [
       {
         "source": "**",
@@ -16,5 +18,11 @@
   },
   "functions": {
     "source": "functions"
+  },
+  "firestore": {
+    "database": "(default)",
+    "location": "us-west3",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   }
 }
