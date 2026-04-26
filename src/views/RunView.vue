@@ -654,8 +654,13 @@ onMounted(() => {
 // Re-activate the component each time the user navigates to this view.
 // With <KeepAlive>, onMounted only fires once; onActivated fires every time.
 onActivated(() => {
-  // Success toast is triggered by QueryClient cache invalidation from the update mutation,
-  // which automatically refreshes the run data when the user navigates back.
+  // EditRunView passes ?updated=1 after a successful save. Show the toast and
+  // immediately replace the URL to remove the param so it doesn't re-trigger.
+  if (route.query.updated) {
+    showSuccessToast.value = true
+    toastDismissTimer = setTimeout(dismissToast, 8000)
+    router.replace({ query: {} })
+  }
 })
 
 // Clean up timers and listeners when the component unmounts

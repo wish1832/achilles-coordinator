@@ -656,9 +656,9 @@ async function handleSubmit(): Promise<void> {
       updates: buildRunUpdates(draft.value),
     })
 
-    // Navigate back to the run view on success
-    // The mutation invalidates the run detail cache so RunView reflects the saved values
-    router.push(`/organizations/${orgId.value}/runs/${runId.value}`)
+    // Navigate back to the run view on success; the ?updated query param tells
+    // RunView to show the success toast. The mutation already invalidated the cache.
+    router.push(`/organizations/${orgId.value}/runs/${runId.value}?updated=1`)
   } catch {
     // The mutation's error ref drives the inline error message; nothing
     // else to do here beyond swallowing the rejection so Vue doesn't log
