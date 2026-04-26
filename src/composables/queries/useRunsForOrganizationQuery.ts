@@ -61,22 +61,23 @@ export function useRunsForOrganizationQuery(
 
   // Resolve the options once per change. We capture two parallel views of the
   // same configuration:
-  //   - `repositoryArgs`: the concrete `Date`s + direction handed to the repo
-  //   - `keyParams`:      ISO-string-normalized form used in the cache key
+  //   - `repositoryArgs`: the direction/limit handed to the repo (no timestamp
+  //     for preset mode — the queryFn computes `now` at execution time so each
+  //     refetch uses the current clock rather than the stale mount-time value)
+  //   - `keyParams`:      stable form used in the TanStack Query cache key
   // Splitting them keeps the repo call ergonomic while the cache key stays
   // referentially stable across renders.
   const resolved = computed(() => {
     const value = toValue(options)
-    const now = new Date()
 
     if (isPresetMode(value)) {
-      // Preset mode: derive the date window from the current time. We compute
-      // `now` here (not in the queryFn) so the cache key is anchored to the
-      // moment the query is registered — refetches reuse the same key, but a
-      // page reload picks up a fresh "now" naturally.
+      // Preset mode: `now` is intentionally omitted here. The queryFn (below)
+      // calls `new Date()` each time it runs so that background refetches
+      // always query from/to the actual current time rather than the frozen
+      // timestamp from when the component first mounted.
       if (value.timeframe === 'upcoming') {
         return {
-          repositoryArgs: { from: now, direction: 'asc' as const, limit: value.limit },
+          repositoryArgs: { direction: 'asc' as const, limit: value.limit },
           keyParams: {
             mode: 'preset' as const,
             timeframe: 'upcoming' as const,
@@ -87,7 +88,7 @@ export function useRunsForOrganizationQuery(
 
       // 'past' — runs strictly before now, newest first.
       return {
-        repositoryArgs: { to: now, direction: 'desc' as const, limit: value.limit },
+        repositoryArgs: { direction: 'desc' as const, limit: value.limit },
         keyParams: {
           mode: 'preset' as const,
           timeframe: 'past' as const,
@@ -126,10 +127,25 @@ export function useRunsForOrganizationQuery(
   return useQuery<Run[]>({
     queryKey,
     enabled: computed(() => !!normalizedOrganizationId.value),
-    queryFn: () =>
-      runRepository.getRunsForOrganizationInTimeframe(
+    queryFn: () => {
+      const args = resolved.value.repositoryArgs
+      const keyP = resolved.value.keyParams
+
+      // For preset mode, build the time boundary fresh on every execution so
+      // that background refetches always use the current clock — not the
+      // timestamp captured when the component first rendered.
+      const now = new Date()
+      const timeArgs =
+        keyP.mode === 'preset' && keyP.timeframe === 'upcoming'
+          ? { ...args, from: now }
+          : keyP.mode === 'preset' && keyP.timeframe === 'past'
+            ? { ...args, to: now }
+            : args
+
+      return runRepository.getRunsForOrganizationInTimeframe(
         normalizedOrganizationId.value!,
-        resolved.value.repositoryArgs,
-      ),
+        timeArgs,
+      )
+    },
   })
 }
