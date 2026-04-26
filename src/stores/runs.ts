@@ -22,6 +22,10 @@ export const useRunsStore = defineStore('runs', () => {
    * @param id - Run ID to load
    */
   async function loadRun(id: string): Promise<void> {
+    // Clear any previously loaded run immediately so a failed fetch cannot
+    // leave stale data readable from currentRun.
+    currentRun.value = null
+
     try {
       loading.value = 'loading'
       error.value = null
