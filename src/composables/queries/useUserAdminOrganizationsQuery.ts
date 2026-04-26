@@ -1,7 +1,6 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useOrganizationRepository } from '@/composables/useRepositories'
 import { queryKeys } from '@/lib/queryKeys'
-import { useAuthStore } from '@/stores/auth'
 import type { Organization } from '@/types'
 import { useQuery } from '@tanstack/vue-query'
 
@@ -14,7 +13,6 @@ import { useQuery } from '@tanstack/vue-query'
  */
 export function useUserAdminOrganizationsQuery(userId: MaybeRefOrGetter<string | undefined>) {
   const organizationRepository = useOrganizationRepository()
-  const authStore = useAuthStore()
   const normalizedUserId = computed(() => toValue(userId))
   const queryKey = computed(() =>
     queryKeys.organizations.memberOf(normalizedUserId.value ?? 'unknown'),
@@ -27,9 +25,9 @@ export function useUserAdminOrganizationsQuery(userId: MaybeRefOrGetter<string |
   })
 
   const adminOrganizations = computed(() => {
-    const user = authStore.currentUser
-    if (!user || !memberOrganizations.value) return []
-    return memberOrganizations.value.filter((org) => org.adminIds.includes(user.id))
+    const uid = normalizedUserId.value
+    if (!uid || !memberOrganizations.value) return []
+    return memberOrganizations.value.filter((org) => org.adminIds.includes(uid))
   })
 
   return {
