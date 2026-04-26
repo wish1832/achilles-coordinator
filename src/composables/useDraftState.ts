@@ -29,6 +29,8 @@ export interface UseDraftStateOptions<T> {
  *   onSave: (draft) => organizationRepository.updateOrganization(id, draft),
  * })
  */
+// Generic object shape is intentional to support any domain model type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function useDraftState<T extends Record<string, any>>(
   options: UseDraftStateOptions<T>,
 ) {

@@ -280,7 +280,7 @@ const locationsById = computed<Map<string, Location>>(() => {
 })
 
 // Initialize draft state from run query
-const { draft, isDirty, isSaving: isDraftSaving, error: draftError, success: draftSuccess } = useDraftState({
+const { draft, isDirty, success: draftSuccess } = useDraftState({
   data: run,
   onSave: async (draftRun) => {
     await updateRunMutation.mutateAsync({
@@ -300,10 +300,17 @@ const draftRunDate = computed({
     return ''
   },
   set: (value: string) => {
-    if (draft.value) {
-      draft.value.date = value as any
-      isDirty.value = true
-      draftSuccess.value = false
+    if (draft.value && value) {
+      // Parse date string (YYYY-MM-DD) into Date object to avoid UTC interpretation
+      const parts = value.split('-').map(Number)
+      const year = parts[0]
+      const month = parts[1]
+      const day = parts[2]
+      if (year !== undefined && month !== undefined && day !== undefined) {
+        draft.value.date = new Date(year, month - 1, day)
+        isDirty.value = true
+        draftSuccess.value = false
+      }
     }
   },
 })
