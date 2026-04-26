@@ -44,7 +44,7 @@
                 </label>
                 <input
                   id="date"
-                  v-model="runsStore.draftRunDate"
+                  v-model="draftRunDate"
                   type="date"
                   class="form-input"
                   :class="{ 'form-input--error': errors.date }"
@@ -67,7 +67,7 @@
                 </label>
                 <input
                   id="time"
-                  v-model="runsStore.draftRunTime"
+                  v-model="draftRunTime"
                   type="time"
                   class="form-input"
                   :class="{ 'form-input--error': errors.time }"
@@ -84,7 +84,7 @@
 
               <!-- Location dropdown - required, uses custom component for rich display -->
               <LocationDropdown
-                v-model="runsStore.draftRunLocationId"
+                v-model="draftRunLocationId"
                 :locations="locations"
                 label="Location"
                 placeholder="Select a location"
@@ -103,7 +103,7 @@
                 </label>
                 <textarea
                   id="description"
-                  v-model="runsStore.draftRunDescription"
+                  v-model="draftRunDescription"
                   class="form-input form-textarea"
                   :class="{ 'form-input--error': errors.description }"
                   :aria-invalid="!!errors.description"
@@ -128,7 +128,7 @@
                 <label for="maxAthletes" class="form-label"> Maximum Athletes </label>
                 <input
                   id="maxAthletes"
-                  v-model.number="runsStore.draftRunMaxAthletes"
+                  v-model.number="draftRunMaxAthletes"
                   type="number"
                   min="0"
                   class="form-input"
@@ -158,7 +158,7 @@
                 <label for="maxGuides" class="form-label"> Maximum Guides </label>
                 <input
                   id="maxGuides"
-                  v-model.number="runsStore.draftRunMaxGuides"
+                  v-model.number="draftRunMaxGuides"
                   type="number"
                   min="0"
                   class="form-input"
@@ -179,7 +179,7 @@
                 <label for="notes" class="form-label"> Additional Notes </label>
                 <textarea
                   id="notes"
-                  v-model="runsStore.draftRunNotes"
+                  v-model="draftRunNotes"
                   class="form-input form-textarea"
                   rows="2"
                   aria-describedby="notes-helper"
@@ -197,9 +197,9 @@
                 </AchillesButton>
                 <AchillesButton
                   type="submit"
-                  :variant="runsStore.isEditRunDirty ? 'primary' : 'secondary'"
+                  :variant="isDirty ? 'primary' : 'secondary'"
                   :loading="isSaving"
-                  :disabled="!runsStore.isEditRunDirty || !isFormValid || isSaving"
+                  :disabled="!isDirty || !isFormValid || isSaving"
                 >
                   {{ isSaving ? 'Saving...' : 'Save Changes' }}
                 </AchillesButton>
@@ -218,13 +218,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import LocationDropdown from '@/components/ui/LocationDropdown.vue'
-import { useRunsStore } from '@/stores/runs'
+import { useDraftState } from '@/composables/useDraftState'
 import { useUpdateRunMutation } from '@/composables/mutations/useUpdateRunMutation'
 import { useRunQuery } from '@/composables/queries/useRunQuery'
 import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
@@ -234,12 +234,6 @@ import type { LoadingState, Location, Run } from '@/types'
 // Router and route for navigation and params
 const route = useRoute()
 const router = useRouter()
-
-// The runs store still owns the edit-form draft state (draftRun*, dirty
-// flag, save-success flag, initializeEditRunDraft). Server-state reads are
-// handled by TanStack queries below; this remaining store dependency is
-// scoped to the draft and will be addressed in a future composable refactor.
-const runsStore = useRunsStore()
 
 // Mutation that persists run edits through TanStack Query.
 // On success, it invalidates the run detail cache so RunView refetches.
@@ -285,28 +279,105 @@ const locationsById = computed<Map<string, Location>>(() => {
   return map
 })
 
-// Initialize the runs-store draft once the run query first resolves. We
-// gate on a flag so that subsequent refetches (e.g. window-focus refresh)
-// don't clobber edits the user has typed but not yet saved.
-const draftInitialized = ref(false)
-watch(
-  run,
-  (loadedRun) => {
-    if (!loadedRun || draftInitialized.value) return
-    // The store's initializeEditRunDraft looks up the run via id; populate
-    // currentRun first so the lookup succeeds without depending on the
-    // runs store having been independently warmed.
-    runsStore.setCurrentRun(loadedRun)
-    runsStore.initializeEditRunDraft(loadedRun.id)
-    draftInitialized.value = true
+// Initialize draft state from run query
+const { draft, isDirty, isSaving: isDraftSaving, error: draftError, success: draftSuccess } = useDraftState({
+  data: run,
+  onSave: async (draftRun) => {
+    await updateRunMutation.mutateAsync({
+      runId: runId.value,
+      updates: buildRunUpdates(draftRun),
+    })
   },
-  { immediate: true },
-)
+})
+
+// Provide computed refs for draft fields
+const draftRunDate = computed({
+  get: () => {
+    const date = draft.value?.date
+    if (!date) return ''
+    if (typeof date === 'string') return date
+    if (date instanceof Date) return date.toISOString().split('T')[0]
+    return ''
+  },
+  set: (value: string) => {
+    if (draft.value) {
+      draft.value.date = value as any
+      isDirty.value = true
+      draftSuccess.value = false
+    }
+  },
+})
+
+const draftRunTime = computed({
+  get: () => draft.value?.time ?? '',
+  set: (value: string) => {
+    if (draft.value) {
+      draft.value.time = value
+      isDirty.value = true
+      draftSuccess.value = false
+    }
+  },
+})
+
+const draftRunLocationId = computed({
+  get: () => draft.value?.locationId ?? '',
+  set: (value: string) => {
+    if (draft.value) {
+      draft.value.locationId = value
+      isDirty.value = true
+      draftSuccess.value = false
+    }
+  },
+})
+
+const draftRunDescription = computed({
+  get: () => draft.value?.description ?? '',
+  set: (value: string) => {
+    if (draft.value) {
+      draft.value.description = value
+      isDirty.value = true
+      draftSuccess.value = false
+    }
+  },
+})
+
+const draftRunMaxAthletes = computed({
+  get: () => draft.value?.maxAthletes,
+  set: (value: number | undefined) => {
+    if (draft.value) {
+      draft.value.maxAthletes = value
+      isDirty.value = true
+      draftSuccess.value = false
+    }
+  },
+})
+
+const draftRunMaxGuides = computed({
+  get: () => draft.value?.maxGuides,
+  set: (value: number | undefined) => {
+    if (draft.value) {
+      draft.value.maxGuides = value
+      isDirty.value = true
+      draftSuccess.value = false
+    }
+  },
+})
+
+const draftRunNotes = computed({
+  get: () => draft.value?.notes,
+  set: (value: string | undefined) => {
+    if (draft.value) {
+      draft.value.notes = value
+      isDirty.value = true
+      draftSuccess.value = false
+    }
+  },
+})
 
 // Show the current location name in the page title so the edit screen
 // identifies the run clearly.
 const editRunTitle = computed(() => {
-  const locationId = runsStore.draftRunLocationId || run.value?.locationId
+  const locationId = draftRunLocationId.value || run.value?.locationId
   if (!locationId) {
     return 'Run'
   }
@@ -317,8 +388,8 @@ const editRunTitle = computed(() => {
 // Format the run's date and time for display in the subtitle.
 // Uses the draft values (which are initialized from the current run on load).
 const formattedRunDateTime = computed(() => {
-  const date = runsStore.draftRunDate || run.value?.date
-  const time = runsStore.draftRunTime || run.value?.time
+  const date = draftRunDate.value || run.value?.date
+  const time = draftRunTime.value || run.value?.time
 
   if (!date) {
     return ''
@@ -414,10 +485,10 @@ const errors = ref<Record<string, string>>({})
 // Requires all required fields and no validation errors
 const isFormValid = computed(() => {
   return (
-    runsStore.draftRunDate &&
-    runsStore.draftRunTime &&
-    runsStore.draftRunLocationId &&
-    runsStore.draftRunDescription &&
+    draftRunDate.value &&
+    draftRunTime.value &&
+    draftRunLocationId.value &&
+    draftRunDescription.value &&
     Object.keys(errors.value).length === 0
   )
 })
@@ -428,7 +499,7 @@ const isFormValid = computed(() => {
  * Called from input/change events on all form fields.
  */
 function markDirty(): void {
-  runsStore.isEditRunDirty = true
+  isDirty.value = true
 }
 
 /**
@@ -438,7 +509,7 @@ function markDirty(): void {
 function validateField(field: string): void {
   switch (field) {
     case 'date':
-      if (!runsStore.draftRunDate) {
+      if (!draftRunDate.value) {
         errors.value.date = 'Date is required'
       } else {
         delete errors.value.date
@@ -446,7 +517,7 @@ function validateField(field: string): void {
       break
 
     case 'time':
-      if (!runsStore.draftRunTime) {
+      if (!draftRunTime.value) {
         errors.value.time = 'Time is required'
       } else {
         delete errors.value.time
@@ -454,7 +525,7 @@ function validateField(field: string): void {
       break
 
     case 'locationId':
-      if (!runsStore.draftRunLocationId) {
+      if (!draftRunLocationId.value) {
         errors.value.locationId = 'Location is required'
       } else {
         delete errors.value.locationId
@@ -462,9 +533,9 @@ function validateField(field: string): void {
       break
 
     case 'description':
-      if (!runsStore.draftRunDescription) {
+      if (!draftRunDescription.value) {
         errors.value.description = 'Description is required'
-      } else if (runsStore.draftRunDescription.trim().length < 10) {
+      } else if (draftRunDescription.value.trim().length < 10) {
         errors.value.description = 'Description must be at least 10 characters'
       } else {
         delete errors.value.description
@@ -472,7 +543,7 @@ function validateField(field: string): void {
       break
 
     case 'maxAthletes':
-      if (runsStore.draftRunMaxAthletes !== undefined && runsStore.draftRunMaxAthletes < 0) {
+      if (draftRunMaxAthletes.value !== undefined && draftRunMaxAthletes.value < 0) {
         errors.value.maxAthletes = 'Maximum athletes cannot be negative'
       } else {
         delete errors.value.maxAthletes
@@ -480,7 +551,7 @@ function validateField(field: string): void {
       break
 
     case 'maxGuides':
-      if (runsStore.draftRunMaxGuides !== undefined && runsStore.draftRunMaxGuides < 0) {
+      if (draftRunMaxGuides.value !== undefined && draftRunMaxGuides.value < 0) {
         errors.value.maxGuides = 'Maximum guides cannot be negative'
       } else {
         delete errors.value.maxGuides
@@ -502,10 +573,10 @@ function validateAllFields(): boolean {
   requiredFields.forEach(validateField)
 
   // Also validate optional numeric fields if they have values
-  if (runsStore.draftRunMaxAthletes !== undefined) {
+  if (draftRunMaxAthletes.value !== undefined) {
     validateField('maxAthletes')
   }
-  if (runsStore.draftRunMaxGuides !== undefined) {
+  if (draftRunMaxGuides.value !== undefined) {
     validateField('maxGuides')
   }
 
@@ -513,15 +584,19 @@ function validateAllFields(): boolean {
 }
 
 /**
- * Build the run update payload from the current draft state.
+ * Build the run update payload from the draft run.
  * Lives in the view because the draft-to-payload transform is specific
  * to this form; the mutation itself is a generic run updater.
  */
-function buildRunUpdates(): Partial<Omit<Run, 'id'>> {
+function buildRunUpdates(draftRun: Run): Partial<Omit<Run, 'id'>> {
   // Parse date parts manually to avoid UTC interpretation —
   // new Date('YYYY-MM-DD') is treated as UTC midnight, which shifts
   // the day back in US timezones when displayed with toLocaleDateString.
-  const dateParts = runsStore.draftRunDate.split('-').map(Number)
+  const dateStr = typeof draftRun.date === 'string'
+    ? draftRun.date
+    : draftRun.date?.toISOString().split('T')[0] ?? ''
+
+  const dateParts = dateStr.split('-').map(Number)
   const year = dateParts[0]!
   const month = dateParts[1]!
   const day = dateParts[2]!
@@ -536,19 +611,19 @@ function buildRunUpdates(): Partial<Omit<Run, 'id'>> {
     notes?: string | null
   } = {
     date: new Date(year, month - 1, day),
-    time: runsStore.draftRunTime,
-    locationId: runsStore.draftRunLocationId,
-    description: runsStore.draftRunDescription.trim(),
+    time: draftRun.time ?? '',
+    locationId: draftRun.locationId ?? '',
+    description: (draftRun.description ?? '').trim(),
   }
 
   // Include optional fields: pass the value when set, or null to clear
   // a previously stored value from the database.
-  updates.maxAthletes = runsStore.draftRunMaxAthletes ?? null
-  updates.maxGuides = runsStore.draftRunMaxGuides ?? null
+  updates.maxAthletes = draftRun.maxAthletes ?? null
+  updates.maxGuides = draftRun.maxGuides ?? null
 
   // Normalize empty or whitespace-only notes to null so the field
   // is removed rather than stored as an empty string.
-  const trimmedNotes = runsStore.draftRunNotes?.trim()
+  const trimmedNotes = draftRun.notes?.trim()
   updates.notes = trimmedNotes || null
 
   return updates as Partial<Omit<Run, 'id'>>
@@ -566,19 +641,16 @@ async function handleSubmit(): Promise<void> {
     return
   }
 
+  if (!draft.value) return
+
   try {
     await updateRunMutation.mutateAsync({
       runId: runId.value,
-      updates: buildRunUpdates(),
+      updates: buildRunUpdates(draft.value),
     })
 
-    // Clear the dirty flag and signal success to the run view so it can
-    // display the post-edit toast. editRunSaveSuccess is cross-view state
-    // the store still owns; the mutation itself is decoupled from it.
-    runsStore.isEditRunDirty = false
-    runsStore.editRunSaveSuccess = true
-
     // Navigate back to the run view on success
+    // The mutation invalidates the run detail cache so RunView reflects the saved values
     router.push(`/organizations/${orgId.value}/runs/${runId.value}`)
   } catch {
     // The mutation's error ref drives the inline error message; nothing
