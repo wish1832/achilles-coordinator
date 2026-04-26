@@ -51,7 +51,12 @@ export function useDraftState<T extends Record<string, any>>(
   function initializeDraft(source: T | undefined) {
     if (source) {
       // Deep clone to avoid mutating source
-      draft.value = JSON.parse(JSON.stringify(source))
+      try {
+        draft.value = structuredClone(source)
+      } catch {
+        // Fallback for non-serializable data: shallow copy + JSON clone for serializable parts
+        draft.value = JSON.parse(JSON.stringify(source))
+      }
       isDirty.value = false
       error.value = null
       success.value = false
@@ -81,11 +86,16 @@ export function useDraftState<T extends Record<string, any>>(
     isSaving.value = true
 
     try {
-      await options.onSave(draft.value)
+      // Convert draft to plain object to avoid cloning issues with Vue reactivity
+      const plainDraft = JSON.parse(JSON.stringify(draft.value))
+      await options.onSave(plainDraft)
       isDirty.value = false
       success.value = true
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to save changes'
+      // Log the full error to console for debugging
+      console.error('Failed to save changes:', err)
+      // Show a generic error message in UI
+      error.value = 'An error occurred while saving. Please try again.'
     } finally {
       isSaving.value = false
     }
