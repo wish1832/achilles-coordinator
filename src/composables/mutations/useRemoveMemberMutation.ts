@@ -16,6 +16,9 @@ export function useRemoveMemberMutation() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.users.byIds([]),
       })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.organizations.memberOf(variables.userId),
+      })
     },
   })
 }
