@@ -370,8 +370,8 @@ const adminNames = computed(() => {
 
 // Check if the current user can manage this run (is org admin or run admin)
 const canUserManageRun = computed(() => {
-  if (!run.value) return false
-  return canManageRun(run.value.organizationId, run.value.runAdminIds)
+  if (!run.value || !organization.value) return false
+  return canManageRun(organization.value.adminIds, run.value.runAdminIds)
 })
 
 // Check if the current user has signed up for this run

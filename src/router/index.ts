@@ -255,7 +255,7 @@ router.beforeEach(async (to, _from, next) => {
 
       // Use the canManageRun composable to check if user can manage this run
       // This checks both org admin status and run-specific admin status
-      if (!canManageRun(run.organizationId, run.runAdminIds)) {
+      if (!org || !canManageRun(org.adminIds, run.runAdminIds)) {
         // User is not authorized to manage this run
         next({ name: 'Run', params: { orgId: run.organizationId, id: runId } })
         return

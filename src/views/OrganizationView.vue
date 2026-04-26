@@ -259,8 +259,11 @@ const { signUpsByRun } = useRunsSignUpsQuery(runIds)
 
 // === Derived state ===
 
-// Admin status is derived from the auth-side admin capabilities composable.
-const isUserOrgAdmin = computed(() => isOrgAdmin(orgId.value))
+// Admin status is derived from the resolved organization's adminIds.
+const isUserOrgAdmin = computed(() => {
+  if (!organization.value) return false
+  return isOrgAdmin(organization.value.adminIds)
+})
 
 // Map TanStack's pending/error/success status to the LoadingState string the
 // template already expects. Keeps the template untouched while still
