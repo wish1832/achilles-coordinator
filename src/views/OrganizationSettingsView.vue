@@ -286,7 +286,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
@@ -296,7 +296,8 @@ import ModalElement from '@/components/ui/ModalElement.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
 import { useUsersByIdsQuery } from '@/composables/queries/useUsersByIdsQuery'
-import { useOrgSettingsDraft } from '@/composables/useOrgSettingsDraft'
+import { useDraftState } from '@/composables/useDraftState'
+import { useUpdateOrgSettingsMutation } from '@/composables/mutations/useUpdateOrgSettingsMutation'
 import { useAddAdminMutation } from '@/composables/mutations/useAddAdminMutation'
 import { useRemoveAdminMutation } from '@/composables/mutations/useRemoveAdminMutation'
 import { useRemoveMemberMutation } from '@/composables/mutations/useRemoveMemberMutation'
@@ -344,26 +345,52 @@ const membersLoading = computed(() => {
 // Validation error for the organization name field
 const nameError = ref<string | null>(null)
 
-// Initialize draft settings composable
-const {
-  draftOrgName,
-  draftOrgDescription,
-  isOrgSettingsDirty,
-  isOrgSettingsSaving,
-  orgSettingsSaveError,
-  orgSettingsSaveSuccess,
-  initializeDraft,
-  setDraftName,
-  setDraftDescription,
-  saveChanges,
-} = useOrgSettingsDraft(organization.value ?? undefined)
+// Mutation for updating organization settings
+const updateOrgSettingsMutation = useUpdateOrgSettingsMutation()
 
-// Watch for organization changes to reinitialize draft
-watch(organization, (newOrg) => {
-  if (newOrg) {
-    initializeDraft(newOrg)
-  }
+// Initialize draft settings with useDraftState
+const { draft, isDirty, isSaving, error, success, saveChanges: performSave } = useDraftState({
+  data: organization,
+  onSave: async (org) => {
+    await updateOrgSettingsMutation.mutateAsync({
+      organizationId: orgId.value,
+      updates: {
+        name: org.name,
+        description: org.description,
+      },
+    })
+  },
 })
+
+// Provide computed refs for draft fields with empty string fallbacks
+const draftOrgName = computed({
+  get: () => draft.value?.name ?? '',
+  set: (value) => {
+    if (draft.value) {
+      draft.value.name = value
+      isDirty.value = true
+      success.value = false
+    }
+  },
+})
+
+const draftOrgDescription = computed({
+  get: () => draft.value?.description ?? '',
+  set: (value) => {
+    if (draft.value) {
+      draft.value.description = value
+      isDirty.value = true
+      success.value = false
+    }
+  },
+})
+
+// Aliases for backward compatibility with template
+const isOrgSettingsDirty = isDirty
+const isOrgSettingsSaving = isSaving
+const orgSettingsSaveError = error
+const orgSettingsSaveSuccess = success
+
 
 /**
  * Computed list of admin users for this organization.
@@ -550,7 +577,7 @@ async function confirmRemoveUser(): Promise<void> {
  */
 function handleNameChange(event: Event): void {
   const target = event.target as HTMLInputElement
-  setDraftName(target.value)
+  draftOrgName.value = target.value
 
   // Clear the error once the user types at least one non-space character
   if (nameError.value && target.value.trim().length > 0) {
@@ -564,12 +591,12 @@ function handleNameChange(event: Event): void {
  */
 function handleDescriptionChange(event: Event): void {
   const target = event.target as HTMLTextAreaElement
-  setDraftDescription(target.value)
+  draftOrgDescription.value = target.value
 }
 
 /**
  * Save the organization settings changes
- * Validates input and persists the changes via the composable
+ * Validates input and persists the changes via the mutation
  */
 async function saveSettings(): Promise<void> {
   // Validate that the organization name is not empty or whitespace-only
@@ -579,7 +606,7 @@ async function saveSettings(): Promise<void> {
   }
 
   if (orgId.value) {
-    await saveChanges(orgId.value)
+    await performSave()
   }
 }
 </script>
