@@ -17,7 +17,6 @@
       <div class="org-settings-error">
         <h1>Unable to load organization</h1>
         <p>There was an error loading the organization. Please try again.</p>
-        <AchillesButton @click="loadOrganizationData">Try Again</AchillesButton>
       </div>
     </main>
 
@@ -62,7 +61,7 @@
                     :class="{ 'org-settings-input--error': nameError }"
                     :aria-invalid="!!nameError"
                     :aria-describedby="nameError ? 'org-name-error' : undefined"
-                    :value="organizationStore.draftOrgName"
+                    :value="draftOrgName"
                     @input="handleNameChange"
                   />
                   <p
@@ -83,7 +82,7 @@
                   <textarea
                     id="org-description"
                     class="org-settings-textarea"
-                    :value="organizationStore.draftOrgDescription"
+                    :value="draftOrgDescription"
                     @input="handleDescriptionChange"
                     rows="4"
                   ></textarea>
@@ -93,28 +92,17 @@
                 <div class="org-settings-actions">
                   <div class="org-settings-actions__row">
                     <AchillesButton
-                      :variant="organizationStore.isOrgSettingsDirty ? 'primary' : 'secondary'"
+                      :variant="isOrgSettingsDirty ? 'primary' : 'secondary'"
                       size="medium"
-                      :disabled="
-                        !organizationStore.isOrgSettingsDirty ||
-                        organizationStore.isOrgSettingsSaving
-                      "
+                      :disabled="!isOrgSettingsDirty || isOrgSettingsSaving"
                       @click="saveSettings"
                     >
-                      {{ organizationStore.isOrgSettingsSaving ? 'Saving...' : 'Save changes' }}
+                      {{ isOrgSettingsSaving ? 'Saving...' : 'Save changes' }}
                     </AchillesButton>
-                    <p
-                      v-if="organizationStore.orgSettingsSaveError"
-                      class="org-settings-save-error"
-                      role="alert"
-                    >
-                      {{ organizationStore.orgSettingsSaveError }}
+                    <p v-if="orgSettingsSaveError" class="org-settings-save-error" role="alert">
+                      {{ orgSettingsSaveError }}
                     </p>
-                    <p
-                      v-if="organizationStore.orgSettingsSaveSuccess"
-                      class="org-settings-success"
-                      role="status"
-                    >
+                    <p v-if="orgSettingsSaveSuccess" class="org-settings-success" role="status">
                       Changes saved successfully
                     </p>
                   </div>
@@ -298,40 +286,84 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
 import ActionMenu, { type ActionMenuItem } from '@/components/ui/ActionMenu.vue'
 import ModalElement from '@/components/ui/ModalElement.vue'
-import { useOrganizationStore } from '@/stores/organization'
-import { useUsersStore } from '@/stores/users'
 import { useAuthStore } from '@/stores/auth'
-import type { LoadingState, User } from '@/types'
+import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
+import { useUsersByIdsQuery } from '@/composables/queries/useUsersByIdsQuery'
+import { useOrgSettingsDraft } from '@/composables/useOrgSettingsDraft'
+import { useAddAdminMutation } from '@/composables/mutations/useAddAdminMutation'
+import { useRemoveAdminMutation } from '@/composables/mutations/useRemoveAdminMutation'
+import { useRemoveMemberMutation } from '@/composables/mutations/useRemoveMemberMutation'
+import type { User } from '@/types'
 
 // Router and route
 const route = useRoute()
 
-// Stores
-const organizationStore = useOrganizationStore()
-const usersStore = useUsersStore()
+// Store
 const authStore = useAuthStore()
-
-// Local loading state
-const organizationLoading = ref<LoadingState>('idle')
-
-// Validation error for the organization name field
-const nameError = ref<string | null>(null)
 
 // Get organization ID from route params
 const orgId = computed(() => route.params.orgId as string)
 
-// Get current organization from store
-const organization = computed(() => organizationStore.getOrganizationById(orgId.value))
+// Fetch organization and its members
+const { data: organization, status: organizationStatus } = useOrganizationQuery(orgId)
 
-// Loading state for members
-const membersLoading = ref<LoadingState>('idle')
+// Compute all member IDs (admins + non-admins)
+const allMemberIds = computed(() => {
+  if (!organization.value) return []
+  return Array.from(new Set([...organization.value.adminIds, ...organization.value.memberIds]))
+})
+
+// Fetch all member user data
+const {
+  data: memberUsersData,
+  status: memberUsersStatus,
+} = useUsersByIdsQuery(allMemberIds)
+const memberUsers = computed(() => memberUsersData.value ?? [])
+
+// Map organization loading status to LoadingState
+const organizationLoading = computed(() => {
+  if (organizationStatus.value === 'pending') return 'loading'
+  if (organizationStatus.value === 'error') return 'error'
+  return 'success'
+})
+
+// Map members loading status to LoadingState
+const membersLoading = computed(() => {
+  if (memberUsersStatus.value === 'pending') return 'loading'
+  if (memberUsersStatus.value === 'error') return 'error'
+  return 'success'
+})
+
+// Validation error for the organization name field
+const nameError = ref<string | null>(null)
+
+// Initialize draft settings composable
+const {
+  draftOrgName,
+  draftOrgDescription,
+  isOrgSettingsDirty,
+  isOrgSettingsSaving,
+  orgSettingsSaveError,
+  orgSettingsSaveSuccess,
+  initializeDraft,
+  setDraftName,
+  setDraftDescription,
+  saveChanges,
+} = useOrgSettingsDraft(organization.value ?? undefined)
+
+// Watch for organization changes to reinitialize draft
+watch(organization, (newOrg) => {
+  if (newOrg) {
+    initializeDraft(newOrg)
+  }
+})
 
 /**
  * Computed list of admin users for this organization.
@@ -339,8 +371,9 @@ const membersLoading = ref<LoadingState>('idle')
  */
 const adminUsers = computed((): User[] => {
   if (!organization.value) return []
+  const userMap = new Map(memberUsers.value.map((u) => [u.id, u]))
   return organization.value.adminIds
-    .map((id) => usersStore.getUserById(id))
+    .map((id) => userMap.get(id))
     .filter((user): user is User => user !== undefined)
 })
 
@@ -351,9 +384,10 @@ const adminUsers = computed((): User[] => {
 const nonAdminMembers = computed((): User[] => {
   if (!organization.value) return []
   const adminIdSet = new Set(organization.value.adminIds)
+  const userMap = new Map(memberUsers.value.map((u) => [u.id, u]))
   return organization.value.memberIds
     .filter((id) => !adminIdSet.has(id))
-    .map((id) => usersStore.getUserById(id))
+    .map((id) => userMap.get(id))
     .filter((user): user is User => user !== undefined)
 })
 
@@ -450,14 +484,22 @@ function closeAllModals(): void {
   selectedUser.value = null
 }
 
+// Initialize mutations
+const addAdminMutation = useAddAdminMutation()
+const removeAdminMutation = useRemoveAdminMutation()
+const removeMemberMutation = useRemoveMemberMutation()
+
 /**
  * Confirm making a user an admin.
- * Calls the organization store to add the user to the org's adminIds array.
+ * Calls the mutation to add the user to the org's adminIds array.
  */
 async function confirmMakeAdmin(): Promise<void> {
   if (selectedUser.value) {
     try {
-      await organizationStore.addAdmin(orgId.value, selectedUser.value.id)
+      await addAdminMutation.mutateAsync({
+        organizationId: orgId.value,
+        userId: selectedUser.value.id,
+      })
     } catch (err) {
       console.error('Failed to make user admin:', err)
     }
@@ -467,13 +509,16 @@ async function confirmMakeAdmin(): Promise<void> {
 
 /**
  * Confirm removing admin role from a user.
- * Calls the organization store to remove the user from the org's adminIds array.
+ * Calls the mutation to remove the user from the org's adminIds array.
  * The user remains a member of the organization.
  */
 async function confirmRemoveAdmin(): Promise<void> {
   if (selectedUser.value) {
     try {
-      await organizationStore.removeAdmin(orgId.value, selectedUser.value.id)
+      await removeAdminMutation.mutateAsync({
+        organizationId: orgId.value,
+        userId: selectedUser.value.id,
+      })
     } catch (err) {
       console.error('Failed to remove admin role:', err)
     }
@@ -483,12 +528,15 @@ async function confirmRemoveAdmin(): Promise<void> {
 
 /**
  * Confirm removing a user from the organization.
- * Calls the organization store to remove the user from both memberIds and adminIds.
+ * Calls the mutation to remove the user from both memberIds and adminIds.
  */
 async function confirmRemoveUser(): Promise<void> {
   if (selectedUser.value) {
     try {
-      await organizationStore.removeMember(orgId.value, selectedUser.value.id)
+      await removeMemberMutation.mutateAsync({
+        organizationId: orgId.value,
+        userId: selectedUser.value.id,
+      })
     } catch (err) {
       console.error('Failed to remove user:', err)
     }
@@ -497,56 +545,12 @@ async function confirmRemoveUser(): Promise<void> {
 }
 
 /**
- * Load organization data from the store
- */
-async function loadOrganizationData(): Promise<void> {
-  try {
-    organizationLoading.value = 'loading'
-    await organizationStore.loadOrganization(orgId.value)
-    organizationLoading.value = 'success'
-  } catch {
-    organizationLoading.value = 'error'
-  }
-}
-
-/**
- * Load user data for all organization members.
- * Fetches user details for both admins and regular members.
- */
-async function loadMembersData(): Promise<void> {
-  if (!organization.value) return
-
-  try {
-    membersLoading.value = 'loading'
-    // Combine adminIds and memberIds, removing duplicates
-    const allMemberIds = [
-      ...new Set([...organization.value.adminIds, ...organization.value.memberIds]),
-    ]
-    await usersStore.loadUsers(allMemberIds)
-    membersLoading.value = 'success'
-  } catch {
-    membersLoading.value = 'error'
-  }
-}
-
-// Load organization data on mount and initialize the draft state for editing
-onMounted(async () => {
-  await loadOrganizationData()
-  // Initialize draft values after organization data is loaded
-  if (orgId.value) {
-    organizationStore.initializeOrgSettingsDraft(orgId.value)
-  }
-  // Load member user data after organization is loaded
-  await loadMembersData()
-})
-
-/**
  * Handle organization name input changes
- * Updates the draft state in the store
+ * Updates the draft state
  */
 function handleNameChange(event: Event): void {
   const target = event.target as HTMLInputElement
-  organizationStore.setDraftOrgName(target.value)
+  setDraftName(target.value)
 
   // Clear the error once the user types at least one non-space character
   if (nameError.value && target.value.trim().length > 0) {
@@ -556,26 +560,26 @@ function handleNameChange(event: Event): void {
 
 /**
  * Handle organization description textarea changes
- * Updates the draft state in the store
+ * Updates the draft state
  */
 function handleDescriptionChange(event: Event): void {
   const target = event.target as HTMLTextAreaElement
-  organizationStore.setDraftOrgDescription(target.value)
+  setDraftDescription(target.value)
 }
 
 /**
  * Save the organization settings changes
- * Calls the store method to persist the changes
+ * Validates input and persists the changes via the composable
  */
 async function saveSettings(): Promise<void> {
   // Validate that the organization name is not empty or whitespace-only
-  if (!organizationStore.draftOrgName.trim()) {
+  if (!draftOrgName.value.trim()) {
     nameError.value = 'Organization name is required.'
     return
   }
 
   if (orgId.value) {
-    await organizationStore.saveOrgSettingsChanges(orgId.value)
+    await saveChanges(orgId.value)
   }
 }
 </script>
