@@ -17,11 +17,11 @@
     >
       <h1>Unable to load run</h1>
       <p>There was an error loading the run. Please try again.</p>
-      <AchillesButton @click="loadFormData">Try Again</AchillesButton>
+      <AchillesButton @click="retryLoad">Try Again</AchillesButton>
     </div>
 
     <!-- Main form content -->
-    <template v-else-if="organization && runsStore.currentRun">
+    <template v-else-if="organization && run">
       <!-- Header with organization name -->
       <header class="edit-run-header">
         <div class="edit-run-header__content">
@@ -218,26 +218,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { storeToRefs } from 'pinia'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import LocationDropdown from '@/components/ui/LocationDropdown.vue'
-import { useOrganizationStore } from '@/stores/organization'
-import { useLocationStore } from '@/stores/location'
 import { useRunsStore } from '@/stores/runs'
 import { useUpdateRunMutation } from '@/composables/mutations/useUpdateRunMutation'
-import type { LoadingState, Run } from '@/types'
+import { useRunQuery } from '@/composables/queries/useRunQuery'
+import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
+import { useLocationsForOrganizationQuery } from '@/composables/queries/useLocationsForOrganizationQuery'
+import type { LoadingState, Location, Run } from '@/types'
 
 // Router and route for navigation and params
 const route = useRoute()
 const router = useRouter()
 
-// Stores for organization, location, and run data
-const organizationStore = useOrganizationStore()
-const locationStore = useLocationStore()
+// The runs store still owns the edit-form draft state (draftRun*, dirty
+// flag, save-success flag, initializeEditRunDraft). Server-state reads are
+// handled by TanStack queries below; this remaining store dependency is
+// scoped to the draft and will be addressed in a future composable refactor.
 const runsStore = useRunsStore()
 
 // Mutation that persists run edits through TanStack Query.
@@ -254,31 +255,70 @@ const saveError = computed(() =>
     : null,
 )
 
-// Get reactive reference to locations from the store
-const { locations } = storeToRefs(locationStore)
-
 // Get organization ID and run ID from route params
 const orgId = computed(() => route.params.orgId as string)
 const runId = computed(() => route.params.id as string)
 
-// Get current organization from store
-const organization = computed(() => organizationStore.getOrganizationById(orgId.value))
+// === Server state via TanStack Query ===
 
-// Show the current location name in the page title so the edit screen identifies the run clearly.
+// Run detail. Drives the form's initial values via the watch below.
+const runQuery = useRunQuery(runId)
+const run = computed<Run | undefined>(() => runQuery.data.value ?? undefined)
+
+// Organization detail (for the page subtitle).
+const organizationQuery = useOrganizationQuery(orgId)
+const organization = computed(() => organizationQuery.data.value ?? undefined)
+
+// Locations for this organization (powers the dropdown and the title's
+// location-name lookup). Default to an empty array while loading so the
+// LocationDropdown receives a stable shape.
+const locationsQuery = useLocationsForOrganizationQuery(orgId)
+const locations = computed<Location[]>(() => locationsQuery.data.value ?? [])
+
+// Map for O(1) location-name lookups in the title computed. Recomputes only
+// when the locations array reference changes.
+const locationsById = computed<Map<string, Location>>(() => {
+  const map = new Map<string, Location>()
+  for (const location of locations.value) {
+    map.set(location.id, location)
+  }
+  return map
+})
+
+// Initialize the runs-store draft once the run query first resolves. We
+// gate on a flag so that subsequent refetches (e.g. window-focus refresh)
+// don't clobber edits the user has typed but not yet saved.
+const draftInitialized = ref(false)
+watch(
+  run,
+  (loadedRun) => {
+    if (!loadedRun || draftInitialized.value) return
+    // The store's initializeEditRunDraft looks up the run via id; populate
+    // currentRun first so the lookup succeeds without depending on the
+    // runs store having been independently warmed.
+    runsStore.setCurrentRun(loadedRun)
+    runsStore.initializeEditRunDraft(loadedRun.id)
+    draftInitialized.value = true
+  },
+  { immediate: true },
+)
+
+// Show the current location name in the page title so the edit screen
+// identifies the run clearly.
 const editRunTitle = computed(() => {
-  const locationId = runsStore.draftRunLocationId || runsStore.currentRun?.locationId
+  const locationId = runsStore.draftRunLocationId || run.value?.locationId
   if (!locationId) {
     return 'Run'
   }
 
-  return locationStore.getLocationById(locationId)?.name || 'Run'
+  return locationsById.value.get(locationId)?.name || 'Run'
 })
 
 // Format the run's date and time for display in the subtitle.
 // Uses the draft values (which are initialized from the current run on load).
 const formattedRunDateTime = computed(() => {
-  const date = runsStore.draftRunDate || runsStore.currentRun?.date
-  const time = runsStore.draftRunTime || runsStore.currentRun?.time
+  const date = runsStore.draftRunDate || run.value?.date
+  const time = runsStore.draftRunTime || run.value?.time
 
   if (!date) {
     return ''
@@ -341,8 +381,31 @@ const formattedRunDateTime = computed(() => {
   return `${formattedDate} at ${formattedTime}`
 })
 
-// Loading state for page initialization
-const pageLoading = ref<LoadingState>('idle')
+// Loading state aggregated across the run, organization, and locations
+// queries. The form needs all three before it can render meaningfully —
+// the run for the draft, the organization for the subtitle, and the
+// locations for the dropdown — so any one being pending blocks the form.
+const pageLoading = computed<LoadingState>(() => {
+  if (runQuery.isError.value || organizationQuery.isError.value || locationsQuery.isError.value) {
+    return 'error'
+  }
+  if (
+    runQuery.isPending.value ||
+    organizationQuery.isPending.value ||
+    locationsQuery.isPending.value
+  ) {
+    return 'loading'
+  }
+  return 'success'
+})
+
+// Retry handler used by the template's "Try Again" button. Refetches all
+// three underlying queries since any one of them may have failed.
+function retryLoad(): void {
+  runQuery.refetch()
+  organizationQuery.refetch()
+  locationsQuery.refetch()
+}
 
 // Validation errors keyed by field name
 const errors = ref<Record<string, string>>({})
@@ -359,35 +422,6 @@ const isFormValid = computed(() => {
   )
 })
 
-/**
- * Load initial data needed for the form:
- * - Run data to populate draft state
- * - Organization details for display
- * - Locations for the dropdown
- */
-async function loadFormData(): Promise<void> {
-  try {
-    pageLoading.value = 'loading'
-
-    // Load the run data
-    await runsStore.loadRun(runId.value)
-
-    // Load organization if not already in cache
-    if (!organization.value) {
-      await organizationStore.loadOrganization(orgId.value)
-    }
-
-    // Load locations for this organization to populate the dropdown
-    await locationStore.loadLocationsForOrganization(orgId.value)
-
-    // Initialize the draft state from the loaded run
-    runsStore.initializeEditRunDraft(runId.value)
-
-    pageLoading.value = 'success'
-  } catch {
-    pageLoading.value = 'error'
-  }
-}
 
 /**
  * Mark the draft as dirty when the user changes any field.
@@ -560,10 +594,6 @@ function handleCancel(): void {
   router.push(`/organizations/${orgId.value}/runs/${runId.value}`)
 }
 
-// Load form data when component mounts
-onMounted(() => {
-  loadFormData()
-})
 </script>
 
 <style scoped>
