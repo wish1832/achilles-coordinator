@@ -337,21 +337,31 @@ function validateField(field: keyof CreateRunForm | string): void {
       }
       break
 
-    case 'maxAthletes':
-      if (form.value.maxAthletes !== undefined && form.value.maxAthletes < 0) {
+    case 'maxAthletes': {
+      // v-model.number emits '' when the input is cleared; normalize so the
+      // field is treated as unset rather than as the string ''.
+      const maxAthletes = form.value.maxAthletes === ('' as unknown) ? undefined : form.value.maxAthletes
+      form.value.maxAthletes = maxAthletes
+      if (maxAthletes !== undefined && maxAthletes < 0) {
         errors.value.maxAthletes = 'Maximum athletes cannot be negative'
       } else {
         delete errors.value.maxAthletes
       }
       break
+    }
 
-    case 'maxGuides':
-      if (form.value.maxGuides !== undefined && form.value.maxGuides < 0) {
+    case 'maxGuides': {
+      // v-model.number emits '' when the input is cleared; normalize so the
+      // field is treated as unset rather than as the string ''.
+      const maxGuides = form.value.maxGuides === ('' as unknown) ? undefined : form.value.maxGuides
+      form.value.maxGuides = maxGuides
+      if (maxGuides !== undefined && maxGuides < 0) {
         errors.value.maxGuides = 'Maximum guides cannot be negative'
       } else {
         delete errors.value.maxGuides
       }
       break
+    }
   }
 }
 
@@ -414,9 +424,10 @@ async function handleSubmit(): Promise<void> {
     createdBy: authStore.currentUser!.id,
     createdAt: new Date(),
     status: 'upcoming',
-    // Only include optional fields if they have values
-    ...(form.value.maxAthletes !== undefined && { maxAthletes: form.value.maxAthletes }),
-    ...(form.value.maxGuides !== undefined && { maxGuides: form.value.maxGuides }),
+    // Only include optional fields if they have values. Guard against '' from
+    // v-model.number on a cleared input in case validateField wasn't triggered.
+    ...(form.value.maxAthletes !== undefined && form.value.maxAthletes !== ('' as unknown) && { maxAthletes: form.value.maxAthletes }),
+    ...(form.value.maxGuides !== undefined && form.value.maxGuides !== ('' as unknown) && { maxGuides: form.value.maxGuides }),
     ...(form.value.notes && { notes: form.value.notes.trim() }),
   }
 

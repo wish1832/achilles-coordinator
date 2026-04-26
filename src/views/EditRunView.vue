@@ -354,9 +354,11 @@ const draftRunDescription = computed({
 
 const draftRunMaxAthletes = computed({
   get: () => draft.value?.maxAthletes,
-  set: (value: number | undefined) => {
+  // v-model.number emits '' when the input is cleared; normalize to undefined
+  // so validation and buildRunUpdates treat a cleared field as "no limit set".
+  set: (value: number | string | undefined) => {
     if (draft.value) {
-      draft.value.maxAthletes = value
+      draft.value.maxAthletes = value === '' ? undefined : (value as number | undefined)
       isDirty.value = true
       draftSuccess.value = false
     }
@@ -365,9 +367,11 @@ const draftRunMaxAthletes = computed({
 
 const draftRunMaxGuides = computed({
   get: () => draft.value?.maxGuides,
-  set: (value: number | undefined) => {
+  // v-model.number emits '' when the input is cleared; normalize to undefined
+  // so validation and buildRunUpdates treat a cleared field as "no limit set".
+  set: (value: number | string | undefined) => {
     if (draft.value) {
-      draft.value.maxGuides = value
+      draft.value.maxGuides = value === '' ? undefined : (value as number | undefined)
       isDirty.value = true
       draftSuccess.value = false
     }
