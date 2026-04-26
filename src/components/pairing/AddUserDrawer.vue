@@ -185,8 +185,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useAccessibilityStore } from '@/stores/accessibility'
+import { useFocusTrap } from '@/composables/useFocusTrap'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
 import type { User } from '@/types'
@@ -232,11 +233,15 @@ const drawerRef = ref<HTMLElement | null>(null)
 /** The search input — receives focus when the drawer opens */
 const searchInputRef = ref<HTMLInputElement | null>(null)
 
-/** The element that had focus before the drawer opened; focus returns here on close */
-const previouslyFocusedElement = ref<HTMLElement | null>(null)
-
 /** Current value of the search input */
 const searchQuery = ref('')
+
+// Focus trap — search input gets initial focus; inert is enabled so background
+// content is unreachable by keyboard while the drawer is open.
+const { saveFocus, activateTrap, deactivateTrap } = useFocusTrap(drawerRef, {
+  initialFocusRef: searchInputRef,
+  manageInert: true,
+})
 
 // ── Filtering ──────────────────────────────────────────────────────────────
 
@@ -261,71 +266,14 @@ const filteredGuides = computed(() => {
   )
 })
 
-// ── Focus trap ─────────────────────────────────────────────────────────────
-
-/**
- * Sets up a Tab/Shift+Tab focus trap inside the drawer panel.
- * Returns a cleanup function that removes the event listener.
- */
-function setupFocusTrap(): () => void {
-  const panel = drawerRef.value
-  if (!panel) return () => {}
-
-  function handleTabKey(event: KeyboardEvent): void {
-    if (event.key !== 'Tab') return
-
-    // Collect all focusable elements currently inside the drawer
-    const focusable = panel!.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-    )
-    if (focusable.length === 0) return
-
-    const firstFocusable = focusable[0]
-    const lastFocusable = focusable[focusable.length - 1]
-
-    // Guard: both ends must exist (they will whenever focusable.length > 0)
-    if (!firstFocusable || !lastFocusable) return
-
-    if (event.shiftKey) {
-      // Shift+Tab: wrap from first to last
-      if (document.activeElement === firstFocusable) {
-        event.preventDefault()
-        lastFocusable.focus()
-      }
-    } else {
-      // Tab: wrap from last to first
-      if (document.activeElement === lastFocusable) {
-        event.preventDefault()
-        firstFocusable.focus()
-      }
-    }
-  }
-
-  panel.addEventListener('keydown', handleTabKey)
-  return () => panel.removeEventListener('keydown', handleTabKey)
-}
-
 // ── Open/close lifecycle ───────────────────────────────────────────────────
-
-/**
- * Reference to the active focus trap cleanup function.
- * Stored so we can tear it down when the drawer closes.
- */
-let cleanupFocusTrap: (() => void) | null = null
 
 watch(
   () => props.isOpen,
   async (isOpen) => {
     if (isOpen) {
-      // Save the element that currently has focus so we can restore it on close
-      previouslyFocusedElement.value = document.activeElement as HTMLElement
-
-      // Prevent the background page from scrolling while the drawer is open
-      document.body.style.overflow = 'hidden'
-
-      // Make the background page inert so keyboard/AT users cannot reach it
-      const appRoot = document.getElementById('app')
-      if (appRoot) appRoot.setAttribute('inert', '')
+      // Save focus before the tick so it isn't lost to <body> by the time the drawer renders
+      saveFocus()
 
       // Clear stale search from a previous session
       searchQuery.value = ''
@@ -333,35 +281,12 @@ watch(
       // Wait for Vue to render the drawer DOM before focusing / trapping
       await nextTick()
 
-      // Move focus into the drawer (search input is the most useful first target)
-      searchInputRef.value?.focus()
-
-      // Activate the focus trap
-      cleanupFocusTrap = setupFocusTrap()
+      activateTrap()
     } else {
-      // Restore background interactivity
-      document.body.style.overflow = ''
-
-      const appRoot = document.getElementById('app')
-      if (appRoot) appRoot.removeAttribute('inert')
-
-      // Tear down the focus trap
-      cleanupFocusTrap?.()
-      cleanupFocusTrap = null
-
-      // Return focus to the element that opened the drawer
-      previouslyFocusedElement.value?.focus()
+      deactivateTrap()
     }
   },
 )
-
-// Ensure cleanup runs if the component is unmounted while the drawer is open
-onUnmounted(() => {
-  document.body.style.overflow = ''
-  const appRoot = document.getElementById('app')
-  if (appRoot) appRoot.removeAttribute('inert')
-  cleanupFocusTrap?.()
-})
 </script>
 
 <style scoped>
