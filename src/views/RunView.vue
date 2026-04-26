@@ -238,7 +238,6 @@ import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import ModalElement from '@/components/ui/ModalElement.vue'
 import RSVPModal from '@/components/RSVPModal.vue'
-import { useRunsStore } from '@/stores/runs'
 import { useAuthStore } from '@/stores/auth'
 import { useAdminCapabilities } from '@/composables/useAdminCapabilities'
 import { useRunQuery } from '@/composables/queries/useRunQuery'
@@ -251,7 +250,6 @@ import { useDeleteRunMutation } from '@/composables/mutations/useDeleteRunMutati
 // Router and stores
 const router = useRouter()
 const route = useRoute()
-const runsStore = useRunsStore()
 const authStore = useAuthStore()
 const { canManageRun } = useAdminCapabilities()
 
@@ -656,11 +654,8 @@ onMounted(() => {
 // Re-activate the component each time the user navigates to this view.
 // With <KeepAlive>, onMounted only fires once; onActivated fires every time.
 onActivated(() => {
-  if (runsStore.editRunSaveSuccess) {
-    showSuccessToast.value = true
-    runsStore.editRunSaveSuccess = false
-    toastDismissTimer = setTimeout(dismissToast, 8000)
-  }
+  // Success toast is triggered by QueryClient cache invalidation from the update mutation,
+  // which automatically refreshes the run data when the user navigates back.
 })
 
 // Clean up timers and listeners when the component unmounts

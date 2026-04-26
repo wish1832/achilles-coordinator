@@ -137,10 +137,6 @@ export const useRunsStore = defineStore('runs', () => {
   // Tracks whether any draft field differs from the persisted values
   const isEditRunDirty = ref(false)
 
-  // Cross-view flag: set true by EditRunView on save so RunView shows a
-  // post-edit success toast. Saving/error state are owned by the
-  // update-run mutation in EditRunView, not the store.
-  const editRunSaveSuccess = ref(false)
 
   /**
    * Initialize the edit run draft from a run's current values.
@@ -166,9 +162,8 @@ export const useRunsStore = defineStore('runs', () => {
     draftRunMaxGuides.value = run.maxGuides
     draftRunNotes.value = run.notes
 
-    // Reset dirty and status flags
+    // Reset dirty flag
     isEditRunDirty.value = false
-    editRunSaveSuccess.value = false
   }
 
   /**
@@ -230,7 +225,6 @@ export const useRunsStore = defineStore('runs', () => {
     draftRunMaxGuides,
     draftRunNotes,
     isEditRunDirty,
-    editRunSaveSuccess,
     initializeEditRunDraft,
     savePairings,
   }
