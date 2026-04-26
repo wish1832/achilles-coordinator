@@ -61,15 +61,27 @@ export class FirebaseSignUpRepository implements ISignUpRepository {
   }
 
   /**
+   * Convert Firestore Timestamp fields on a raw sign-up document to JS Date objects.
+   * Firestore returns date fields as Timestamp instances; SignUp expects Date.
+   */
+  private normalizeSignUp(signUp: SignUp): SignUp {
+    return {
+      ...signUp,
+      timestamp: signUp.timestamp instanceof Timestamp ? signUp.timestamp.toDate() : signUp.timestamp,
+    }
+  }
+
+  /**
    * Get all sign-ups for a specific run, ordered by timestamp descending.
    * @param runId - Run document ID
    * @returns Promise resolving to array of sign-ups for the run
    */
   async getSignUpsForRun(runId: string): Promise<SignUp[]> {
-    return this.collectionHelper.getDocuments('signups', [
+    const signUps = await this.collectionHelper.getDocuments<SignUp>('signups', [
       where('runId', '==', runId),
       orderBy('timestamp', 'desc'),
     ])
+    return signUps.map((s) => this.normalizeSignUp(s))
   }
 
   /**
@@ -78,10 +90,11 @@ export class FirebaseSignUpRepository implements ISignUpRepository {
    * @returns Promise resolving to array of sign-ups for the user
    */
   async getSignUpsForUser(userId: string): Promise<SignUp[]> {
-    return this.collectionHelper.getDocuments('signups', [
+    const signUps = await this.collectionHelper.getDocuments<SignUp>('signups', [
       where('userId', '==', userId),
       orderBy('timestamp', 'desc'),
     ])
+    return signUps.map((s) => this.normalizeSignUp(s))
   }
 
   /**
