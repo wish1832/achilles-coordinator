@@ -585,19 +585,24 @@ function handleGuideNavigationKeydown(event: KeyboardEvent): void {
 // Pairings Initialization
 // ==========================================
 
-// Initialize local pairings state from the run's saved pairings once,
-// when the run query first resolves. Gated by a flag so subsequent
-// refetches (window-focus, post-save invalidation) don't clobber edits
-// the user has typed but not yet saved. Mirrors the EditRunView pattern.
-const pairingsInitialized = ref(false)
+// Initialize local pairings state from the run's saved pairings the first
+// time the run resolves, and again whenever the router navigates to a
+// different run (different run.id). Subsequent refetches for the same run
+// (window-focus, post-save invalidation) are skipped so in-progress edits
+// are not clobbered. Uses prevRunId instead of a boolean flag so that
+// router reuse of this view for a new run is always detected.
+const prevRunId = ref<string | null>(null)
 watch(
   run,
   (loadedRun) => {
-    if (!loadedRun || pairingsInitialized.value) return
+    if (!loadedRun) return
+    // Skip reinitializing when still looking at the same run so that edits
+    // in progress survive background refetches.
+    if (loadedRun.id === prevRunId.value) return
     const savedPairings = loadedRun.pairings ?? {}
     pairings.value = JSON.parse(JSON.stringify(savedPairings))
     originalPairings.value = JSON.parse(JSON.stringify(savedPairings))
-    pairingsInitialized.value = true
+    prevRunId.value = loadedRun.id
   },
   { immediate: true },
 )
