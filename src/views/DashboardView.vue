@@ -56,7 +56,7 @@
           <div v-else-if="runsLoading === 'error'" class="runs-error">
             <h3>Unable to load runs</h3>
             <p>There was an error loading the runs. Please try again.</p>
-            <AchillesButton @click="runsStore.loadUpcomingRuns">Try Again</AchillesButton>
+            <AchillesButton @click="retryRuns">Try Again</AchillesButton>
           </div>
 
           <!-- Runs list -->
@@ -137,31 +137,83 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import RSVPModal from '@/components/RSVPModal.vue'
-import { useRunsStore } from '@/stores/runs'
-import { useLocationStore } from '@/stores/location'
 import { useAuthStore } from '@/stores/auth'
-import { useOrganizationStore } from '@/stores/organization'
 import { useRunsSignUpsQuery } from '@/composables/queries/useRunsSignUpsQuery'
-import type { Run, SignUp } from '@/types'
+import { useUserMemberOrganizationsQuery } from '@/composables/queries/useUserMemberOrganizationsQuery'
+import { useUpcomingRunsForOrganizationsQuery } from '@/composables/queries/useUpcomingRunsForOrganizationsQuery'
+import { useLocationsForOrganizationsQuery } from '@/composables/queries/useLocationsForOrganizationsQuery'
+import type { LoadingState, Run, SignUp } from '@/types'
 
-// Router and stores
+// Router and auth (auth is client session state — stays in Pinia).
 const router = useRouter()
-const runsStore = useRunsStore()
-const locationStore = useLocationStore()
 const authStore = useAuthStore()
-const organizationStore = useOrganizationStore()
-
-// Destructure refs from stores
-const { runs, loading: runsLoading } = storeToRefs(runsStore)
 const { currentUser } = storeToRefs(authStore)
-const { loading: organizationsLoading } = storeToRefs(organizationStore)
+
+// === Server state via TanStack Query ===
+
+// Step 1: load the user's member organizations. This drives the org list
+// in the template and is the input set for the per-org runs and locations
+// fan-outs. The query's `enabled` flag short-circuits when there is no
+// authenticated user.
+const userOrganizationsQuery = useUserMemberOrganizationsQuery(
+  computed(() => currentUser.value?.id),
+)
+const userOrganizations = computed(() => userOrganizationsQuery.data.value ?? [])
+const userOrganizationIds = computed(() => userOrganizations.value.map((org) => org.id))
+
+// Step 2: fan out per-org upcoming runs and locations queries via
+// reusable wrappers. The wrappers register one cache entry per org with
+// keys that match the single-org hooks (useRunsForOrganizationQuery,
+// useLocationsForOrganizationQuery), so the dashboard's data is shared
+// with OrganizationView — navigating between them never re-fetches.
+const upcomingRunsQuery = useUpcomingRunsForOrganizationsQuery(userOrganizationIds)
+const runs = upcomingRunsQuery.runs
+
+const locationsQuery = useLocationsForOrganizationsQuery(userOrganizationIds)
+const locationsById = locationsQuery.locationsById
+
+// === Aggregated loading states ===
+
+// Map TanStack's pending/error status to the LoadingState string the
+// template already expects.
+const organizationsLoading = computed<LoadingState>(() => {
+  if (userOrganizationsQuery.isError.value) return 'error'
+  if (userOrganizationsQuery.isPending.value) return 'loading'
+  return 'success'
+})
+
+const runsLoading = computed<LoadingState>(() => {
+  // While we don't yet know which orgs the user belongs to, the runs
+  // section is conceptually still loading.
+  if (userOrganizationsQuery.isError.value) return 'error'
+  if (userOrganizationsQuery.isPending.value) return 'loading'
+
+  // No member orgs → no runs to load. Surface success so the empty state
+  // renders rather than a perpetual spinner.
+  if (userOrganizationIds.value.length === 0) return 'success'
+
+  // Surface failure if any per-org runs or locations query failed; cards
+  // rely on both run data and location names.
+  if (upcomingRunsQuery.isError.value || locationsQuery.isError.value) return 'error'
+  if (upcomingRunsQuery.isPending.value || locationsQuery.isPending.value) return 'loading'
+  return 'success'
+})
+
+// Retry handler used by the runs section's "Try Again" button. Refetches
+// the user-orgs query (in case that's what failed) and the wrapper
+// queries' fan-outs.
+function retryRuns(): void {
+  userOrganizationsQuery.refetch()
+  upcomingRunsQuery.refetch()
+  locationsQuery.refetch()
+}
 
 // Load sign-ups for every loaded run via TanStack Query. Each run's
 // sign-ups live under their own cache entry, so the RSVP mutation's
@@ -199,12 +251,6 @@ function getSignUpCounts(runId: string): { athletes: number; guides: number } {
 const isRSVPModalOpen = ref(false)
 const selectedRun = ref<Run | null>(null)
 const isEditingRSVP = ref(false)
-
-// Computed: Get the user's organizations (where they are a member)
-const userOrganizations = computed(() => {
-  if (!currentUser.value) return []
-  return organizationStore.getUserMemberOrganizations(currentUser.value.id)
-})
 
 // Computed: Get the location name for the selected run
 const selectedRunLocationName = computed(() => {
@@ -261,11 +307,11 @@ function getOrgInitials(name: string): string {
   }
 }
 
-// Helper function to get location name by ID
-// Returns the location name if found, otherwise returns 'Unknown Location'
+// Helper function to get location name by ID via the cached map merged
+// from every per-org locations query. Returns 'Unknown Location' if the
+// location hasn't loaded yet or doesn't exist.
 function getLocationName(locationId: string): string {
-  const location = locationStore.getLocationById(locationId)
-  return location ? location.name : 'Unknown Location'
+  return locationsById.value.get(locationId)?.name ?? 'Unknown Location'
 }
 
 // Format run date and time for display
@@ -342,30 +388,6 @@ function handleRSVPSubmitted(): void {
   closeRSVPModal()
 }
 
-// Initialize on mount
-// Load organizations, runs, locations, and sign-ups when the component mounts
-onMounted(async () => {
-  // Load user's organizations if we have a current user
-  if (currentUser.value) {
-    await organizationStore.loadUserOrganizations(currentUser.value.id)
-  }
-
-  // Load the upcoming runs
-  await runsStore.loadUpcomingRuns()
-
-  // Then, load locations for all organizations that have runs
-  // Extract unique organization IDs from the loaded runs
-  const organizationIds = new Set(runs.value.map((run) => run.organizationId))
-
-  // Load locations for each unique organization
-  // This ensures we have location data to display location names
-  for (const orgId of organizationIds) {
-    await locationStore.loadLocationsForOrganization(orgId)
-  }
-
-  // Sign-ups are loaded reactively by useRunsSignUpsQuery as the
-  // runs list populates, so no explicit preload is needed here.
-})
 </script>
 
 <style scoped>

@@ -28,6 +28,9 @@ export const queryKeys = {
     detail(id: string) {
       return ['organizations', 'detail', id] as const
     },
+    memberOf(userId: string) {
+      return ['organizations', 'member-of', userId] as const
+    },
   },
   locations: {
     detail(id: string) {
