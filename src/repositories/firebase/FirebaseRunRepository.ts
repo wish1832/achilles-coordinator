@@ -38,27 +38,42 @@ export class FirebaseRunRepository implements IRunRepository {
     return this.collectionHelper.deleteDocument('runs', id)
   }
 
+  /**
+   * Convert Firestore Timestamp fields on a raw run document to JS Date objects.
+   * Firestore returns date fields as Timestamp instances; Run expects Date.
+   */
+  private normalizeRun(run: Run): Run {
+    return {
+      ...run,
+      date: run.date instanceof Timestamp ? run.date.toDate() : run.date,
+    }
+  }
+
   async getRun(id: string): Promise<Run | null> {
-    return this.collectionHelper.getDocument('runs', id)
+    const run = await this.collectionHelper.getDocument<Run>('runs', id)
+    return run ? this.normalizeRun(run) : null
   }
 
   async getRuns(): Promise<Run[]> {
-    return this.collectionHelper.getDocuments('runs', [orderBy('date', 'asc')])
+    const runs = await this.collectionHelper.getDocuments<Run>('runs', [orderBy('date', 'asc')])
+    return runs.map((run) => this.normalizeRun(run))
   }
 
   async getUpcomingRuns(): Promise<Run[]> {
     const now = Timestamp.now()
-    return this.collectionHelper.getDocuments('runs', [
+    const runs = await this.collectionHelper.getDocuments<Run>('runs', [
       where('date', '>=', now),
       orderBy('date', 'asc'),
     ])
+    return runs.map((run) => this.normalizeRun(run))
   }
 
   async getRunsForOrganization(organizationId: string): Promise<Run[]> {
-    return this.collectionHelper.getDocuments('runs', [
+    const runs = await this.collectionHelper.getDocuments<Run>('runs', [
       where('organizationId', '==', organizationId),
       orderBy('date', 'asc'),
     ])
+    return runs.map((run) => this.normalizeRun(run))
   }
 
   async getRunsForOrganizationInTimeframe(
@@ -87,14 +102,16 @@ export class FirebaseRunRepository implements IRunRepository {
       constraints.push(firestoreLimit(options.limit))
     }
 
-    return this.collectionHelper.getDocuments('runs', constraints)
+    const runs = await this.collectionHelper.getDocuments<Run>('runs', constraints)
+    return runs.map((run) => this.normalizeRun(run))
   }
 
   async getRunsAtLocation(locationId: string): Promise<Run[]> {
-    return this.collectionHelper.getDocuments('runs', [
+    const runs = await this.collectionHelper.getDocuments<Run>('runs', [
       where('locationId', '==', locationId),
       orderBy('date', 'asc'),
     ])
+    return runs.map((run) => this.normalizeRun(run))
   }
 
   async createSignUp(signUpData: Omit<SignUp, 'id'>): Promise<string> {

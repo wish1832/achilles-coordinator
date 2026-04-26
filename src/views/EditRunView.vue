@@ -293,11 +293,15 @@ const { draft, isDirty, success: draftSuccess } = useDraftState({
 // Provide computed refs for draft fields
 const draftRunDate = computed({
   get: () => {
-    const date = draft.value?.date
+    // Cast to unknown first: structuredClone's JSON fallback serializes Date as
+    // an ISO string, so at runtime this may be a string even though Run.date is Date.
+    const date = draft.value?.date as Date | string | undefined
     if (!date) return ''
-    if (typeof date === 'string') return date
-    if (date instanceof Date) return date.toISOString().split('T')[0]
-    return ''
+    if (typeof date === 'string') {
+      // Handle both 'YYYY-MM-DD' and full ISO strings like '2025-04-20T00:00:00.000Z'
+      return date.length > 10 ? date.split('T')[0] : date
+    }
+    return date.toISOString().split('T')[0]
   },
   set: (value: string) => {
     if (draft.value && value) {
@@ -599,9 +603,11 @@ function buildRunUpdates(draftRun: Run): Partial<Omit<Run, 'id'>> {
   // Parse date parts manually to avoid UTC interpretation —
   // new Date('YYYY-MM-DD') is treated as UTC midnight, which shifts
   // the day back in US timezones when displayed with toLocaleDateString.
-  const dateStr = typeof draftRun.date === 'string'
+  const rawDateStr = typeof draftRun.date === 'string'
     ? draftRun.date
     : draftRun.date?.toISOString().split('T')[0] ?? ''
+  // Trim full ISO strings (e.g. '2026-05-04T14:00:00.000Z') to just 'YYYY-MM-DD'
+  const dateStr = rawDateStr.length > 10 ? rawDateStr.split('T')[0]! : rawDateStr
 
   const dateParts = dateStr.split('-').map(Number)
   const year = dateParts[0]!
