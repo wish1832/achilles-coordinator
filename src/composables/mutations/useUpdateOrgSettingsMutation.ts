@@ -20,7 +20,7 @@ export function useUpdateOrgSettingsMutation() {
         queryKey: queryKeys.organizations.detail(variables.organizationId),
       })
       queryClient.invalidateQueries({
-        queryKey: queryKeys.organizations.memberOf(''),
+        queryKey: ['organizations', 'member-of'],
       })
     },
   })
