@@ -328,15 +328,26 @@ const draftActivities = computed({
   },
 })
 
+// Pending pace values held separately so we can track partial input without
+// writing an incomplete pace object (which would bypass paceValidationError).
+const pendingPaceMinutes = ref<number | undefined>(undefined)
+const pendingPaceSeconds = ref<number | undefined>(undefined)
+
 // Create computed refs for draft pace
 const draftPaceMinutes = computed({
-  get: () => draft.value?.pace?.minutes,
+  get: () => draft.value?.pace?.minutes ?? pendingPaceMinutes.value,
   set: (value) => {
     if (draft.value) {
-      if (!draft.value.pace) {
-        draft.value.pace = { minutes: value ?? 0, seconds: 0 }
+      pendingPaceMinutes.value = value
+      // Only write to draft.value.pace when both fields are defined
+      const secs = draft.value.pace?.seconds ?? pendingPaceSeconds.value
+      if (value !== undefined && secs !== undefined) {
+        draft.value.pace = { minutes: value, seconds: secs }
+        pendingPaceMinutes.value = undefined
+        pendingPaceSeconds.value = undefined
       } else {
-        draft.value.pace.minutes = value ?? 0
+        // Remove the incomplete pace object so the validator sees it as missing
+        delete draft.value.pace
       }
       isDirty.value = true
       success.value = false
@@ -345,13 +356,19 @@ const draftPaceMinutes = computed({
 })
 
 const draftPaceSeconds = computed({
-  get: () => draft.value?.pace?.seconds,
+  get: () => draft.value?.pace?.seconds ?? pendingPaceSeconds.value,
   set: (value) => {
     if (draft.value) {
-      if (!draft.value.pace) {
-        draft.value.pace = { minutes: 0, seconds: value ?? 0 }
+      pendingPaceSeconds.value = value ?? 0
+      // Only write to draft.value.pace when both fields are defined
+      const mins = draft.value.pace?.minutes ?? pendingPaceMinutes.value
+      if (mins !== undefined && value !== undefined) {
+        draft.value.pace = { minutes: mins, seconds: value ?? 0 }
+        pendingPaceMinutes.value = undefined
+        pendingPaceSeconds.value = undefined
       } else {
-        draft.value.pace.seconds = value ?? 0
+        // Remove the incomplete pace object so the validator sees it as missing
+        delete draft.value.pace
       }
       isDirty.value = true
       success.value = false
