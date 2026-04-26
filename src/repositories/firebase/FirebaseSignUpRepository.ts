@@ -1,4 +1,4 @@
-import { orderBy, where, type Firestore } from 'firebase/firestore'
+import { doc, setDoc, orderBy, where, Timestamp, type Firestore } from 'firebase/firestore'
 import { getFirebaseDb } from '@/firebase/client'
 import type { SignUp } from '@/types/models'
 import type { ISignUpRepository } from '../interfaces/ISignUpRepository'
@@ -100,6 +100,38 @@ export class FirebaseSignUpRepository implements ISignUpRepository {
 
     // Return the first match (there should be at most one) or null.
     return signUps[0] ?? null
+  }
+
+  /**
+   * Atomically create or update the sign-up for a run+user pair.
+   *
+   * A deterministic document ID is derived from runId and userId so the
+   * entire operation is a single setDoc call — no prior read is needed.
+   * setDoc with { merge: true } overwrites the supplied fields on an
+   * existing document or creates the document when it does not yet exist,
+   * making concurrent calls safe (last writer wins, no orphaned documents).
+   *
+   * @param signUpData - Full sign-up data (without id)
+   * @returns Promise resolving to the document ID
+   */
+  async upsertSignUp(signUpData: Omit<SignUp, 'id'>): Promise<string> {
+    // Build a stable ID so repeated calls for the same run+user always
+    // resolve to the same document, eliminating duplicate sign-ups.
+    const id = `${signUpData.runId}_${signUpData.userId}`
+    const docRef = doc(this.getDb(), 'signups', id)
+
+    await setDoc(
+      docRef,
+      {
+        ...signUpData,
+        updatedAt: Timestamp.now(),
+      },
+      // merge: true preserves fields not present in signUpData (e.g. createdAt
+      // written on the first call) and only overwrites the supplied fields.
+      { merge: true },
+    )
+
+    return id
   }
 }
 

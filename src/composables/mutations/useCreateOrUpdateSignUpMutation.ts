@@ -14,27 +14,11 @@ export function useCreateOrUpdateSignUpMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (signUpData: Omit<SignUp, 'id'>): Promise<string> => {
-      // Check if the user already has a sign-up for this run. If so, update
-      // it in place; otherwise create a new one. Mirrors the store behavior
-      // so callers don't have to know which path to take.
-      const existingSignUp = await signUpRepository.getSignUpForRunAndUser(
-        signUpData.runId,
-        signUpData.userId,
-      )
-
-      if (existingSignUp) {
-        await signUpRepository.updateSignUp(existingSignUp.id, {
-          status: signUpData.status,
-          activity: signUpData.activity,
-          pace: signUpData.pace,
-          timestamp: signUpData.timestamp,
-          notes: signUpData.notes,
-        })
-        return existingSignUp.id
-      }
-
-      return signUpRepository.createSignUp(signUpData)
+    mutationFn: (signUpData: Omit<SignUp, 'id'>): Promise<string> => {
+      // A single atomic upsert replaces the previous read-then-write flow.
+      // The repository derives a deterministic document ID from runId+userId
+      // and uses a merge write, so concurrent calls cannot create duplicates.
+      return signUpRepository.upsertSignUp(signUpData)
     },
     onSuccess: (_signUpId, variables) => {
       // Invalidate the sign-ups list for the affected run so subscribers
