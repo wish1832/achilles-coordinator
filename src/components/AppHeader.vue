@@ -107,13 +107,17 @@ const isDropdownOpen = ref(false)
 // Computed: Get the user's display name from the auth store
 const displayName = computed(() => authStore.userDisplayName || 'User')
 
-// Navigate back to the destination recorded by the current view.
-// Each view sets both backLabel (for the button text) and the back route via
-// navigationStore.previousRoute or a fixed route name in its own navigation logic.
-// AppHeader calls router.back() which is always correct because every view that
-// shows a back button was reached by navigating forward from its back target.
+// Navigate back using the previousRoute recorded by the router guard.
+// This is deterministic and works correctly on deep links and page refreshes,
+// unlike router.back() which relies on browser history being in sync with in-app routes.
+// Falls back to /dashboard when there is no recorded previous route.
 function goBack(): void {
-  router.back()
+  const previousRoute = navigationStore.previousRoute
+  if (previousRoute?.name) {
+    router.push({ name: previousRoute.name, params: previousRoute.params })
+    return
+  }
+  router.push('/dashboard')
 }
 
 // Toggle the dropdown menu open/closed
