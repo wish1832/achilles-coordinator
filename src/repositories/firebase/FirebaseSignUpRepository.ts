@@ -1,4 +1,4 @@
-import { doc, setDoc, orderBy, where, Timestamp, type Firestore } from 'firebase/firestore'
+import { doc, runTransaction, serverTimestamp, orderBy, where, Timestamp, type Firestore } from 'firebase/firestore'
 import { getFirebaseDb } from '@/firebase/client'
 import type { SignUp } from '@/types/models'
 import type { ISignUpRepository } from '../interfaces/ISignUpRepository'
@@ -133,16 +133,22 @@ export class FirebaseSignUpRepository implements ISignUpRepository {
     const id = `${signUpData.runId}_${signUpData.userId}`
     const docRef = doc(this.getDb(), 'signups', id)
 
-    await setDoc(
-      docRef,
-      {
-        ...signUpData,
-        updatedAt: Timestamp.now(),
-      },
-      // merge: true preserves fields not present in signUpData (e.g. createdAt
-      // written on the first call) and only overwrites the supplied fields.
-      { merge: true },
-    )
+    // Use a transaction to distinguish first write from subsequent updates so
+    // createdAt is only set on creation and never overwritten on later upserts.
+    await runTransaction(this.getDb(), async (transaction) => {
+      const snapshot = await transaction.get(docRef)
+      if (snapshot.exists()) {
+        // Document already exists — preserve createdAt, only update fields.
+        transaction.set(docRef, { ...signUpData, updatedAt: Timestamp.now() }, { merge: true })
+      } else {
+        // First write — record both timestamps.
+        transaction.set(docRef, {
+          ...signUpData,
+          createdAt: serverTimestamp(),
+          updatedAt: Timestamp.now(),
+        })
+      }
+    })
 
     return id
   }
