@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useOrganizationStore } from '@/stores/organization'
 import { useRunsStore } from '@/stores/runs'
+import { useNavigationStore } from '@/stores/navigation'
 import { useAdminCapabilities } from '@/composables/useAdminCapabilities'
 import type { UserRole } from '@/types/models'
 import LoginView from '@/views/LoginView.vue'
@@ -141,8 +142,13 @@ const router = createRouter({
 })
 
 // Navigation guards for authentication and role-based access
-router.beforeEach(async (to, _from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
+
+  // Record where the user is navigating from so views with dynamic back targets
+  // (e.g. RunView, UserSettingsView) can read previousRoute to decide where to go.
+  const navigationStore = useNavigationStore()
+  navigationStore.recordNavigation(from)
 
   // Wait for auth to be initialized before making routing decisions
   // This prevents redirecting to login when a valid session exists in sessionStorage

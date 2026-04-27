@@ -9,6 +9,7 @@ import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 import {
   faCaretUp,
   faCaretDown,
+  faChevronLeft,
   faCircleCheck,
   faCircleQuestion,
   faPlus,
@@ -21,6 +22,7 @@ import {
 library.add(
   faCaretUp,
   faCaretDown,
+  faChevronLeft,
   faCircleCheck,
   faCircleQuestion,
   faPlus,
