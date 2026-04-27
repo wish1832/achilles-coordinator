@@ -3,6 +3,11 @@ import { useOrganizationRepository } from '@/composables/useRepositories'
 import { queryKeys } from '@/lib/queryKeys'
 import type { Organization } from '@/types'
 
+/**
+ * Persist changes to an organization's name or description.
+ * On success, invalidates the org detail entry and the full member-of index so
+ * that any view showing the org's display name (dashboard, nav, etc.) refetches.
+ */
 export function useUpdateOrgSettingsMutation() {
   const queryClient = useQueryClient()
   const organizationRepository = useOrganizationRepository()
