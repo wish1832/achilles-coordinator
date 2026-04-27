@@ -358,7 +358,7 @@ function updateBackLabel(): void {
   const label = prev === 'Organization' ? organizationName.value : 'Dashboard'
   navigationStore.setBackLabel(label)
 }
-watch(organizationName, updateBackLabel)
+watch(organizationName, updateBackLabel, { immediate: true })
 onActivated(updateBackLabel)
 
 // Get the list of admin IDs for this run
