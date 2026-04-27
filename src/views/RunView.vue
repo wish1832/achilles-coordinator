@@ -238,7 +238,6 @@ import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import ModalElement from '@/components/ui/ModalElement.vue'
 import RSVPModal from '@/components/RSVPModal.vue'
-import { useRunsStore } from '@/stores/runs'
 import { useAuthStore } from '@/stores/auth'
 import { useAdminCapabilities } from '@/composables/useAdminCapabilities'
 import { useRunQuery } from '@/composables/queries/useRunQuery'
@@ -246,11 +245,11 @@ import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery
 import { useLocationQuery } from '@/composables/queries/useLocationQuery'
 import { useRunSignUpsQuery } from '@/composables/queries/useRunSignUpsQuery'
 import { useUsersByIdsQuery } from '@/composables/queries/useUsersByIdsQuery'
+import { useDeleteRunMutation } from '@/composables/mutations/useDeleteRunMutation'
 
 // Router and stores
 const router = useRouter()
 const route = useRoute()
-const runsStore = useRunsStore()
 const authStore = useAuthStore()
 const { canManageRun } = useAdminCapabilities()
 
@@ -287,7 +286,8 @@ function setActionsMenuTriggerRef(el: unknown): void {
 // ==========================================
 
 const isDeleteRunModalOpen = ref(false)
-const isDeletingRun = ref(false)
+const deleteRunMutation = useDeleteRunMutation()
+const isDeletingRun = computed(() => deleteRunMutation.isPending.value)
 const deleteCancelRef = ref<HTMLButtonElement | null>(null)
 
 /**
@@ -368,8 +368,8 @@ const adminNames = computed(() => {
 
 // Check if the current user can manage this run (is org admin or run admin)
 const canUserManageRun = computed(() => {
-  if (!run.value) return false
-  return canManageRun(run.value.organizationId, run.value.runAdminIds)
+  if (!run.value || !organization.value) return false
+  return canManageRun(organization.value.adminIds, run.value.runAdminIds)
 })
 
 // Check if the current user has signed up for this run
@@ -621,19 +621,16 @@ async function confirmDeleteRun(): Promise<void> {
   if (!run.value) return
 
   try {
-    isDeletingRun.value = true
-    await runsStore.deleteRun(runId.value)
+    await deleteRunMutation.mutateAsync(runId.value)
 
-    // Close the modal and reset state before navigating.
-    // Because <KeepAlive> keeps this component alive, we must
-    // explicitly clean up — otherwise the modal stays visible.
+    // Close the modal before navigating. Because <KeepAlive> keeps this
+    // component alive, we must explicitly clean up — otherwise the modal
+    // stays visible. The mutation's isPending resets on its own.
     isDeleteRunModalOpen.value = false
-    isDeletingRun.value = false
 
     router.push('/dashboard')
   } catch (err) {
     console.error('Error deleting run:', err)
-    isDeletingRun.value = false
   }
 }
 
@@ -657,10 +654,12 @@ onMounted(() => {
 // Re-activate the component each time the user navigates to this view.
 // With <KeepAlive>, onMounted only fires once; onActivated fires every time.
 onActivated(() => {
-  if (runsStore.editRunSaveSuccess) {
+  // EditRunView passes ?updated=1 after a successful save. Show the toast and
+  // immediately replace the URL to remove the param so it doesn't re-trigger.
+  if (route.query.updated) {
     showSuccessToast.value = true
-    runsStore.editRunSaveSuccess = false
     toastDismissTimer = setTimeout(dismissToast, 8000)
+    router.replace({ query: {} })
   }
 })
 

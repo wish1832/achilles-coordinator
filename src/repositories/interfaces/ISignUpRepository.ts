@@ -64,4 +64,16 @@ export interface ISignUpRepository {
    * @throws Error if retrieval fails
    */
   getSignUpForRunAndUser(runId: string, userId: string): Promise<SignUp | null>
+
+  /**
+   * Create or update the sign-up for a given run+user pair atomically.
+   * Uses a deterministic document ID derived from runId and userId so the
+   * operation is a single write with no prior read, eliminating the race
+   * condition that arises from a separate getSignUpForRunAndUser + create/update
+   * flow. Safe to call multiple times — later calls overwrite the earlier one.
+   * @param signUpData - Full sign-up data (without id)
+   * @returns Promise resolving to the document ID
+   * @throws Error if the write fails
+   */
+  upsertSignUp(signUpData: Omit<SignUp, 'id'>): Promise<string>
 }

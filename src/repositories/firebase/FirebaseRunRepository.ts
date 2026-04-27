@@ -1,4 +1,11 @@
-import { Timestamp, orderBy, where, type Firestore } from 'firebase/firestore'
+import {
+  Timestamp,
+  limit as firestoreLimit,
+  orderBy,
+  where,
+  type Firestore,
+  type QueryConstraint,
+} from 'firebase/firestore'
 import { getFirebaseDb } from '@/firebase/client'
 import type { Run, SignUp } from '@/types/models'
 import type { IRunRepository } from '../interfaces/IRunRepository'
@@ -31,34 +38,80 @@ export class FirebaseRunRepository implements IRunRepository {
     return this.collectionHelper.deleteDocument('runs', id)
   }
 
+  /**
+   * Convert Firestore Timestamp fields on a raw run document to JS Date objects.
+   * Firestore returns date fields as Timestamp instances; Run expects Date.
+   */
+  private normalizeRun(run: Run): Run {
+    return {
+      ...run,
+      date: run.date instanceof Timestamp ? run.date.toDate() : run.date,
+    }
+  }
+
   async getRun(id: string): Promise<Run | null> {
-    return this.collectionHelper.getDocument('runs', id)
+    const run = await this.collectionHelper.getDocument<Run>('runs', id)
+    return run ? this.normalizeRun(run) : null
   }
 
   async getRuns(): Promise<Run[]> {
-    return this.collectionHelper.getDocuments('runs', [orderBy('date', 'asc')])
+    const runs = await this.collectionHelper.getDocuments<Run>('runs', [orderBy('date', 'asc')])
+    return runs.map((run) => this.normalizeRun(run))
   }
 
   async getUpcomingRuns(): Promise<Run[]> {
     const now = Timestamp.now()
-    return this.collectionHelper.getDocuments('runs', [
+    const runs = await this.collectionHelper.getDocuments<Run>('runs', [
       where('date', '>=', now),
       orderBy('date', 'asc'),
     ])
+    return runs.map((run) => this.normalizeRun(run))
   }
 
   async getRunsForOrganization(organizationId: string): Promise<Run[]> {
-    return this.collectionHelper.getDocuments('runs', [
+    const runs = await this.collectionHelper.getDocuments<Run>('runs', [
       where('organizationId', '==', organizationId),
       orderBy('date', 'asc'),
     ])
+    return runs.map((run) => this.normalizeRun(run))
+  }
+
+  async getRunsForOrganizationInTimeframe(
+    organizationId: string,
+    options: {
+      from?: Date
+      to?: Date
+      direction?: 'asc' | 'desc'
+      limit?: number
+    },
+  ): Promise<Run[]> {
+    const direction = options.direction ?? 'asc'
+
+    // Build the constraint list dynamically. Firestore requires the orderBy
+    // field to match the inequality field, which is `date` here — so the
+    // composite index `(organizationId, date)` covers both directions.
+    const constraints: QueryConstraint[] = [where('organizationId', '==', organizationId)]
+    if (options.from) {
+      constraints.push(where('date', '>=', Timestamp.fromDate(options.from)))
+    }
+    if (options.to) {
+      constraints.push(where('date', '<=', Timestamp.fromDate(options.to)))
+    }
+    constraints.push(orderBy('date', direction))
+    if (options.limit !== undefined) {
+      constraints.push(firestoreLimit(options.limit))
+    }
+
+    const runs = await this.collectionHelper.getDocuments<Run>('runs', constraints)
+    return runs.map((run) => this.normalizeRun(run))
   }
 
   async getRunsAtLocation(locationId: string): Promise<Run[]> {
-    return this.collectionHelper.getDocuments('runs', [
+    const runs = await this.collectionHelper.getDocuments<Run>('runs', [
       where('locationId', '==', locationId),
       orderBy('date', 'asc'),
     ])
+    return runs.map((run) => this.normalizeRun(run))
   }
 
   async createSignUp(signUpData: Omit<SignUp, 'id'>): Promise<string> {

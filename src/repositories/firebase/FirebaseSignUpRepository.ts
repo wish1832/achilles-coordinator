@@ -1,4 +1,4 @@
-import { orderBy, where, type Firestore } from 'firebase/firestore'
+import { doc, runTransaction, serverTimestamp, orderBy, where, Timestamp, type Firestore } from 'firebase/firestore'
 import { getFirebaseDb } from '@/firebase/client'
 import type { SignUp } from '@/types/models'
 import type { ISignUpRepository } from '../interfaces/ISignUpRepository'
@@ -61,15 +61,27 @@ export class FirebaseSignUpRepository implements ISignUpRepository {
   }
 
   /**
+   * Convert Firestore Timestamp fields on a raw sign-up document to JS Date objects.
+   * Firestore returns date fields as Timestamp instances; SignUp expects Date.
+   */
+  private normalizeSignUp(signUp: SignUp): SignUp {
+    return {
+      ...signUp,
+      timestamp: signUp.timestamp instanceof Timestamp ? signUp.timestamp.toDate() : signUp.timestamp,
+    }
+  }
+
+  /**
    * Get all sign-ups for a specific run, ordered by timestamp descending.
    * @param runId - Run document ID
    * @returns Promise resolving to array of sign-ups for the run
    */
   async getSignUpsForRun(runId: string): Promise<SignUp[]> {
-    return this.collectionHelper.getDocuments('signups', [
+    const signUps = await this.collectionHelper.getDocuments<SignUp>('signups', [
       where('runId', '==', runId),
       orderBy('timestamp', 'desc'),
     ])
+    return signUps.map((s) => this.normalizeSignUp(s))
   }
 
   /**
@@ -78,10 +90,11 @@ export class FirebaseSignUpRepository implements ISignUpRepository {
    * @returns Promise resolving to array of sign-ups for the user
    */
   async getSignUpsForUser(userId: string): Promise<SignUp[]> {
-    return this.collectionHelper.getDocuments('signups', [
+    const signUps = await this.collectionHelper.getDocuments<SignUp>('signups', [
       where('userId', '==', userId),
       orderBy('timestamp', 'desc'),
     ])
+    return signUps.map((s) => this.normalizeSignUp(s))
   }
 
   /**
@@ -100,6 +113,44 @@ export class FirebaseSignUpRepository implements ISignUpRepository {
 
     // Return the first match (there should be at most one) or null.
     return signUps[0] ?? null
+  }
+
+  /**
+   * Atomically create or update the sign-up for a run+user pair.
+   *
+   * A deterministic document ID is derived from runId and userId so the
+   * entire operation is a single setDoc call — no prior read is needed.
+   * setDoc with { merge: true } overwrites the supplied fields on an
+   * existing document or creates the document when it does not yet exist,
+   * making concurrent calls safe (last writer wins, no orphaned documents).
+   *
+   * @param signUpData - Full sign-up data (without id)
+   * @returns Promise resolving to the document ID
+   */
+  async upsertSignUp(signUpData: Omit<SignUp, 'id'>): Promise<string> {
+    // Build a stable ID so repeated calls for the same run+user always
+    // resolve to the same document, eliminating duplicate sign-ups.
+    const id = `${signUpData.runId}_${signUpData.userId}`
+    const docRef = doc(this.getDb(), 'signups', id)
+
+    // Use a transaction to distinguish first write from subsequent updates so
+    // createdAt is only set on creation and never overwritten on later upserts.
+    await runTransaction(this.getDb(), async (transaction) => {
+      const snapshot = await transaction.get(docRef)
+      if (snapshot.exists()) {
+        // Document already exists — preserve createdAt, only update fields.
+        transaction.set(docRef, { ...signUpData, updatedAt: Timestamp.now() }, { merge: true })
+      } else {
+        // First write — record both timestamps.
+        transaction.set(docRef, {
+          ...signUpData,
+          createdAt: serverTimestamp(),
+          updatedAt: Timestamp.now(),
+        })
+      }
+    })
+
+    return id
   }
 }
 

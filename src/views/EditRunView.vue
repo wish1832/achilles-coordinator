@@ -17,11 +17,11 @@
     >
       <h1>Unable to load run</h1>
       <p>There was an error loading the run. Please try again.</p>
-      <AchillesButton @click="loadFormData">Try Again</AchillesButton>
+      <AchillesButton @click="retryLoad">Try Again</AchillesButton>
     </div>
 
     <!-- Main form content -->
-    <template v-else-if="organization && runsStore.currentRun">
+    <template v-else-if="organization && run">
       <!-- Header with organization name -->
       <header class="edit-run-header">
         <div class="edit-run-header__content">
@@ -44,7 +44,7 @@
                 </label>
                 <input
                   id="date"
-                  v-model="runsStore.draftRunDate"
+                  v-model="draftRunDate"
                   type="date"
                   class="form-input"
                   :class="{ 'form-input--error': errors.date }"
@@ -67,7 +67,7 @@
                 </label>
                 <input
                   id="time"
-                  v-model="runsStore.draftRunTime"
+                  v-model="draftRunTime"
                   type="time"
                   class="form-input"
                   :class="{ 'form-input--error': errors.time }"
@@ -84,7 +84,7 @@
 
               <!-- Location dropdown - required, uses custom component for rich display -->
               <LocationDropdown
-                v-model="runsStore.draftRunLocationId"
+                v-model="draftRunLocationId"
                 :locations="locations"
                 label="Location"
                 placeholder="Select a location"
@@ -103,7 +103,7 @@
                 </label>
                 <textarea
                   id="description"
-                  v-model="runsStore.draftRunDescription"
+                  v-model="draftRunDescription"
                   class="form-input form-textarea"
                   :class="{ 'form-input--error': errors.description }"
                   :aria-invalid="!!errors.description"
@@ -128,7 +128,7 @@
                 <label for="maxAthletes" class="form-label"> Maximum Athletes </label>
                 <input
                   id="maxAthletes"
-                  v-model.number="runsStore.draftRunMaxAthletes"
+                  v-model.number="draftRunMaxAthletes"
                   type="number"
                   min="0"
                   class="form-input"
@@ -158,7 +158,7 @@
                 <label for="maxGuides" class="form-label"> Maximum Guides </label>
                 <input
                   id="maxGuides"
-                  v-model.number="runsStore.draftRunMaxGuides"
+                  v-model.number="draftRunMaxGuides"
                   type="number"
                   min="0"
                   class="form-input"
@@ -179,7 +179,7 @@
                 <label for="notes" class="form-label"> Additional Notes </label>
                 <textarea
                   id="notes"
-                  v-model="runsStore.draftRunNotes"
+                  v-model="draftRunNotes"
                   class="form-input form-textarea"
                   rows="2"
                   aria-describedby="notes-helper"
@@ -197,21 +197,17 @@
                 </AchillesButton>
                 <AchillesButton
                   type="submit"
-                  :variant="runsStore.isEditRunDirty ? 'primary' : 'secondary'"
-                  :loading="runsStore.isEditRunSaving"
-                  :disabled="!runsStore.isEditRunDirty || !isFormValid || runsStore.isEditRunSaving"
+                  :variant="isDirty ? 'primary' : 'secondary'"
+                  :loading="isSaving"
+                  :disabled="!isDirty || !isFormValid || isSaving"
                 >
-                  {{ runsStore.isEditRunSaving ? 'Saving...' : 'Save Changes' }}
+                  {{ isSaving ? 'Saving...' : 'Save Changes' }}
                 </AchillesButton>
               </div>
 
               <!-- Global error message for submission failures -->
-              <div
-                v-if="runsStore.editRunSaveError"
-                class="form-error form-error--global"
-                role="alert"
-              >
-                {{ runsStore.editRunSaveError }}
+              <div v-if="saveError" class="form-error form-error--global" role="alert">
+                {{ saveError }}
               </div>
             </form>
           </CardUI>
@@ -222,52 +218,193 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { storeToRefs } from 'pinia'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import LocationDropdown from '@/components/ui/LocationDropdown.vue'
-import { useOrganizationStore } from '@/stores/organization'
-import { useLocationStore } from '@/stores/location'
-import { useRunsStore } from '@/stores/runs'
-import type { LoadingState } from '@/types'
+import { useDraftState } from '@/composables/useDraftState'
+import { useUpdateRunMutation } from '@/composables/mutations/useUpdateRunMutation'
+import { useRunQuery } from '@/composables/queries/useRunQuery'
+import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
+import { useLocationsForOrganizationQuery } from '@/composables/queries/useLocationsForOrganizationQuery'
+import type { LoadingState, Location, Run } from '@/types'
 
 // Router and route for navigation and params
 const route = useRoute()
 const router = useRouter()
 
-// Stores for organization, location, and run data
-const organizationStore = useOrganizationStore()
-const locationStore = useLocationStore()
-const runsStore = useRunsStore()
+// Mutation that persists run edits through TanStack Query.
+// On success, it invalidates the run detail cache so RunView refetches.
+const updateRunMutation = useUpdateRunMutation()
 
-// Get reactive reference to locations from the store
-const { locations } = storeToRefs(locationStore)
+// Saving state is derived from the mutation so the Save button reflects
+// the in-flight network request without any store involvement.
+const isSaving = computed(() => updateRunMutation.isPending.value)
+// Surface the mutation's error (if any) as a user-facing message.
+const saveError = computed(() =>
+  updateRunMutation.isError.value
+    ? updateRunMutation.error.value?.message ?? 'Failed to save run changes'
+    : null,
+)
 
 // Get organization ID and run ID from route params
 const orgId = computed(() => route.params.orgId as string)
 const runId = computed(() => route.params.id as string)
 
-// Get current organization from store
-const organization = computed(() => organizationStore.getOrganizationById(orgId.value))
+// === Server state via TanStack Query ===
 
-// Show the current location name in the page title so the edit screen identifies the run clearly.
+// Run detail. Drives the form's initial values via the watch below.
+const runQuery = useRunQuery(runId)
+const run = computed<Run | undefined>(() => runQuery.data.value ?? undefined)
+
+// Organization detail (for the page subtitle).
+const organizationQuery = useOrganizationQuery(orgId)
+const organization = computed(() => organizationQuery.data.value ?? undefined)
+
+// Locations for this organization (powers the dropdown and the title's
+// location-name lookup). Default to an empty array while loading so the
+// LocationDropdown receives a stable shape.
+const locationsQuery = useLocationsForOrganizationQuery(orgId)
+const locations = computed<Location[]>(() => locationsQuery.data.value ?? [])
+
+// Map for O(1) location-name lookups in the title computed. Recomputes only
+// when the locations array reference changes.
+const locationsById = computed<Map<string, Location>>(() => {
+  const map = new Map<string, Location>()
+  for (const location of locations.value) {
+    map.set(location.id, location)
+  }
+  return map
+})
+
+// Initialize draft state from run query
+const { draft, isDirty, success: draftSuccess } = useDraftState({
+  data: run,
+  onSave: async (draftRun) => {
+    await updateRunMutation.mutateAsync({
+      runId: runId.value,
+      updates: buildRunUpdates(draftRun),
+    })
+  },
+})
+
+// Provide computed refs for draft fields
+const draftRunDate = computed({
+  get: () => {
+    // Cast to unknown first: structuredClone's JSON fallback serializes Date as
+    // an ISO string, so at runtime this may be a string even though Run.date is Date.
+    const date = draft.value?.date as Date | string | undefined
+    if (!date) return ''
+    if (typeof date === 'string') {
+      // Handle both 'YYYY-MM-DD' and full ISO strings like '2025-04-20T00:00:00.000Z'
+      return date.length > 10 ? date.split('T')[0] : date
+    }
+    return date.toISOString().split('T')[0]
+  },
+  set: (value: string) => {
+    if (draft.value && value) {
+      // Parse date string (YYYY-MM-DD) into Date object to avoid UTC interpretation
+      const parts = value.split('-').map(Number)
+      const year = parts[0]
+      const month = parts[1]
+      const day = parts[2]
+      if (year !== undefined && month !== undefined && day !== undefined) {
+        draft.value.date = new Date(year, month - 1, day)
+        isDirty.value = true
+        draftSuccess.value = false
+      }
+    }
+  },
+})
+
+const draftRunTime = computed({
+  get: () => draft.value?.time ?? '',
+  set: (value: string) => {
+    if (draft.value) {
+      draft.value.time = value
+      isDirty.value = true
+      draftSuccess.value = false
+    }
+  },
+})
+
+const draftRunLocationId = computed({
+  get: () => draft.value?.locationId ?? '',
+  set: (value: string) => {
+    if (draft.value) {
+      draft.value.locationId = value
+      isDirty.value = true
+      draftSuccess.value = false
+    }
+  },
+})
+
+const draftRunDescription = computed({
+  get: () => draft.value?.description ?? '',
+  set: (value: string) => {
+    if (draft.value) {
+      draft.value.description = value
+      isDirty.value = true
+      draftSuccess.value = false
+    }
+  },
+})
+
+const draftRunMaxAthletes = computed({
+  get: () => draft.value?.maxAthletes,
+  // v-model.number emits '' when the input is cleared; normalize to undefined
+  // so validation and buildRunUpdates treat a cleared field as "no limit set".
+  set: (value: number | string | undefined) => {
+    if (draft.value) {
+      draft.value.maxAthletes = value === '' ? undefined : (value as number | undefined)
+      isDirty.value = true
+      draftSuccess.value = false
+    }
+  },
+})
+
+const draftRunMaxGuides = computed({
+  get: () => draft.value?.maxGuides,
+  // v-model.number emits '' when the input is cleared; normalize to undefined
+  // so validation and buildRunUpdates treat a cleared field as "no limit set".
+  set: (value: number | string | undefined) => {
+    if (draft.value) {
+      draft.value.maxGuides = value === '' ? undefined : (value as number | undefined)
+      isDirty.value = true
+      draftSuccess.value = false
+    }
+  },
+})
+
+const draftRunNotes = computed({
+  get: () => draft.value?.notes,
+  set: (value: string | undefined) => {
+    if (draft.value) {
+      draft.value.notes = value
+      isDirty.value = true
+      draftSuccess.value = false
+    }
+  },
+})
+
+// Show the current location name in the page title so the edit screen
+// identifies the run clearly.
 const editRunTitle = computed(() => {
-  const locationId = runsStore.draftRunLocationId || runsStore.currentRun?.locationId
+  const locationId = draftRunLocationId.value || run.value?.locationId
   if (!locationId) {
     return 'Run'
   }
 
-  return locationStore.getLocationById(locationId)?.name || 'Run'
+  return locationsById.value.get(locationId)?.name || 'Run'
 })
 
 // Format the run's date and time for display in the subtitle.
 // Uses the draft values (which are initialized from the current run on load).
 const formattedRunDateTime = computed(() => {
-  const date = runsStore.draftRunDate || runsStore.currentRun?.date
-  const time = runsStore.draftRunTime || runsStore.currentRun?.time
+  const date = draftRunDate.value || run.value?.date
+  const time = draftRunTime.value || run.value?.time
 
   if (!date) {
     return ''
@@ -330,8 +467,31 @@ const formattedRunDateTime = computed(() => {
   return `${formattedDate} at ${formattedTime}`
 })
 
-// Loading state for page initialization
-const pageLoading = ref<LoadingState>('idle')
+// Loading state aggregated across the run, organization, and locations
+// queries. The form needs all three before it can render meaningfully —
+// the run for the draft, the organization for the subtitle, and the
+// locations for the dropdown — so any one being pending blocks the form.
+const pageLoading = computed<LoadingState>(() => {
+  if (runQuery.isError.value || organizationQuery.isError.value || locationsQuery.isError.value) {
+    return 'error'
+  }
+  if (
+    runQuery.isPending.value ||
+    organizationQuery.isPending.value ||
+    locationsQuery.isPending.value
+  ) {
+    return 'loading'
+  }
+  return 'success'
+})
+
+// Retry handler used by the template's "Try Again" button. Refetches all
+// three underlying queries since any one of them may have failed.
+function retryLoad(): void {
+  runQuery.refetch()
+  organizationQuery.refetch()
+  locationsQuery.refetch()
+}
 
 // Validation errors keyed by field name
 const errors = ref<Record<string, string>>({})
@@ -340,50 +500,21 @@ const errors = ref<Record<string, string>>({})
 // Requires all required fields and no validation errors
 const isFormValid = computed(() => {
   return (
-    runsStore.draftRunDate &&
-    runsStore.draftRunTime &&
-    runsStore.draftRunLocationId &&
-    runsStore.draftRunDescription &&
+    draftRunDate.value &&
+    draftRunTime.value &&
+    draftRunLocationId.value &&
+    draftRunDescription.value &&
     Object.keys(errors.value).length === 0
   )
 })
 
-/**
- * Load initial data needed for the form:
- * - Run data to populate draft state
- * - Organization details for display
- * - Locations for the dropdown
- */
-async function loadFormData(): Promise<void> {
-  try {
-    pageLoading.value = 'loading'
-
-    // Load the run data
-    await runsStore.loadRun(runId.value)
-
-    // Load organization if not already in cache
-    if (!organization.value) {
-      await organizationStore.loadOrganization(orgId.value)
-    }
-
-    // Load locations for this organization to populate the dropdown
-    await locationStore.loadLocationsForOrganization(orgId.value)
-
-    // Initialize the draft state from the loaded run
-    runsStore.initializeEditRunDraft(runId.value)
-
-    pageLoading.value = 'success'
-  } catch {
-    pageLoading.value = 'error'
-  }
-}
 
 /**
  * Mark the draft as dirty when the user changes any field.
  * Called from input/change events on all form fields.
  */
 function markDirty(): void {
-  runsStore.isEditRunDirty = true
+  isDirty.value = true
 }
 
 /**
@@ -393,7 +524,7 @@ function markDirty(): void {
 function validateField(field: string): void {
   switch (field) {
     case 'date':
-      if (!runsStore.draftRunDate) {
+      if (!draftRunDate.value) {
         errors.value.date = 'Date is required'
       } else {
         delete errors.value.date
@@ -401,7 +532,7 @@ function validateField(field: string): void {
       break
 
     case 'time':
-      if (!runsStore.draftRunTime) {
+      if (!draftRunTime.value) {
         errors.value.time = 'Time is required'
       } else {
         delete errors.value.time
@@ -409,7 +540,7 @@ function validateField(field: string): void {
       break
 
     case 'locationId':
-      if (!runsStore.draftRunLocationId) {
+      if (!draftRunLocationId.value) {
         errors.value.locationId = 'Location is required'
       } else {
         delete errors.value.locationId
@@ -417,9 +548,9 @@ function validateField(field: string): void {
       break
 
     case 'description':
-      if (!runsStore.draftRunDescription) {
+      if (!draftRunDescription.value) {
         errors.value.description = 'Description is required'
-      } else if (runsStore.draftRunDescription.trim().length < 10) {
+      } else if (draftRunDescription.value.trim().length < 10) {
         errors.value.description = 'Description must be at least 10 characters'
       } else {
         delete errors.value.description
@@ -427,7 +558,7 @@ function validateField(field: string): void {
       break
 
     case 'maxAthletes':
-      if (runsStore.draftRunMaxAthletes !== undefined && runsStore.draftRunMaxAthletes < 0) {
+      if (draftRunMaxAthletes.value !== undefined && draftRunMaxAthletes.value < 0) {
         errors.value.maxAthletes = 'Maximum athletes cannot be negative'
       } else {
         delete errors.value.maxAthletes
@@ -435,7 +566,7 @@ function validateField(field: string): void {
       break
 
     case 'maxGuides':
-      if (runsStore.draftRunMaxGuides !== undefined && runsStore.draftRunMaxGuides < 0) {
+      if (draftRunMaxGuides.value !== undefined && draftRunMaxGuides.value < 0) {
         errors.value.maxGuides = 'Maximum guides cannot be negative'
       } else {
         delete errors.value.maxGuides
@@ -457,10 +588,10 @@ function validateAllFields(): boolean {
   requiredFields.forEach(validateField)
 
   // Also validate optional numeric fields if they have values
-  if (runsStore.draftRunMaxAthletes !== undefined) {
+  if (draftRunMaxAthletes.value !== undefined) {
     validateField('maxAthletes')
   }
-  if (runsStore.draftRunMaxGuides !== undefined) {
+  if (draftRunMaxGuides.value !== undefined) {
     validateField('maxGuides')
   }
 
@@ -468,8 +599,58 @@ function validateAllFields(): boolean {
 }
 
 /**
+ * Build the run update payload from the draft run.
+ * Lives in the view because the draft-to-payload transform is specific
+ * to this form; the mutation itself is a generic run updater.
+ */
+function buildRunUpdates(draftRun: Run): Partial<Omit<Run, 'id'>> {
+  // Parse date parts manually to avoid UTC interpretation —
+  // new Date('YYYY-MM-DD') is treated as UTC midnight, which shifts
+  // the day back in US timezones when displayed with toLocaleDateString.
+  const rawDateStr = typeof draftRun.date === 'string'
+    ? draftRun.date
+    : draftRun.date?.toISOString().split('T')[0] ?? ''
+  // Trim full ISO strings (e.g. '2026-05-04T14:00:00.000Z') to just 'YYYY-MM-DD'
+  const dateStr = rawDateStr.length > 10 ? rawDateStr.split('T')[0]! : rawDateStr
+
+  const dateParts = dateStr.split('-').map(Number)
+  const year = dateParts[0]!
+  const month = dateParts[1]!
+  const day = dateParts[2]!
+
+  // month - 1 because JS Date months are zero-indexed (0 = Jan, 1 = Feb).
+  // Allow null values for optional fields — the repository layer interprets
+  // null as "remove this field from the document" (Firestore deleteField()).
+  type ClearableFields = 'maxAthletes' | 'maxGuides' | 'notes'
+  const updates: Omit<Partial<Omit<Run, 'id'>>, ClearableFields> & {
+    maxAthletes?: number | null
+    maxGuides?: number | null
+    notes?: string | null
+  } = {
+    date: new Date(year, month - 1, day),
+    time: draftRun.time ?? '',
+    locationId: draftRun.locationId ?? '',
+    description: (draftRun.description ?? '').trim(),
+  }
+
+  // Include optional fields: pass the value when set, or null to clear
+  // a previously stored value from the database.
+  updates.maxAthletes = draftRun.maxAthletes ?? null
+  updates.maxGuides = draftRun.maxGuides ?? null
+
+  // Normalize empty or whitespace-only notes to null so the field
+  // is removed rather than stored as an empty string.
+  const trimmedNotes = draftRun.notes?.trim()
+  updates.notes = trimmedNotes || null
+
+  return updates as Partial<Omit<Run, 'id'>>
+}
+
+/**
  * Handle form submission.
- * Saves changes to the database and navigates back to the run view.
+ * Saves changes to the database via the update-run mutation and navigates
+ * back to the run view. The mutation invalidates the run detail cache on
+ * success so RunView reflects the saved values automatically.
  */
 async function handleSubmit(): Promise<void> {
   // Validate all fields before attempting to save
@@ -477,13 +658,21 @@ async function handleSubmit(): Promise<void> {
     return
   }
 
-  try {
-    await runsStore.saveEditRunChanges(runId.value)
+  if (!draft.value) return
 
-    // Navigate back to the run view on success
-    router.push(`/organizations/${orgId.value}/runs/${runId.value}`)
+  try {
+    await updateRunMutation.mutateAsync({
+      runId: runId.value,
+      updates: buildRunUpdates(draft.value),
+    })
+
+    // Navigate back to the run view on success; the ?updated query param tells
+    // RunView to show the success toast. The mutation already invalidated the cache.
+    router.push(`/organizations/${orgId.value}/runs/${runId.value}?updated=1`)
   } catch {
-    // Error is already set in the store by saveEditRunChanges
+    // The mutation's error ref drives the inline error message; nothing
+    // else to do here beyond swallowing the rejection so Vue doesn't log
+    // an unhandled promise warning.
   }
 }
 
@@ -494,10 +683,6 @@ function handleCancel(): void {
   router.push(`/organizations/${orgId.value}/runs/${runId.value}`)
 }
 
-// Load form data when component mounts
-onMounted(() => {
-  loadFormData()
-})
 </script>
 
 <style scoped>

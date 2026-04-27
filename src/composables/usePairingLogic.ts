@@ -1,36 +1,49 @@
 import type { Ref } from 'vue'
-import { useUsersStore } from '@/stores/users'
-import { useSignUpsStore } from '@/stores/signups'
 import type { User, SignUp } from '@/types'
 
 type PaceCompatibilitySeverity = 'none' | 'slight' | 'significant'
 
 /**
- * Composable for managing pairing logic and pace compatibility
- * Handles athlete-guide and athlete-athlete pairings with validation
- * Also manages pace compatibility scoring for guide selection
+ * Composable for managing pairing logic and pace compatibility.
+ *
+ * Pure over its inputs: receives the resolved users map and sign-ups
+ * array as refs (rather than reading from Pinia stores), so the same
+ * composable can be exercised in tests by handing in plain refs and
+ * driven from any data source. The view is responsible for sourcing
+ * those refs (currently from TanStack Query).
+ *
+ * Handles athlete-guide and athlete-athlete pairings with validation,
+ * plus pace compatibility scoring used to highlight slow-guide pairings
+ * for the currently selected athlete.
  */
 export function usePairingLogic(
-  runId: Ref<string>,
   pairings: Ref<Record<string, { guides: string[]; athletes: string[] }>>,
   originalPairings: Ref<Record<string, { guides: string[]; athletes: string[] }>>,
   selectedAthleteId: Ref<string | null>,
   selectedGuideId: Ref<string | null>,
+  // O(1) lookups by user id; the view builds this from useUsersByIdsQuery.
+  usersById: Ref<Map<string, User>>,
+  // Sign-ups already scoped to the current run by the caller (e.g. from
+  // useRunSignUpsQuery). Used for pace lookups; this composable does not
+  // need to know the runId because every entry is implicitly for that run.
+  signUps: Ref<SignUp[]>,
   announceToScreenReader: (message: string) => void,
 ) {
-  const usersStore = useUsersStore()
-  const signupsStore = useSignUpsStore()
+  // Lightweight helper so callers don't have to repeat the optional chain.
+  function getUser(userId: string): User | undefined {
+    return usersById.value.get(userId)
+  }
 
   // ==========================================
   // Pace Utility Functions
   // ==========================================
 
   /**
-   * Get the signup record for a user in the current run
+   * Get the signup record for a user in the current run.
+   * `signUps` is already run-scoped, so this is just a find-by-userId.
    */
   function getSignupForUser(userId: string): SignUp | undefined {
-    const signups = signupsStore.getSignUpsForRun(runId.value)
-    return signups.find((signup) => signup.userId === userId)
+    return signUps.value.find((signup) => signup.userId === userId)
   }
 
   /**
@@ -198,8 +211,8 @@ export function usePairingLogic(
 
     const allUserIds = [...pairing.guides, ...pairing.athletes]
     return allUserIds
-      .map((userId) => usersStore.getUserById(userId))
-      .filter((user) => user !== undefined) as User[]
+      .map((userId) => getUser(userId))
+      .filter((user): user is User => user !== undefined)
   }
 
   /**
@@ -217,7 +230,7 @@ export function usePairingLogic(
       return { allowed: false, reason: 'Cannot pair athlete with themselves' }
     }
 
-    const user = usersStore.getUserById(userId)
+    const user = getUser(userId)
     if (!user) {
       return { allowed: false, reason: 'User not found' }
     }
@@ -258,7 +271,7 @@ export function usePairingLogic(
   function selectAthlete(athleteId: string): void {
     if (selectedAthleteId.value === athleteId) {
       selectedAthleteId.value = null
-      const athleteName = usersStore.getUserById(athleteId)?.displayName
+      const athleteName = getUser(athleteId)?.displayName
       announceToScreenReader(`Deselected athlete: ${athleteName}`)
       return
     }
@@ -274,7 +287,7 @@ export function usePairingLogic(
     }
 
     selectedAthleteId.value = athleteId
-    const athleteName = usersStore.getUserById(athleteId)?.displayName
+    const athleteName = getUser(athleteId)?.displayName
     announceToScreenReader(
       `Selected athlete: ${athleteName}. Now select a guide or another athlete to create pairing.`,
     )
@@ -288,7 +301,7 @@ export function usePairingLogic(
   function selectGuide(guideId: string): void {
     if (selectedGuideId.value === guideId) {
       selectedGuideId.value = null
-      const guideName = usersStore.getUserById(guideId)?.displayName
+      const guideName = getUser(guideId)?.displayName
       announceToScreenReader(`Deselected guide: ${guideName}`)
       return
     }
@@ -299,7 +312,7 @@ export function usePairingLogic(
     }
 
     selectedGuideId.value = guideId
-    const guideName = usersStore.getUserById(guideId)?.displayName
+    const guideName = getUser(guideId)?.displayName
     announceToScreenReader(`Selected guide: ${guideName}. Now select an athlete to create pairing.`)
   }
 
@@ -319,7 +332,7 @@ export function usePairingLogic(
       pairings.value[athleteId] = { guides: [], athletes: [] }
     }
 
-    const user = usersStore.getUserById(userId)
+    const user = getUser(userId)
     if (!user) {
       announceToScreenReader('User not found')
       selectedAthleteId.value = null
@@ -337,7 +350,7 @@ export function usePairingLogic(
       pairings.value[athleteId].athletes.push(userId)
     }
 
-    const athleteName = usersStore.getUserById(athleteId)?.displayName
+    const athleteName = getUser(athleteId)?.displayName
     const userName = user.displayName
     const userRoleLabel = user.role === 'guide' ? 'guide' : 'athlete'
     announceToScreenReader(`Paired athlete ${athleteName} with ${userRoleLabel} ${userName}`)
@@ -353,7 +366,7 @@ export function usePairingLogic(
     const pairing = pairings.value[athleteId]
     if (!pairing) return
 
-    const user = usersStore.getUserById(userId)
+    const user = getUser(userId)
     if (!user) return
 
     if (user.role === 'guide') {
@@ -374,7 +387,7 @@ export function usePairingLogic(
       delete pairings.value[athleteId]
     }
 
-    const athleteName = usersStore.getUserById(athleteId)?.displayName
+    const athleteName = getUser(athleteId)?.displayName
     const userName = user.displayName
     const userRoleLabel = user.role === 'guide' ? 'guide' : 'athlete'
     announceToScreenReader(`Unpaired athlete ${athleteName} from ${userRoleLabel} ${userName}`)
@@ -388,6 +401,12 @@ export function usePairingLogic(
     selectedGuideId.value = null
     announceToScreenReader('Selection cleared')
   }
+
+  // `originalPairings` is reserved for callers that want to detect the
+  // dirty state via `JSON.stringify` comparison (see PairingView). It's a
+  // ref-passed input so the composable doesn't reach into store state for
+  // it, and is intentionally not used inside this composable today.
+  void originalPairings
 
   return {
     // Pairing actions

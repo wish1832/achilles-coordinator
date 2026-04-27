@@ -127,7 +127,13 @@ function handleKeydown(event: KeyboardEvent): void {
     return
   }
 
-  // Handle space and enter keys for button activation
+  // For submit buttons, let Enter key trigger form submission naturally
+  if (props.type === 'submit' && event.key === 'Enter') {
+    emit('keydown', event)
+    return
+  }
+
+  // Handle space and enter keys for button activation (non-submit buttons)
   if (event.key === ' ' || event.key === 'Enter') {
     event.preventDefault()
     // Trigger click programmatically for consistency

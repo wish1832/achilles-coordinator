@@ -13,6 +13,25 @@ export interface IRunRepository {
   getRuns(): Promise<Run[]>
   getUpcomingRuns(): Promise<Run[]>
   getRunsForOrganization(organizationId: string): Promise<Run[]>
+  /**
+   * Fetch runs for an organization within a timeframe.
+   *
+   * Either `from`, `to`, or both may be provided. When both are omitted the
+   * call is equivalent to {@link getRunsForOrganization}. `limit` caps the
+   * number of runs returned (used for "most recent past runs" feeds).
+   *
+   * `direction` controls sort order on the run date: 'asc' for upcoming-style
+   * lists, 'desc' for past-style feeds.
+   */
+  getRunsForOrganizationInTimeframe(
+    organizationId: string,
+    options: {
+      from?: Date
+      to?: Date
+      direction?: 'asc' | 'desc'
+      limit?: number
+    },
+  ): Promise<Run[]>
   getRunsAtLocation(locationId: string): Promise<Run[]>
 
   createSignUp(signUpData: Omit<SignUp, 'id'>): Promise<string>

@@ -155,17 +155,19 @@
 
 <script setup lang="ts">
 // Core Vue imports
-import { ref, computed, onMounted, onActivated, onBeforeUnmount, nextTick, toRaw } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, toRaw, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
-// Store imports
-import { useOrganizationStore } from '@/stores/organization'
-import { useRunsStore } from '@/stores/runs'
-import { useSignUpsStore } from '@/stores/signups'
-import { useUsersStore } from '@/stores/users'
-
 // Type imports
-import type { User, LoadingState } from '@/types'
+import type { SignUp, User, LoadingState } from '@/types'
+
+// Query and mutation hooks (server state)
+import { useRunQuery } from '@/composables/queries/useRunQuery'
+import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
+import { useRunSignUpsQuery } from '@/composables/queries/useRunSignUpsQuery'
+import { useUsersByIdsQuery } from '@/composables/queries/useUsersByIdsQuery'
+import { useUpdateRunMutation } from '@/composables/mutations/useUpdateRunMutation'
+import { useCreateOrUpdateSignUpMutation } from '@/composables/mutations/useCreateOrUpdateSignUpMutation'
 
 // Composable imports
 import { usePairingLogic } from '@/composables/usePairingLogic'
@@ -186,20 +188,107 @@ const route = useRoute()
 // Extract run ID from route parameters
 const runId = computed(() => route.params.id as string)
 
-// Initialize stores
-const organizationStore = useOrganizationStore()
-const runsStore = useRunsStore()
-const signupsStore = useSignUpsStore()
-const usersStore = useUsersStore()
+// === Server state via TanStack Query ===
+
+// Run detail. Drives the form's initial pairings state via the watch below
+// and is the parent record for save-pairings updates.
+const runQuery = useRunQuery(runId)
+const run = computed(() => runQuery.data.value ?? undefined)
+
+// Organization detail, gated on the run resolving so we know which org to
+// fetch. Used for the page subtitle and for the Add User drawer's member
+// list (org members fall outside this run's sign-ups but should still be
+// addable).
+const organizationQuery = useOrganizationQuery(computed(() => run.value?.organizationId))
+const organization = computed(() => organizationQuery.data.value ?? undefined)
+
+// Sign-ups for this run. Drives the athlete and guide columns plus pace
+// lookups in usePairingLogic.
+const signUpsQuery = useRunSignUpsQuery(runId)
+const signUps = computed<SignUp[]>(() => signUpsQuery.data.value ?? [])
+
+// Set of all user IDs we need profiles for: everyone signed up plus every
+// org member (the Add User drawer must list members who haven't signed up
+// yet). Union deduped before being handed to useUsersByIdsQuery.
+const userIds = computed(() => {
+  const ids = new Set<string>()
+  for (const signUp of signUps.value) ids.add(signUp.userId)
+  for (const memberId of organization.value?.memberIds ?? []) ids.add(memberId)
+  return Array.from(ids)
+})
+const usersQuery = useUsersByIdsQuery(userIds)
+
+// Map for O(1) user lookups by id throughout the view. Recomputes only
+// when the underlying users array reference changes.
+const usersById = computed<Map<string, User>>(() => {
+  const map = new Map<string, User>()
+  for (const user of usersQuery.data.value ?? []) {
+    map.set(user.id, user)
+  }
+  return map
+})
+
+// === Mutations ===
+
+// Persists pairings via the same update-run mutation used by EditRunView;
+// its onSuccess invalidates the run-detail key so the cache refreshes
+// without a manual reload.
+const updateRunMutation = useUpdateRunMutation()
+// Adds an org member to the run (used by the Add User drawer). On success
+// invalidates the sign-ups query for this run, so signedUpUserIds and the
+// athlete/guide columns refresh automatically.
+const createOrUpdateSignUpMutation = useCreateOrUpdateSignUpMutation()
 
 // ==========================================
 // Loading and Error States
 // ==========================================
 
-const loading = ref<LoadingState>('idle')
-const error = ref<string | null>(null)
-const savingPairings = ref(false)
-const hasSaveError = ref(false)
+// Loading state aggregates the four queries the page depends on. Once the
+// run resolves, the organization and users queries can run; while any of
+// them is still pending the page shows a spinner. An error in any one
+// surfaces as the section-level error state.
+const loading = computed<LoadingState>(() => {
+  if (
+    runQuery.isError.value ||
+    organizationQuery.isError.value ||
+    signUpsQuery.isError.value ||
+    usersQuery.isError.value
+  ) {
+    return 'error'
+  }
+  if (
+    runQuery.isPending.value ||
+    organizationQuery.isPending.value ||
+    signUpsQuery.isPending.value ||
+    // The users query is `enabled` only once we have user ids to fetch;
+    // when disabled its `isPending` stays true, so guard with a length
+    // check to avoid hanging the page when there are no users to load.
+    (userIds.value.length > 0 && usersQuery.isPending.value)
+  ) {
+    return 'loading'
+  }
+  return 'success'
+})
+
+// Surface the first errored query's message so the template's error block
+// can show something meaningful. `runQuery.error` is the most likely
+// failure source so it's checked first.
+const error = computed<string | null>(() => {
+  const queryError =
+    runQuery.error.value ??
+    organizationQuery.error.value ??
+    signUpsQuery.error.value ??
+    usersQuery.error.value
+  if (queryError) {
+    return queryError instanceof Error ? queryError.message : String(queryError)
+  }
+  return null
+})
+
+// Save state is driven by the update-run mutation; both the spinner and
+// the inline error indicator on the actions bar read from it.
+const savingPairings = computed(() => updateRunMutation.isPending.value)
+const hasSaveError = computed(() => updateRunMutation.isError.value)
 
 // ==========================================
 // Pairing State
@@ -272,11 +361,14 @@ const {
   getGuideCompatibilityLabel,
   getFormattedPaceForUser,
 } = usePairingLogic(
-  runId,
   pairings,
   originalPairings,
   selectedAthleteId,
   selectedGuideId,
+  // Pass the resolved server-state refs so the composable stays pure
+  // over its inputs and doesn't reach into Pinia for them.
+  usersById,
+  signUps,
   announceToScreenReader,
 )
 
@@ -285,31 +377,19 @@ const {
 // ==========================================
 
 /**
- * Get the current organization from the store
- */
-const organization = computed(() => {
-  if (!run.value) return undefined
-  return organizationStore.getOrganizationById(run.value.organizationId)
-})
-
-/**
- * Get the current run from the store
- */
-const run = computed(() => runsStore.currentRun)
-
-/**
  * Get athletes who signed up for the run
  * Excludes athletes paired with other athletes
  * Results are sorted by pace
  */
 const athletes = computed(() => {
-  const athleteSignUps = signupsStore
-    .getSignUpsForRun(runId.value)
-    .filter((s) => s.role === 'athlete' && (s.status === 'yes' || s.status === 'maybe'))
+  // Reads come from the cached sign-ups query and the merged users map.
+  const athleteSignUps = signUps.value.filter(
+    (s) => s.role === 'athlete' && (s.status === 'yes' || s.status === 'maybe'),
+  )
 
   const allAthletes = athleteSignUps
-    .map((s) => usersStore.getUserById(s.userId))
-    .filter((u) => u !== undefined) as User[]
+    .map((s) => usersById.value.get(s.userId))
+    .filter((u): u is User => u !== undefined)
 
   // Get set of athlete IDs that are paired with other athletes
   const pairedAthleteIds = new Set<string>()
@@ -331,13 +411,13 @@ const athletes = computed(() => {
  * Results are sorted by pace
  */
 const guides = computed(() => {
-  const guideSignUps = signupsStore
-    .getSignUpsForRun(runId.value)
-    .filter((s) => s.role === 'guide' && (s.status === 'yes' || s.status === 'maybe'))
+  const guideSignUps = signUps.value.filter(
+    (s) => s.role === 'guide' && (s.status === 'yes' || s.status === 'maybe'),
+  )
 
   const allGuides = guideSignUps
-    .map((s) => usersStore.getUserById(s.userId))
-    .filter((u) => u !== undefined) as User[]
+    .map((s) => usersById.value.get(s.userId))
+    .filter((u): u is User => u !== undefined)
 
   return sortByPace(allGuides)
 })
@@ -363,7 +443,7 @@ const hasUnsavedChanges = computed(
 const orgAthletes = computed(() => {
   const memberIds = organization.value?.memberIds ?? []
   return memberIds
-    .map((id) => usersStore.getUserById(id))
+    .map((id) => usersById.value.get(id))
     .filter((user): user is User => user !== undefined && user.role === 'athlete')
     .sort((a, b) => a.displayName.localeCompare(b.displayName))
 })
@@ -375,7 +455,7 @@ const orgAthletes = computed(() => {
 const orgGuides = computed(() => {
   const memberIds = organization.value?.memberIds ?? []
   return memberIds
-    .map((id) => usersStore.getUserById(id))
+    .map((id) => usersById.value.get(id))
     .filter((user): user is User => user !== undefined && user.role === 'guide')
     .sort((a, b) => a.displayName.localeCompare(b.displayName))
 })
@@ -390,9 +470,7 @@ const orgMembers = computed(() => [...orgAthletes.value, ...orgGuides.value])
  * Set of user IDs that already have a sign-up record for this run.
  * Used by AddUserDrawer to mark already-signed-up users as disabled.
  */
-const signedUpUserIds = computed(
-  () => new Set(signupsStore.getSignUpsForRun(runId.value).map((s) => s.userId)),
-)
+const signedUpUserIds = computed(() => new Set(signUps.value.map((s) => s.userId)))
 
 // ==========================================
 // Utility Functions
@@ -443,8 +521,7 @@ function sortByPace<T extends User>(users: T[]): T[] {
  * Get the pace from a user's signup for the current run
  */
 function getSignupPace(userId: string): { minutes: number; seconds: number } | undefined {
-  const signups = signupsStore.getSignUpsForRun(runId.value)
-  const signup = signups.find((s) => s.userId === userId)
+  const signup = signUps.value.find((s) => s.userId === userId)
   return signup?.pace
 }
 
@@ -472,10 +549,14 @@ function formatRunDate(date: Date): string {
 }
 
 /**
- * Retry loading data after an error
+ * Retry loading data after an error. Refetches every underlying query;
+ * any one of them may have failed, so the safe default is to re-run all.
  */
 function retryLoad(): void {
-  loadData()
+  runQuery.refetch()
+  organizationQuery.refetch()
+  signUpsQuery.refetch()
+  usersQuery.refetch()
 }
 
 // ==========================================
@@ -501,86 +582,64 @@ function handleGuideNavigationKeydown(event: KeyboardEvent): void {
 }
 
 // ==========================================
-// Data Loading
+// Pairings Initialization
 // ==========================================
 
-/**
- * Load all required data for the pairing interface
- */
-async function loadData(): Promise<void> {
-  try {
-    loading.value = 'loading'
-    error.value = null
-
-    // Load the run details first
-    await runsStore.loadRun(runId.value)
-
-    if (!run.value) {
-      throw new Error('Run not found')
-    }
-
-    // Load the organization if not cached
-    if (!organization.value) {
-      await organizationStore.loadOrganization(run.value.organizationId)
-    }
-
-    // Load all sign-ups for this run
-    await signupsStore.loadSignUpsForRun(runId.value)
-
-    // Get all unique user IDs from sign-ups
-    const signUps = signupsStore.getSignUpsForRun(runId.value)
-    const userIds = [...new Set(signUps.map((s) => s.userId))]
-
-    // Load all user details in parallel
-    await Promise.all(userIds.map((id) => usersStore.loadUser(id)))
-
-    // Load all org member profiles so the Add User drawer can display everyone,
-    // not just those who have already signed up for this run
-    const memberIds = organization.value?.memberIds ?? []
-    await usersStore.loadUsers(memberIds)
-
-    // Initialize local pairings state from the run's saved pairings
-    const savedPairings = run.value?.pairings || {}
+// Initialize local pairings state from the run's saved pairings the first
+// time the run resolves, and again whenever the router navigates to a
+// different run (different run.id). Subsequent refetches for the same run
+// (window-focus, post-save invalidation) are skipped so in-progress edits
+// are not clobbered. Uses prevRunId instead of a boolean flag so that
+// router reuse of this view for a new run is always detected.
+const prevRunId = ref<string | null>(null)
+watch(
+  run,
+  (loadedRun) => {
+    if (!loadedRun) return
+    // Skip reinitializing when still looking at the same run so that edits
+    // in progress survive background refetches.
+    if (loadedRun.id === prevRunId.value) return
+    const savedPairings = loadedRun.pairings ?? {}
     pairings.value = JSON.parse(JSON.stringify(savedPairings))
     originalPairings.value = JSON.parse(JSON.stringify(savedPairings))
-
-    loading.value = 'success'
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load pairing data'
-    loading.value = 'error'
-  }
-}
+    prevRunId.value = loadedRun.id
+  },
+  { immediate: true },
+)
 
 // ==========================================
 // Save Functionality
 // ==========================================
 
 /**
- * Save the current pairings to the database
+ * Save the current pairings to the database via the update-run mutation.
+ * On success, the mutation invalidates the run-detail cache so a refetch
+ * picks up the saved pairings; we also update originalPairings locally so
+ * the dirty indicator clears immediately rather than waiting for the
+ * round trip.
  */
 async function savePairings(): Promise<void> {
+  // Deep copy the pairings to a plain object — Firestore can't store
+  // reactive proxies, and structuredClone in the mock layer needs raw
+  // data.
+  const plainPairings = JSON.parse(JSON.stringify(pairings.value))
+
   try {
-    savingPairings.value = true
-    error.value = null
-    hasSaveError.value = false
+    await updateRunMutation.mutateAsync({
+      runId: runId.value,
+      updates: { pairings: plainPairings },
+    })
 
-    // Deep copy the pairings to plain object
-    const plainPairings = JSON.parse(JSON.stringify(pairings.value))
-
-    // Update the run document with the new pairings
-    await runsStore.savePairings(runId.value, plainPairings)
-
-    // Update original pairings to mark as saved
+    // Update original pairings to mark the current state as saved.
     originalPairings.value = JSON.parse(JSON.stringify(pairings.value))
 
     announceToScreenReader('Pairings saved successfully')
   } catch (err) {
+    // The mutation's isError ref drives the inline indicator on the
+    // actions bar; logging is enough here. Swallow the rejection so Vue
+    // doesn't log an unhandled promise warning.
     console.error('✗ Error saving pairings:', err)
-    hasSaveError.value = true
-    error.value = err instanceof Error ? err.message : 'Failed to save pairings'
     announceToScreenReader('Error saving pairings')
-  } finally {
-    savingPairings.value = false
   }
 }
 
@@ -717,7 +776,7 @@ function closeAddUserDrawer(): void {
  * @param userId - The ID of the user to add
  */
 async function addUserToRun(userId: string): Promise<void> {
-  const user = usersStore.getUserById(userId)
+  const user = usersById.value.get(userId)
   if (!user || !run.value) return
 
   // Show the loading spinner on this user's row while the request is in flight
@@ -727,7 +786,7 @@ async function addUserToRun(userId: string): Promise<void> {
     // Use the user's first preferred activity as the default, falling back to 'run'
     const defaultActivity = user.profileDetails.activities?.[0] ?? 'run'
 
-    await signupsStore.createOrUpdateSignUp({
+    await createOrUpdateSignUpMutation.mutateAsync({
       runId: runId.value,
       userId,
       role: user.role,
@@ -770,23 +829,16 @@ function handleActionsMenuClickOutside(event: MouseEvent): void {
 // Lifecycle
 // ==========================================
 
-/**
- * Load data when component is first mounted
- */
+// TanStack Query handles fetch-on-mount and refetch-on-window-focus, so
+// the previous onActivated reload hook isn't needed; the queries take care
+// of staying current. We only retain a window-level click listener for
+// the Actions dropdown's click-outside-to-close behavior.
 onMounted(() => {
-  loadData()
   document.addEventListener('click', handleActionsMenuClickOutside, true)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleActionsMenuClickOutside, true)
-})
-
-/**
- * Reload data each time the component is re-activated after navigation
- */
-onActivated(() => {
-  loadData()
 })
 </script>
 

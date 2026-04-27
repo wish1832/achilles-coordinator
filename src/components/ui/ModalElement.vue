@@ -11,7 +11,8 @@
       @click="handleOverlayClick"
       @keydown="handleKeydown"
     >
-      <div ref="modalRef" class="modal" :class="modalClasses" role="document" @click.stop>
+      <!-- tabindex="-1" allows programmatic focus (for focus-trap initial focus) without adding the container to the Tab order -->
+      <div ref="modalRef" class="modal" :class="modalClasses" role="document" tabindex="-1" @click.stop>
         <!-- Modal header -->
         <header v-if="title || $slots.header" class="modal__header">
           <slot name="header">
@@ -57,8 +58,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useAccessibilityStore } from '@/stores/accessibility'
+import { useFocusTrap } from '@/composables/useFocusTrap'
 import AchillesButton from './AchillesButton.vue'
 
 // Props with comprehensive accessibility support
@@ -103,10 +105,13 @@ const emit = defineEmits<Emits>()
 
 // Refs
 const modalRef = ref<HTMLElement>()
-const previouslyFocusedElement = ref<HTMLElement | null>(null)
 
 // Accessibility store
 const accessibilityStore = useAccessibilityStore()
+
+// Focus trap — modal focuses itself on open; no inert needed since the modal
+// is teleported to <body> and the overlay blocks pointer events on the page.
+const { saveFocus, activateTrap, deactivateTrap } = useFocusTrap(modalRef)
 
 // Generate unique IDs for accessibility
 const titleId = computed(() =>
@@ -124,43 +129,6 @@ const overlayClasses = computed(() => {
 const modalClasses = computed(() => {
   return [`modal--${props.size}`, `modal--${props.variant}`].join(' ')
 })
-
-// Focus management
-function trapFocus() {
-  if (!modalRef.value) return
-
-  const focusableElements = modalRef.value.querySelectorAll(
-    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-  )
-
-  const firstElement = focusableElements[0] as HTMLElement
-  const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
-
-  function handleTabKey(e: KeyboardEvent) {
-    if (e.key !== 'Tab') return
-
-    if (e.shiftKey) {
-      // Shift + Tab
-      if (document.activeElement === firstElement) {
-        e.preventDefault()
-        lastElement?.focus()
-      }
-    } else {
-      // Tab
-      if (document.activeElement === lastElement) {
-        e.preventDefault()
-        firstElement?.focus()
-      }
-    }
-  }
-
-  modalRef.value.addEventListener('keydown', handleTabKey)
-
-  // Return cleanup function
-  return () => {
-    modalRef.value?.removeEventListener('keydown', handleTabKey)
-  }
-}
 
 // Event handlers
 function close(): void {
@@ -180,63 +148,22 @@ function handleKeydown(event: KeyboardEvent): void {
   }
 }
 
-// Watch for modal open/close to manage focus
+// Watch for modal open/close to manage focus trap and scroll lock
 watch(
   () => props.isOpen,
   async (isOpen) => {
     if (isOpen) {
-      // Store currently focused element
-      previouslyFocusedElement.value = document.activeElement as HTMLElement
-
-      // Wait for DOM update
+      // Save focus before the tick — browsers may move it to <body> by the time
+      // the modal is in the DOM (e.g. anchor clicks with .prevent lose focus).
+      saveFocus()
+      // Wait for Vue to render the modal before focusing / trapping
       await nextTick()
-
-      // Focus the modal
-      if (modalRef.value) {
-        modalRef.value.focus()
-      }
-
-      // Set up focus trap
-      const cleanup = trapFocus()
-
-      // Store cleanup function for later
-      modalRef.value?.setAttribute('data-cleanup', 'true')
-
-      // Clean up on unmount
-      onUnmounted(cleanup)
+      activateTrap()
     } else {
-      // Restore focus to previously focused element
-      if (previouslyFocusedElement.value) {
-        previouslyFocusedElement.value.focus()
-      }
+      deactivateTrap()
     }
   },
 )
-
-// Handle body scroll lock
-function lockBodyScroll() {
-  document.body.style.overflow = 'hidden'
-}
-
-function unlockBodyScroll() {
-  document.body.style.overflow = ''
-}
-
-watch(
-  () => props.isOpen,
-  (isOpen) => {
-    if (isOpen) {
-      lockBodyScroll()
-    } else {
-      unlockBodyScroll()
-    }
-  },
-)
-
-// Cleanup on unmount
-onUnmounted(() => {
-  unlockBodyScroll()
-})
 </script>
 
 <style scoped>

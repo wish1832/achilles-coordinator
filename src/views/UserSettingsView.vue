@@ -56,12 +56,12 @@
                     type="button"
                     class="activity-option-button"
                     :class="{
-                      'activity-option-button--selected': authStore.draftActivities.includes(
+                      'activity-option-button--selected': draftActivities.includes(
                         option.value,
                       ),
                     }"
-                    :aria-pressed="authStore.draftActivities.includes(option.value)"
-                    @click="authStore.toggleDraftActivity(option.value)"
+                    :aria-pressed="draftActivities.includes(option.value)"
+                    @click="toggleDraftActivity(option.value)"
                   >
                     {{ option.label }}
                   </button>
@@ -88,11 +88,11 @@
                     <label for="pace-minutes" class="pace-input__label">Minutes</label>
                     <select
                       id="pace-minutes"
-                      :value="authStore.draftPaceMinutes ?? ''"
+                      :value="draftPaceMinutes ?? ''"
                       class="settings-select"
                       @change="handlePaceMinutesChange"
                     >
-                      <option v-if="authStore.draftPaceMinutes === undefined" value="" disabled>
+                      <option v-if="draftPaceMinutes === undefined" value="" disabled>
                         --
                       </option>
                       <option v-for="min in minutesOptions" :key="min" :value="min">
@@ -105,11 +105,11 @@
                     <label for="pace-seconds" class="pace-input__label">Seconds</label>
                     <select
                       id="pace-seconds"
-                      :value="authStore.draftPaceSeconds ?? ''"
+                      :value="draftPaceSeconds ?? ''"
                       class="settings-select"
                       @change="handlePaceSecondsChange"
                     >
-                      <option v-if="authStore.draftPaceSeconds === undefined" value="" disabled>
+                      <option v-if="draftPaceSeconds === undefined" value="" disabled>
                         --
                       </option>
                       <option v-for="sec in secondsOptions" :key="sec" :value="sec">
@@ -131,17 +131,17 @@
               <!-- Save changes button -->
               <div class="settings-option settings-option--action">
                 <AchillesButton
-                  :variant="authStore.isProfileDirty ? 'primary' : 'secondary'"
+                  :variant="isProfileDirty ? 'primary' : 'secondary'"
                   size="medium"
-                  :disabled="!authStore.isProfileDirty || authStore.isProfileSaving"
+                  :disabled="!isProfileDirty || isProfileSaving"
                   @click="handleSave"
                 >
-                  {{ authStore.isProfileSaving ? 'Saving...' : 'Save changes' }}
+                  {{ isProfileSaving ? 'Saving...' : 'Save changes' }}
                 </AchillesButton>
-                <p v-if="authStore.profileSaveError" class="settings-error" role="alert">
-                  {{ authStore.profileSaveError }}
+                <p v-if="profileSaveError" class="settings-error" role="alert">
+                  {{ profileSaveError }}
                 </p>
-                <p v-if="authStore.profileSaveSuccess" class="settings-success" role="status">
+                <p v-if="profileSaveSuccess" class="settings-success" role="status">
                   Changes saved successfully
                 </p>
               </div>
@@ -287,14 +287,100 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAccessibilityStore } from '@/stores/accessibility'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
+import { useDraftState } from '@/composables/useDraftState'
+import { useUpdateProfileMutation } from '@/composables/mutations/useUpdateProfileMutation'
+import type { User } from '@/types'
 
 // Stores
 const authStore = useAuthStore()
 const accessibilityStore = useAccessibilityStore()
+
+// Mutation for updating profile
+const updateProfileMutation = useUpdateProfileMutation()
+
+// Create a reactive object that represents the draft profileDetails
+const draftProfileDetails = computed<Partial<User['profileDetails']>>(() => ({
+  activities: authStore.currentUser?.profileDetails?.activities || [],
+  pace: authStore.currentUser?.profileDetails?.pace,
+}))
+
+// Initialize draft state from current user's profile details
+const { draft, isDirty, isSaving, error, success, saveChanges: performSave } = useDraftState({
+  data: draftProfileDetails,
+  onSave: async (profileDetails) => {
+    await updateProfileMutation.mutateAsync(profileDetails)
+  },
+})
+
+// Create computed refs for draft activities
+const draftActivities = computed({
+  get: () => draft.value?.activities ?? [],
+  set: (value) => {
+    if (draft.value) {
+      draft.value.activities = value
+      isDirty.value = true
+      success.value = false
+    }
+  },
+})
+
+// Pending pace values held separately so we can track partial input without
+// writing an incomplete pace object (which would bypass paceValidationError).
+const pendingPaceMinutes = ref<number | undefined>(undefined)
+const pendingPaceSeconds = ref<number | undefined>(undefined)
+
+// Create computed refs for draft pace
+const draftPaceMinutes = computed({
+  get: () => draft.value?.pace?.minutes ?? pendingPaceMinutes.value,
+  set: (value) => {
+    if (draft.value) {
+      pendingPaceMinutes.value = value
+      // Only write to draft.value.pace when both fields are defined
+      const secs = draft.value.pace?.seconds ?? pendingPaceSeconds.value
+      if (value !== undefined && secs !== undefined) {
+        draft.value.pace = { minutes: value, seconds: secs }
+        pendingPaceMinutes.value = undefined
+        pendingPaceSeconds.value = undefined
+      } else {
+        // Remove the incomplete pace object so the validator sees it as missing
+        delete draft.value.pace
+      }
+      isDirty.value = true
+      success.value = false
+    }
+  },
+})
+
+const draftPaceSeconds = computed({
+  get: () => draft.value?.pace?.seconds ?? pendingPaceSeconds.value,
+  set: (value) => {
+    if (draft.value) {
+      pendingPaceSeconds.value = value ?? 0
+      // Only write to draft.value.pace when both fields are defined
+      const mins = draft.value.pace?.minutes ?? pendingPaceMinutes.value
+      if (mins !== undefined && value !== undefined) {
+        draft.value.pace = { minutes: mins, seconds: value ?? 0 }
+        pendingPaceMinutes.value = undefined
+        pendingPaceSeconds.value = undefined
+      } else {
+        // Remove the incomplete pace object so the validator sees it as missing
+        delete draft.value.pace
+      }
+      isDirty.value = true
+      success.value = false
+    }
+  },
+})
+
+// Aliases for template compatibility
+const isProfileDirty = isDirty
+const isProfileSaving = isSaving
+const profileSaveError = error
+const profileSaveSuccess = success
 
 // Computed properties for user information
 const displayName = computed(() => authStore.userDisplayName || 'Not set')
@@ -323,7 +409,7 @@ const paceDescription = computed(() => {
 // Computed: Show pace section only if the user has selected run, run/walk, or roll activities
 // Walk does not require pace information
 const showPaceSection = computed(() => {
-  const activities = authStore.draftActivities
+  const activities = draftActivities.value
   return (
     activities.includes('run') || activities.includes('run/walk') || activities.includes('roll')
   )
@@ -340,8 +426,8 @@ const paceValidationError = computed<string | null>(() => {
   if (!showPaceSection.value) {
     return null
   }
-  const hasMinutes = authStore.draftPaceMinutes !== undefined
-  const hasSeconds = authStore.draftPaceSeconds !== undefined
+  const hasMinutes = draftPaceMinutes.value !== undefined
+  const hasSeconds = draftPaceSeconds.value !== undefined
   // Both set or both unset (unset means user hasn't touched them yet) — no error
   if (hasMinutes === hasSeconds) {
     return null
@@ -353,17 +439,31 @@ const paceValidationError = computed<string | null>(() => {
   return 'Please enter your pace in both minutes and seconds (missing seconds).'
 })
 
+// Toggle an activity in the draft activities array
+function toggleDraftActivity(activity: 'walk' | 'run' | 'run/walk' | 'roll'): void {
+  const activities = [...draftActivities.value]
+  const index = activities.indexOf(activity)
+  if (index > -1) {
+    activities.splice(index, 1)
+  } else {
+    activities.push(activity)
+  }
+  draftActivities.value = activities
+  isDirty.value = true
+  success.value = false
+}
+
 // Handle save button click with pace validation
 // If pace fields are partially filled, show the error instead of saving.
-// Otherwise, delegate to the store's save method and reset the flag on success.
+// Otherwise, delegate to performSave and reset the flag on success.
 async function handleSave(): Promise<void> {
   saveAttempted.value = true
   if (paceValidationError.value) {
     return
   }
-  await authStore.saveProfileChanges()
+  await performSave()
   // Reset the flag after a successful save so errors don't linger
-  if (!authStore.profileSaveError) {
+  if (!error.value) {
     saveAttempted.value = false
   }
 }
@@ -381,28 +481,22 @@ const activityOptions: { value: 'walk' | 'run' | 'run/walk' | 'roll'; label: str
 const minutesOptions = Array.from({ length: 15 }, (_, i) => i + 6) // 6 to 20
 const secondsOptions = [0, 15, 30, 45]
 
-// Initialize profile draft state when component mounts
-onMounted(() => {
-  authStore.initializeProfileDraft()
-})
-
 // Handle pace minutes change from select dropdown
 // If both fields were undefined (user has never set a pace), auto-fill seconds to 0
 // so the user doesn't have to manually select "00" for even-minute paces.
 function handlePaceMinutesChange(event: Event): void {
   const target = event.target as HTMLSelectElement
-  const bothWereUnset =
-    authStore.draftPaceMinutes === undefined && authStore.draftPaceSeconds === undefined
-  authStore.setDraftPaceMinutes(Number(target.value))
+  const bothWereUnset = draftPaceMinutes.value === undefined && draftPaceSeconds.value === undefined
+  draftPaceMinutes.value = Number(target.value)
   if (bothWereUnset) {
-    authStore.setDraftPaceSeconds(0)
+    draftPaceSeconds.value = 0
   }
 }
 
 // Handle pace seconds change from select dropdown
 function handlePaceSecondsChange(event: Event): void {
   const target = event.target as HTMLSelectElement
-  authStore.setDraftPaceSeconds(Number(target.value))
+  draftPaceSeconds.value = Number(target.value)
 }
 
 // Handle text size change from select dropdown

@@ -100,6 +100,32 @@ export class MockSignUpRepository implements ISignUpRepository {
     const signUp = signUps.find((entry) => entry.runId === runId && entry.userId === userId)
     return signUp ?? null
   }
+
+  /**
+   * Atomically create or update the sign-up for a run+user pair.
+   *
+   * Uses the same deterministic ID scheme as the Firebase implementation
+   * (runId_userId) so that a second call always finds and overwrites the
+   * first rather than creating a duplicate document.
+   *
+   * @param signUpData - Full sign-up data (without id)
+   * @returns Promise resolving to the document ID
+   */
+  async upsertSignUp(signUpData: Omit<SignUp, 'id'>): Promise<string> {
+    const id = `${signUpData.runId}_${signUpData.userId}`
+    const items = getCollection<SignUp>('signups')
+    const index = items.findIndex((entry) => entry.id === id)
+
+    if (index !== -1) {
+      // Update existing document in place, mirroring setDoc merge behavior.
+      items[index] = { ...items[index], ...clone(signUpData), id }
+    } else {
+      // Create new document with the deterministic ID.
+      items.push({ ...clone(signUpData), id })
+    }
+
+    return id
+  }
 }
 
 // Singleton instance for use in tests and local development.
