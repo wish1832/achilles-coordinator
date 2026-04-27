@@ -207,7 +207,7 @@ const locationName = computed(() => locationQuery.data.value?.name ?? null)
 function updateBackLabel(): void {
   navigationStore.setBackLabel(locationName.value)
 }
-watch(locationName, updateBackLabel)
+watch(locationName, updateBackLabel, { immediate: true })
 onActivated(updateBackLabel)
 
 // Organization detail, gated on the run resolving so we know which org to
