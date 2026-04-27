@@ -1,10 +1,15 @@
 <template>
   <header class="app-header">
     <div class="app-header__content">
-      <!-- Left side: Logo/Title area -->
+      <!-- Left side: Back button (shown only when a back destination is set by the current view) -->
       <div class="app-header__left">
-        <button class="app-header__title-button" aria-label="Go to home page" @click="goToHome">
-          Run Coordinator
+        <button
+          v-if="backLabel"
+          class="app-header__back-button"
+          :aria-label="`Back to ${backLabel}`"
+          @click="goBack"
+        >
+          <font-awesome-icon :icon="['fas', 'chevron-left']" aria-hidden="true" />
         </button>
       </div>
 
@@ -79,11 +84,16 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useNavigationStore } from '@/stores/navigation'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
 
 // Router and stores
 const router = useRouter()
 const authStore = useAuthStore()
+const navigationStore = useNavigationStore()
+
+// The label set by the current view. Null means no back button should be shown.
+const backLabel = computed(() => navigationStore.backLabel)
 
 // Refs for DOM elements
 const userMenuRef = ref<HTMLElement | null>(null)
@@ -97,8 +107,16 @@ const isDropdownOpen = ref(false)
 // Computed: Get the user's display name from the auth store
 const displayName = computed(() => authStore.userDisplayName || 'User')
 
-// Navigate to the dashboard (home page for logged-in users)
-function goToHome(): void {
+// Navigate back using the previousRoute recorded by the router guard.
+// This is deterministic and works correctly on deep links and page refreshes,
+// unlike router.back() which relies on browser history being in sync with in-app routes.
+// Falls back to /dashboard when there is no recorded previous route.
+function goBack(): void {
+  const previousRoute = navigationStore.previousRoute
+  if (previousRoute?.name) {
+    router.push({ name: previousRoute.name, params: previousRoute.params })
+    return
+  }
   router.push('/dashboard')
 }
 
@@ -258,25 +276,26 @@ onUnmounted(() => {
   align-items: center;
 }
 
-.app-header__title-button {
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: -0.025em;
+.app-header__back-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
   color: white;
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0.25rem 0.5rem;
-  margin: -0.25rem -0.5rem;
-  border-radius: 0.25rem;
+  border-radius: 50%;
+  font-size: 1.25rem;
   transition: background-color 0.2s ease-in-out;
 }
 
-.app-header__title-button:hover {
+.app-header__back-button:hover {
   background-color: rgba(255, 255, 255, 0.15);
 }
 
-.app-header__title-button:focus-visible {
+.app-header__back-button:focus-visible {
   outline: 2px solid white;
   outline-offset: 2px;
 }
@@ -392,7 +411,7 @@ onUnmounted(() => {
 }
 
 /* Reduced motion */
-.reduced-motion .app-header__title-button,
+.reduced-motion .app-header__back-button,
 .reduced-motion .user-menu__trigger,
 .reduced-motion .user-menu__item {
   transition: none;
@@ -402,10 +421,6 @@ onUnmounted(() => {
 @media (max-width: 640px) {
   .app-header__content {
     padding: 0 0.75rem;
-  }
-
-  .app-header__title-button {
-    font-size: 1.125rem;
   }
 
   .user-menu__trigger {

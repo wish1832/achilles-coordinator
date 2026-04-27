@@ -175,7 +175,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onActivated } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import CardUI from '@/components/ui/CardUI.vue'
@@ -183,6 +183,7 @@ import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import RSVPModal from '@/components/RSVPModal.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useNavigationStore } from '@/stores/navigation'
 import { useAdminCapabilities } from '@/composables/useAdminCapabilities'
 import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
 import { useRunsForOrganizationQuery } from '@/composables/queries/useRunsForOrganizationQuery'
@@ -198,6 +199,13 @@ const router = useRouter()
 // session state, which is not server data and stays out of TanStack.
 const authStore = useAuthStore()
 const { currentUser } = storeToRefs(authStore)
+
+const navigationStore = useNavigationStore()
+
+// Tell the header to show a back button pointing to the Dashboard.
+// Runs on every activation so the label is always set when arriving at this view.
+onMounted(() => navigationStore.setBackLabel('Dashboard'))
+onActivated(() => navigationStore.setBackLabel('Dashboard'))
 
 // Admin capabilities for checking org admin status (also client-state).
 const { isOrgAdmin } = useAdminCapabilities()

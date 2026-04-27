@@ -233,6 +233,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onActivated, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useNavigationStore } from '@/stores/navigation'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
@@ -251,6 +252,7 @@ import { useDeleteRunMutation } from '@/composables/mutations/useDeleteRunMutati
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const navigationStore = useNavigationStore()
 const { canManageRun } = useAdminCapabilities()
 
 // RSVP Modal state
@@ -347,6 +349,17 @@ const locationName = computed(() => location.value?.name || 'Unknown Location')
 
 // Get the organization name from the loaded organization
 const organizationName = computed(() => organization.value?.name || 'Unknown Organization')
+
+// Back button label: show the org name if we came from OrganizationView, otherwise Dashboard.
+// Watches organizationName so the label updates once the query resolves.
+// Also called on activation since <KeepAlive> skips onMounted on re-entry.
+function updateBackLabel(): void {
+  const prev = navigationStore.previousRoute?.name
+  const label = prev === 'Organization' ? organizationName.value : 'Dashboard'
+  navigationStore.setBackLabel(label)
+}
+watch(organizationName, updateBackLabel, { immediate: true })
+onActivated(updateBackLabel)
 
 // Get the list of admin IDs for this run
 const adminIds = computed(() => {
