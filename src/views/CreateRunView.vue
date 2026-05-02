@@ -209,9 +209,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onActivated } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useNavigationStore } from '@/stores/navigation'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
@@ -229,7 +228,6 @@ const router = useRouter()
 // Auth is the only Pinia store still in use here — it owns client-side
 // session state, which isn't server data and stays out of TanStack.
 const authStore = useAuthStore()
-const navigationStore = useNavigationStore()
 
 // Get organization ID from route params
 const orgId = computed(() => route.params.orgId as string)
@@ -239,15 +237,6 @@ const orgId = computed(() => route.params.orgId as string)
 // Organization detail (used for the page header/subtitle).
 const organizationQuery = useOrganizationQuery(orgId)
 const organization = computed(() => organizationQuery.data.value ?? undefined)
-
-// Back button: always goes back to this organization's page.
-const orgName = computed(() => organization.value?.name ?? null)
-function updateBackDestination(): void {
-  navigationStore.setBackLabel(orgName.value)
-  navigationStore.setBackDestination('Organization', { orgId: orgId.value })
-}
-watch(orgName, updateBackDestination, { immediate: true })
-onActivated(updateBackDestination)
 
 // Locations for this organization (powers the dropdown). Default to an empty
 // array while loading so the LocationDropdown receives a stable shape.

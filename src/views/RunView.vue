@@ -233,7 +233,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onActivated, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useNavigationStore } from '@/stores/navigation'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
@@ -252,7 +251,6 @@ import { useDeleteRunMutation } from '@/composables/mutations/useDeleteRunMutati
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
-const navigationStore = useNavigationStore()
 const { canManageRun } = useAdminCapabilities()
 
 // RSVP Modal state
@@ -332,7 +330,6 @@ function dismissToast(): void {
 }
 
 // Get route parameters — both are always present on this route
-const orgId = computed(() => route.params.orgId as string)
 const runId = computed(() => route.params.id as string)
 const runQuery = useRunQuery(runId)
 const run = computed(() => runQuery.data.value ?? null)
@@ -350,19 +347,6 @@ const locationName = computed(() => location.value?.name || 'Unknown Location')
 
 // Get the organization name from the loaded organization
 const organizationName = computed(() => organization.value?.name || 'Unknown Organization')
-
-// Back button: always goes back to the run's organization.
-// The destination is set immediately from the route param so the button shows
-// right away. The label updates once the org name loads.
-// onActivated re-sets after <KeepAlive> re-entry since onMounted doesn't fire again.
-function updateBackDestination(): void {
-  // Use org name when loaded; fall back to a generic label so the button is
-  // never hidden while the query is still in flight.
-  navigationStore.setBackLabel(organizationName.value)
-  navigationStore.setBackDestination('Organization', { orgId: orgId.value })
-}
-watch(organization, updateBackDestination, { immediate: true })
-onActivated(updateBackDestination)
 
 // Get the list of admin IDs for this run
 const adminIds = computed(() => {

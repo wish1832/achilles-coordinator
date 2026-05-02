@@ -155,9 +155,8 @@
 
 <script setup lang="ts">
 // Core Vue imports
-import { ref, computed, onMounted, onActivated, onBeforeUnmount, nextTick, toRaw, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, toRaw, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useNavigationStore } from '@/stores/navigation'
 
 // Type imports
 import type { SignUp, User, LoadingState } from '@/types'
@@ -165,7 +164,6 @@ import type { SignUp, User, LoadingState } from '@/types'
 // Query and mutation hooks (server state)
 import { useRunQuery } from '@/composables/queries/useRunQuery'
 import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
-import { useLocationQuery } from '@/composables/queries/useLocationQuery'
 import { useRunSignUpsQuery } from '@/composables/queries/useRunSignUpsQuery'
 import { useUsersByIdsQuery } from '@/composables/queries/useUsersByIdsQuery'
 import { useUpdateRunMutation } from '@/composables/mutations/useUpdateRunMutation'
@@ -187,7 +185,6 @@ import AddUserDrawer from '@/components/pairing/AddUserDrawer.vue'
 // Route access
 const route = useRoute()
 
-const navigationStore = useNavigationStore()
 
 // Extract run ID from route parameters
 const runId = computed(() => route.params.id as string)
@@ -198,19 +195,6 @@ const runId = computed(() => route.params.id as string)
 // and is the parent record for save-pairings updates.
 const runQuery = useRunQuery(runId)
 const run = computed(() => runQuery.data.value ?? undefined)
-
-// Location detail — used for the back button label (mirrors RunView's title).
-const locationQuery = useLocationQuery(computed(() => run.value?.locationId))
-const locationName = computed(() => locationQuery.data.value?.name ?? null)
-
-// Back button: always goes back to this run's detail page.
-// Uses the location name as the label to match RunView's title.
-function updateBackDestination(): void {
-  navigationStore.setBackLabel(locationName.value)
-  navigationStore.setBackDestination('Run', { orgId: route.params.orgId as string, id: runId.value })
-}
-watch(locationName, updateBackDestination, { immediate: true })
-onActivated(updateBackDestination)
 
 // Organization detail, gated on the run resolving so we know which org to
 // fetch. Used for the page subtitle and for the Add User drawer's member

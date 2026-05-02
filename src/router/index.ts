@@ -1,10 +1,25 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, type RouteLocationNormalized } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useOrganizationStore } from '@/stores/organization'
 import { useRunsStore } from '@/stores/runs'
 import { useAdminCapabilities } from '@/composables/useAdminCapabilities'
 import type { UserRole } from '@/types/models'
 import LoginView from '@/views/LoginView.vue'
+
+// Back-button target derived from the current route. Each route declares where
+// its back button should go via meta.back; AppHeader resolves the human-readable
+// label from the destination (see AppHeader for label resolution rules).
+// Defining this in route meta keeps the back target in lockstep with the route,
+// so a stale value can never linger after navigation.
+export type BackTarget = {
+  name: string
+  params: Record<string, string>
+}
+export type BackResolver = (route: RouteLocationNormalized) => BackTarget | null
+// The corresponding RouteMeta augmentation lives in env.d.ts so it is globally
+// visible to all .vue files (TypeScript only picks up module augmentations from
+// files included in the type-check program; .d.ts shims are the simplest way
+// to make that work uniformly).
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -40,6 +55,7 @@ const router = createRouter({
         requiresAuth: true,
         roles: ['athlete', 'guide'],
         title: 'Settings - Achilles Run Coordinator',
+        back: () => ({ name: 'Dashboard', params: {} }),
       },
     },
     {
@@ -49,6 +65,7 @@ const router = createRouter({
       meta: {
         requiresAuth: false,
         title: 'Organization - Achilles Run Coordinator',
+        back: () => ({ name: 'Dashboard', params: {} }),
       },
     },
     {
@@ -59,6 +76,10 @@ const router = createRouter({
         requiresAuth: true,
         requiresOrgAdmin: true,
         title: 'Organization Settings - Achilles Run Coordinator',
+        back: (route) => ({
+          name: 'Organization',
+          params: { orgId: route.params.orgId as string },
+        }),
       },
     },
     {
@@ -69,6 +90,10 @@ const router = createRouter({
         requiresAuth: true,
         requiresOrgAdmin: true,
         title: 'Create Run - Achilles Run Coordinator',
+        back: (route) => ({
+          name: 'Organization',
+          params: { orgId: route.params.orgId as string },
+        }),
       },
     },
     {
@@ -79,6 +104,10 @@ const router = createRouter({
         requiresAuth: true,
         roles: ['athlete', 'guide'],
         title: 'Run Details - Achilles Run Coordinator',
+        back: (route) => ({
+          name: 'Organization',
+          params: { orgId: route.params.orgId as string },
+        }),
       },
     },
     {
@@ -89,6 +118,13 @@ const router = createRouter({
         requiresAuth: true,
         requiresRunAdmin: true,
         title: 'Edit Run - Achilles Run Coordinator',
+        back: (route) => ({
+          name: 'Run',
+          params: {
+            orgId: route.params.orgId as string,
+            id: route.params.id as string,
+          },
+        }),
       },
     },
     {
@@ -99,6 +135,13 @@ const router = createRouter({
         requiresAuth: true,
         requiresRunAdmin: true,
         title: 'Manage Pairings - Achilles Run Coordinator',
+        back: (route) => ({
+          name: 'Run',
+          params: {
+            orgId: route.params.orgId as string,
+            id: route.params.id as string,
+          },
+        }),
       },
     },
     // {

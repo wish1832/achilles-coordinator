@@ -1,12 +1,12 @@
 <template>
   <header class="app-header">
     <div class="app-header__content">
-      <!-- Left side: Back button (shown only when a back destination is set by the current view) -->
+      <!-- Left side: Back button (shown only when the current route declares a back target) -->
       <div class="app-header__left">
         <button
-          v-if="navigationStore.backDestination || navigationStore.backLabel"
+          v-if="backTarget"
           class="app-header__back-button"
-          :aria-label="navigationStore.backLabel ? `Back to ${navigationStore.backLabel}` : 'Go back'"
+          :aria-label="backLabel ? `Back to ${backLabel}` : 'Go back'"
           @click="goBack"
         >
           <font-awesome-icon :icon="['fas', 'chevron-left']" aria-hidden="true" />
@@ -82,15 +82,61 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useNavigationStore } from '@/stores/navigation'
+import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
+import { useRunQuery } from '@/composables/queries/useRunQuery'
+import { useLocationQuery } from '@/composables/queries/useLocationQuery'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
 
 // Router and stores
+const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
-const navigationStore = useNavigationStore()
+
+// Back-button target derived from the current route's meta.back. Resolving from
+// the route guarantees the target stays in lockstep with the URL — no view-side
+// state to keep in sync, no chance of a stale value lingering after navigation.
+const backTarget = computed(() => route.meta.back?.(route) ?? null)
+
+// Label resolution by destination route name. The destination determines what
+// entity the label describes, so the header fetches it directly via the same
+// query composables the destination view uses (TanStack Query dedupes the
+// fetch — no extra network request when the user is already on a related page).
+//
+// "Dashboard" → static "home"
+// "Organization" → org name (from orgId in destination params)
+// "Run" → location name (run → locationId → location.name, mirroring RunView's title)
+const targetOrgId = computed(() =>
+  backTarget.value?.name === 'Organization' ? backTarget.value.params.orgId : undefined,
+)
+const orgQuery = useOrganizationQuery(targetOrgId)
+
+const targetRunId = computed(() =>
+  backTarget.value?.name === 'Run' ? backTarget.value.params.id : undefined,
+)
+// useRunQuery expects a string getter; gate it ourselves so it stays disabled
+// when there's no Run destination.
+const runQuery = useRunQuery(computed(() => targetRunId.value ?? ''))
+const targetLocationId = computed(() =>
+  targetRunId.value ? (runQuery.data.value?.locationId ?? undefined) : undefined,
+)
+const locationQuery = useLocationQuery(targetLocationId)
+
+const backLabel = computed<string | null>(() => {
+  const target = backTarget.value
+  if (!target) return null
+  switch (target.name) {
+    case 'Dashboard':
+      return 'home'
+    case 'Organization':
+      return orgQuery.data.value?.name ?? null
+    case 'Run':
+      return locationQuery.data.value?.name ?? null
+    default:
+      return null
+  }
+})
 
 // Refs for DOM elements
 const userMenuRef = ref<HTMLElement | null>(null)
@@ -104,18 +150,13 @@ const isDropdownOpen = ref(false)
 // Computed: Get the user's display name from the auth store
 const displayName = computed(() => authStore.userDisplayName || 'User')
 
-// Navigate back using either:
-//   1. An explicit destination set by the current view (backDestination) — used
-//      when the view always knows where back should go (e.g. RunView → Organization).
-//   2. router.back() — used for views like UserSettingsView that can be reached
-//      from anywhere and just need to return to the previous page.
+// Navigate to the explicit destination declared by the current route's meta.back.
+// The button is hidden when no target exists, so this is only invoked with a
+// concrete destination — no router.back() fallback is needed.
 function goBack(): void {
-  if (navigationStore.backDestination) {
-    const { name, params } = navigationStore.backDestination
-    router.push({ name, params })
-    return
-  }
-  router.back()
+  const target = backTarget.value
+  if (!target) return
+  router.push({ name: target.name, params: target.params })
 }
 
 // Toggle the dropdown menu open/closed

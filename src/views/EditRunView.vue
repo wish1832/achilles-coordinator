@@ -218,7 +218,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onActivated } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
@@ -229,13 +229,11 @@ import { useUpdateRunMutation } from '@/composables/mutations/useUpdateRunMutati
 import { useRunQuery } from '@/composables/queries/useRunQuery'
 import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
 import { useLocationsForOrganizationQuery } from '@/composables/queries/useLocationsForOrganizationQuery'
-import { useNavigationStore } from '@/stores/navigation'
 import type { LoadingState, Location, Run } from '@/types'
 
 // Router and route for navigation and params
 const route = useRoute()
 const router = useRouter()
-const navigationStore = useNavigationStore()
 
 // Mutation that persists run edits through TanStack Query.
 // On success, it invalidates the run detail cache so RunView refetches.
@@ -401,17 +399,6 @@ const editRunTitle = computed(() => {
 
   return locationsById.value.get(locationId)?.name || 'Run'
 })
-
-// Back button: always goes back to this run's detail page.
-// Uses the location name as the label (same as RunView's title) so the user
-// knows exactly which run they'll return to.
-function updateBackDestination(): void {
-  const label = editRunTitle.value !== 'Run' ? editRunTitle.value : null
-  navigationStore.setBackLabel(label)
-  navigationStore.setBackDestination('Run', { orgId: orgId.value, id: runId.value })
-}
-watch(editRunTitle, updateBackDestination, { immediate: true })
-onActivated(updateBackDestination)
 
 // Format the run's date and time for display in the subtitle.
 // Uses the draft values (which are initialized from the current run on load).

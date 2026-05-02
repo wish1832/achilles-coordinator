@@ -287,10 +287,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onActivated } from 'vue'
+import { computed, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAccessibilityStore } from '@/stores/accessibility'
-import { useNavigationStore } from '@/stores/navigation'
 
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import { useDraftState } from '@/composables/useDraftState'
@@ -300,19 +299,6 @@ import type { User } from '@/types'
 // Stores
 const authStore = useAuthStore()
 const accessibilityStore = useAccessibilityStore()
-const navigationStore = useNavigationStore()
-
-// Back button: always return to Dashboard, since settings is a leaf page
-// and router.back() is unreliable when arriving without browser history.
-onMounted(() => {
-  navigationStore.setBackLabel('home')
-  navigationStore.setBackDestination('Dashboard', {})
-})
-onActivated(() => {
-  navigationStore.setBackLabel('home')
-  navigationStore.setBackDestination('Dashboard', {})
-})
-
 // Mutation for updating profile
 const updateProfileMutation = useUpdateProfileMutation()
 

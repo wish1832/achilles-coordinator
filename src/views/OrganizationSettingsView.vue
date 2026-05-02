@@ -286,9 +286,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onActivated } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { useNavigationStore } from '@/stores/navigation'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
@@ -309,22 +308,11 @@ const route = useRoute()
 
 // Store
 const authStore = useAuthStore()
-const navigationStore = useNavigationStore()
-
 // Get organization ID from route params
 const orgId = computed(() => route.params.orgId as string)
 
 // Fetch organization and its members
 const { data: organization, status: organizationStatus } = useOrganizationQuery(orgId)
-
-// Back button: always goes back to this organization's page.
-const orgName = computed(() => organization.value?.name ?? null)
-function updateBackDestination(): void {
-  navigationStore.setBackLabel(orgName.value)
-  navigationStore.setBackDestination('Organization', { orgId: orgId.value })
-}
-watch(orgName, updateBackDestination, { immediate: true })
-onActivated(updateBackDestination)
 
 // Compute all member IDs (admins + non-admins)
 const allMemberIds = computed(() => {
