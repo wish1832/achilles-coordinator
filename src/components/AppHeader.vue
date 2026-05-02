@@ -84,59 +84,23 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
-import { useRunQuery } from '@/composables/queries/useRunQuery'
-import { useLocationQuery } from '@/composables/queries/useLocationQuery'
+import { useNavigationStore } from '@/stores/navigation'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
 
 // Router and stores
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const navigationStore = useNavigationStore()
 
 // Back-button target derived from the current route's meta.back. Resolving from
 // the route guarantees the target stays in lockstep with the URL — no view-side
 // state to keep in sync, no chance of a stale value lingering after navigation.
 const backTarget = computed(() => route.meta.back?.(route) ?? null)
 
-// Label resolution by destination route name. The destination determines what
-// entity the label describes, so the header fetches it directly via the same
-// query composables the destination view uses (TanStack Query dedupes the
-// fetch — no extra network request when the user is already on a related page).
-//
-// "Dashboard" → static "home"
-// "Organization" → org name (from orgId in destination params)
-// "Run" → location name (run → locationId → location.name, mirroring RunView's title)
-const targetOrgId = computed(() =>
-  backTarget.value?.name === 'Organization' ? backTarget.value.params.orgId : undefined,
-)
-const orgQuery = useOrganizationQuery(targetOrgId)
-
-const targetRunId = computed(() =>
-  backTarget.value?.name === 'Run' ? backTarget.value.params.id : undefined,
-)
-// useRunQuery expects a string getter; gate it ourselves so it stays disabled
-// when there's no Run destination.
-const runQuery = useRunQuery(computed(() => targetRunId.value ?? ''))
-const targetLocationId = computed(() =>
-  targetRunId.value ? (runQuery.data.value?.locationId ?? undefined) : undefined,
-)
-const locationQuery = useLocationQuery(targetLocationId)
-
-const backLabel = computed<string | null>(() => {
-  const target = backTarget.value
-  if (!target) return null
-  switch (target.name) {
-    case 'Dashboard':
-      return 'home'
-    case 'Organization':
-      return orgQuery.data.value?.name ?? null
-    case 'Run':
-      return locationQuery.data.value?.name ?? null
-    default:
-      return null
-  }
-})
+// The human-readable label is set by whichever view is currently mounted, once
+// its data resolves. AppHeader reads it as a plain string — no fetching here.
+const backLabel = computed(() => (backTarget.value ? navigationStore.backLabel : null))
 
 // Refs for DOM elements
 const userMenuRef = ref<HTMLElement | null>(null)

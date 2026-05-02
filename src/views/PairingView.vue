@@ -164,6 +164,7 @@ import type { SignUp, User, LoadingState } from '@/types'
 // Query and mutation hooks (server state)
 import { useRunQuery } from '@/composables/queries/useRunQuery'
 import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
+import { useLocationQuery } from '@/composables/queries/useLocationQuery'
 import { useRunSignUpsQuery } from '@/composables/queries/useRunSignUpsQuery'
 import { useUsersByIdsQuery } from '@/composables/queries/useUsersByIdsQuery'
 import { useUpdateRunMutation } from '@/composables/mutations/useUpdateRunMutation'
@@ -171,6 +172,7 @@ import { useCreateOrUpdateSignUpMutation } from '@/composables/mutations/useCrea
 
 // Composable imports
 import { usePairingLogic } from '@/composables/usePairingLogic'
+import { useNavigationStore } from '@/stores/navigation'
 
 // UI Component imports
 import AchillesButton from '@/components/ui/AchillesButton.vue'
@@ -184,6 +186,7 @@ import AddUserDrawer from '@/components/pairing/AddUserDrawer.vue'
 
 // Route access
 const route = useRoute()
+const navigationStore = useNavigationStore()
 
 
 // Extract run ID from route parameters
@@ -202,6 +205,16 @@ const run = computed(() => runQuery.data.value ?? undefined)
 // addable).
 const organizationQuery = useOrganizationQuery(computed(() => run.value?.organizationId))
 const organization = computed(() => organizationQuery.data.value ?? undefined)
+
+// Location detail — used only for the back label (back target is RunView, which titles itself by location name).
+const locationQuery = useLocationQuery(computed(() => run.value?.locationId))
+
+// Publish the location name to the navigation store so AppHeader can show it as the back label.
+watch(
+  () => locationQuery.data.value?.name,
+  (name) => navigationStore.setBackLabel(name ?? null),
+  { immediate: true },
+)
 
 // Sign-ups for this run. Drives the athlete and guide columns plus pace
 // lookups in usePairingLogic.

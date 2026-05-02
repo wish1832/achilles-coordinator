@@ -218,7 +218,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
@@ -229,11 +229,13 @@ import { useUpdateRunMutation } from '@/composables/mutations/useUpdateRunMutati
 import { useRunQuery } from '@/composables/queries/useRunQuery'
 import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
 import { useLocationsForOrganizationQuery } from '@/composables/queries/useLocationsForOrganizationQuery'
+import { useNavigationStore } from '@/stores/navigation'
 import type { LoadingState, Location, Run } from '@/types'
 
 // Router and route for navigation and params
 const route = useRoute()
 const router = useRouter()
+const navigationStore = useNavigationStore()
 
 // Mutation that persists run edits through TanStack Query.
 // On success, it invalidates the run detail cache so RunView refetches.
@@ -399,6 +401,14 @@ const editRunTitle = computed(() => {
 
   return locationsById.value.get(locationId)?.name || 'Run'
 })
+
+// Publish the run's location name to the navigation store so AppHeader can
+// show it as the back label (back target is RunView, which uses location name as its title).
+watch(
+  () => locationsById.value.get(run.value?.locationId ?? '')?.name,
+  (name) => navigationStore.setBackLabel(name ?? null),
+  { immediate: true },
+)
 
 // Format the run's date and time for display in the subtitle.
 // Uses the draft values (which are initialized from the current run on load).

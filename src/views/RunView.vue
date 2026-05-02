@@ -239,6 +239,7 @@ import LoadingUI from '@/components/ui/LoadingUI.vue'
 import ModalElement from '@/components/ui/ModalElement.vue'
 import RSVPModal from '@/components/RSVPModal.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useNavigationStore } from '@/stores/navigation'
 import { useAdminCapabilities } from '@/composables/useAdminCapabilities'
 import { useRunQuery } from '@/composables/queries/useRunQuery'
 import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
@@ -251,6 +252,7 @@ import { useDeleteRunMutation } from '@/composables/mutations/useDeleteRunMutati
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const navigationStore = useNavigationStore()
 const { canManageRun } = useAdminCapabilities()
 
 // RSVP Modal state
@@ -347,6 +349,13 @@ const locationName = computed(() => location.value?.name || 'Unknown Location')
 
 // Get the organization name from the loaded organization
 const organizationName = computed(() => organization.value?.name || 'Unknown Organization')
+
+// Publish the org name to the navigation store so AppHeader can show it as the back label.
+watch(
+  () => organization.value?.name,
+  (name) => navigationStore.setBackLabel(name ?? null),
+  { immediate: true },
+)
 
 // Get the list of admin IDs for this run
 const adminIds = computed(() => {

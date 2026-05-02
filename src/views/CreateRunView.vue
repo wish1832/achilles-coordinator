@@ -209,13 +209,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import LocationDropdown from '@/components/ui/LocationDropdown.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useNavigationStore } from '@/stores/navigation'
 import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
 import { useLocationsForOrganizationQuery } from '@/composables/queries/useLocationsForOrganizationQuery'
 import { useCreateRunMutation } from '@/composables/mutations/useCreateRunMutation'
@@ -228,6 +229,7 @@ const router = useRouter()
 // Auth is the only Pinia store still in use here — it owns client-side
 // session state, which isn't server data and stays out of TanStack.
 const authStore = useAuthStore()
+const navigationStore = useNavigationStore()
 
 // Get organization ID from route params
 const orgId = computed(() => route.params.orgId as string)
@@ -237,6 +239,13 @@ const orgId = computed(() => route.params.orgId as string)
 // Organization detail (used for the page header/subtitle).
 const organizationQuery = useOrganizationQuery(orgId)
 const organization = computed(() => organizationQuery.data.value ?? undefined)
+
+// Publish the org name to the navigation store so AppHeader can show it as the back label.
+watch(
+  () => organization.value?.name,
+  (name) => navigationStore.setBackLabel(name ?? null),
+  { immediate: true },
+)
 
 // Locations for this organization (powers the dropdown). Default to an empty
 // array while loading so the LocationDropdown receives a stable shape.

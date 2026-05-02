@@ -183,6 +183,7 @@ import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import RSVPModal from '@/components/RSVPModal.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useNavigationStore } from '@/stores/navigation'
 import { useAdminCapabilities } from '@/composables/useAdminCapabilities'
 import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
 import { useRunsForOrganizationQuery } from '@/composables/queries/useRunsForOrganizationQuery'
@@ -197,6 +198,10 @@ const router = useRouter()
 // Auth is the only Pinia store still in use here — it owns client-side
 // session state, which is not server data and stays out of TanStack.
 const authStore = useAuthStore()
+const navigationStore = useNavigationStore()
+
+// Back label is the static string "home" — no async data needed.
+navigationStore.setBackLabel('home')
 const { currentUser } = storeToRefs(authStore)
 
 // Admin capabilities for checking org admin status (also client-state).

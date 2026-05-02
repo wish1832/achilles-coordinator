@@ -286,7 +286,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
@@ -294,6 +294,7 @@ import UserAvatar from '@/components/ui/UserAvatar.vue'
 import ActionMenu, { type ActionMenuItem } from '@/components/ui/ActionMenu.vue'
 import ModalElement from '@/components/ui/ModalElement.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useNavigationStore } from '@/stores/navigation'
 import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
 import { useUsersByIdsQuery } from '@/composables/queries/useUsersByIdsQuery'
 import { useDraftState } from '@/composables/useDraftState'
@@ -308,11 +309,20 @@ const route = useRoute()
 
 // Store
 const authStore = useAuthStore()
+const navigationStore = useNavigationStore()
+
 // Get organization ID from route params
 const orgId = computed(() => route.params.orgId as string)
 
 // Fetch organization and its members
 const { data: organization, status: organizationStatus } = useOrganizationQuery(orgId)
+
+// Publish the org name to the navigation store so AppHeader can show it as the back label.
+watch(
+  () => organization.value?.name,
+  (name) => navigationStore.setBackLabel(name ?? null),
+  { immediate: true },
+)
 
 // Compute all member IDs (admins + non-admins)
 const allMemberIds = computed(() => {

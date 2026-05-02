@@ -290,6 +290,7 @@
 import { computed, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAccessibilityStore } from '@/stores/accessibility'
+import { useNavigationStore } from '@/stores/navigation'
 
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import { useDraftState } from '@/composables/useDraftState'
@@ -299,6 +300,10 @@ import type { User } from '@/types'
 // Stores
 const authStore = useAuthStore()
 const accessibilityStore = useAccessibilityStore()
+const navigationStore = useNavigationStore()
+
+// Back label is the static string "home" — no async data needed.
+navigationStore.setBackLabel('home')
 // Mutation for updating profile
 const updateProfileMutation = useUpdateProfileMutation()
 
