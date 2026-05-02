@@ -20,13 +20,21 @@ export const useNavigationStore = defineStore('navigation', () => {
   // Each view sets this once its data has loaded.
   const backLabel = ref<string | null>(null)
 
+  // Routes that act as intermediate editors: navigating *away* from them should
+  // not overwrite previousRoute. This keeps the back button on RunView pointing
+  // at the organization page even after a round-trip through EditRunView.
+  const TRANSPARENT_ROUTES = new Set(['EditRun', 'CreateRun'])
+
   /**
    * Called by the router beforeEach guard before every navigation.
    * Captures where the user is coming from so views with dynamic back targets
    * (RunView, UserSettingsView) can read previousRoute.name to decide where to go.
+   *
+   * Transparent routes (e.g. EditRun) are skipped so that returning from an
+   * editor doesn't clobber the original back destination.
    */
   function recordNavigation(from: RouteLocationNormalizedLoaded): void {
-    if (from.name) {
+    if (from.name && !TRANSPARENT_ROUTES.has(String(from.name))) {
       previousRoute.value = {
         name: String(from.name),
         params: from.params as Record<string, string>,
