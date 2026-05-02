@@ -203,12 +203,14 @@ const run = computed(() => runQuery.data.value ?? undefined)
 const locationQuery = useLocationQuery(computed(() => run.value?.locationId))
 const locationName = computed(() => locationQuery.data.value?.name ?? null)
 
-// Set back label to the location name once it resolves, and on every activation.
-function updateBackLabel(): void {
+// Back button: always goes back to this run's detail page.
+// Uses the location name as the label to match RunView's title.
+function updateBackDestination(): void {
   navigationStore.setBackLabel(locationName.value)
+  navigationStore.setBackDestination('Run', { orgId: route.params.orgId as string, id: runId.value })
 }
-watch(locationName, updateBackLabel, { immediate: true })
-onActivated(updateBackLabel)
+watch(locationName, updateBackDestination, { immediate: true })
+onActivated(updateBackDestination)
 
 // Organization detail, gated on the run resolving so we know which org to
 // fetch. Used for the page subtitle and for the Add User drawer's member

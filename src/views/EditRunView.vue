@@ -218,7 +218,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, onActivated } from 'vue'
+import { computed, ref, watch, onActivated } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
@@ -402,14 +402,16 @@ const editRunTitle = computed(() => {
   return locationsById.value.get(locationId)?.name || 'Run'
 })
 
-// Back button label: the location name (same as RunView's title) so the user
+// Back button: always goes back to this run's detail page.
+// Uses the location name as the label (same as RunView's title) so the user
 // knows exactly which run they'll return to.
-function updateBackLabel(): void {
-  navigationStore.setBackLabel(editRunTitle.value !== 'Run' ? editRunTitle.value : null)
+function updateBackDestination(): void {
+  const label = editRunTitle.value !== 'Run' ? editRunTitle.value : null
+  navigationStore.setBackLabel(label)
+  navigationStore.setBackDestination('Run', { orgId: orgId.value, id: runId.value })
 }
-watch(editRunTitle, updateBackLabel)
-onMounted(updateBackLabel)
-onActivated(updateBackLabel)
+watch(editRunTitle, updateBackDestination, { immediate: true })
+onActivated(updateBackDestination)
 
 // Format the run's date and time for display in the subtitle.
 // Uses the draft values (which are initialized from the current run on load).

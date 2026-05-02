@@ -291,6 +291,7 @@ import { computed, ref, onMounted, onActivated } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAccessibilityStore } from '@/stores/accessibility'
 import { useNavigationStore } from '@/stores/navigation'
+
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import { useDraftState } from '@/composables/useDraftState'
 import { useUpdateProfileMutation } from '@/composables/mutations/useUpdateProfileMutation'
@@ -301,23 +302,16 @@ const authStore = useAuthStore()
 const accessibilityStore = useAccessibilityStore()
 const navigationStore = useNavigationStore()
 
-// Map the previous route name to a human-readable back label.
-// Settings can be reached from any authenticated view, so we cover the known cases
-// and fall back to "Dashboard" for anything unexpected.
-function resolveBackLabel(): string {
-  switch (navigationStore.previousRoute?.name) {
-    case 'Organization': return 'organization'
-    case 'Run': return 'run'
-    case 'RunPairing': return 'pairings'
-    case 'EditRun': return 'edit run'
-    case 'OrganizationSettings': return 'organization settings'
-    case 'CreateRun': return 'create run'
-    default: return 'Dashboard'
-  }
-}
-
-onMounted(() => navigationStore.setBackLabel(resolveBackLabel()))
-onActivated(() => navigationStore.setBackLabel(resolveBackLabel()))
+// Back button: always return to Dashboard, since settings is a leaf page
+// and router.back() is unreliable when arriving without browser history.
+onMounted(() => {
+  navigationStore.setBackLabel('home')
+  navigationStore.setBackDestination('Dashboard', {})
+})
+onActivated(() => {
+  navigationStore.setBackLabel('home')
+  navigationStore.setBackDestination('Dashboard', {})
+})
 
 // Mutation for updating profile
 const updateProfileMutation = useUpdateProfileMutation()

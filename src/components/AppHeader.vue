@@ -4,9 +4,9 @@
       <!-- Left side: Back button (shown only when a back destination is set by the current view) -->
       <div class="app-header__left">
         <button
-          v-if="backLabel"
+          v-if="navigationStore.backDestination || navigationStore.backLabel"
           class="app-header__back-button"
-          :aria-label="`Back to ${backLabel}`"
+          :aria-label="navigationStore.backLabel ? `Back to ${navigationStore.backLabel}` : 'Go back'"
           @click="goBack"
         >
           <font-awesome-icon :icon="['fas', 'chevron-left']" aria-hidden="true" />
@@ -92,9 +92,6 @@ const router = useRouter()
 const authStore = useAuthStore()
 const navigationStore = useNavigationStore()
 
-// The label set by the current view. Null means no back button should be shown.
-const backLabel = computed(() => navigationStore.backLabel)
-
 // Refs for DOM elements
 const userMenuRef = ref<HTMLElement | null>(null)
 const triggerButtonRef = ref<HTMLButtonElement | null>(null)
@@ -107,17 +104,18 @@ const isDropdownOpen = ref(false)
 // Computed: Get the user's display name from the auth store
 const displayName = computed(() => authStore.userDisplayName || 'User')
 
-// Navigate back using the previousRoute recorded by the router guard.
-// This is deterministic and works correctly on deep links and page refreshes,
-// unlike router.back() which relies on browser history being in sync with in-app routes.
-// Falls back to /dashboard when there is no recorded previous route.
+// Navigate back using either:
+//   1. An explicit destination set by the current view (backDestination) — used
+//      when the view always knows where back should go (e.g. RunView → Organization).
+//   2. router.back() — used for views like UserSettingsView that can be reached
+//      from anywhere and just need to return to the previous page.
 function goBack(): void {
-  const previousRoute = navigationStore.previousRoute
-  if (previousRoute?.name) {
-    router.push({ name: previousRoute.name, params: previousRoute.params })
+  if (navigationStore.backDestination) {
+    const { name, params } = navigationStore.backDestination
+    router.push({ name, params })
     return
   }
-  router.push('/dashboard')
+  router.back()
 }
 
 // Toggle the dropdown menu open/closed

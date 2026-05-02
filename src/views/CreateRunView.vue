@@ -209,7 +209,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onActivated } from 'vue'
+import { ref, computed, watch, onActivated } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useNavigationStore } from '@/stores/navigation'
 import CardUI from '@/components/ui/CardUI.vue'
@@ -240,14 +240,14 @@ const orgId = computed(() => route.params.orgId as string)
 const organizationQuery = useOrganizationQuery(orgId)
 const organization = computed(() => organizationQuery.data.value ?? undefined)
 
-// Back button label: the org name so the user knows they're returning to that org's page.
+// Back button: always goes back to this organization's page.
 const orgName = computed(() => organization.value?.name ?? null)
-function updateBackLabel(): void {
+function updateBackDestination(): void {
   navigationStore.setBackLabel(orgName.value)
+  navigationStore.setBackDestination('Organization', { orgId: orgId.value })
 }
-watch(orgName, updateBackLabel)
-onMounted(updateBackLabel)
-onActivated(updateBackLabel)
+watch(orgName, updateBackDestination, { immediate: true })
+onActivated(updateBackDestination)
 
 // Locations for this organization (powers the dropdown). Default to an empty
 // array while loading so the LocationDropdown receives a stable shape.

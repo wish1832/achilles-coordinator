@@ -204,8 +204,14 @@ const navigationStore = useNavigationStore()
 
 // Tell the header to show a back button pointing to the Dashboard.
 // Runs on every activation so the label is always set when arriving at this view.
-onMounted(() => navigationStore.setBackLabel('Dashboard'))
-onActivated(() => navigationStore.setBackLabel('Dashboard'))
+onMounted(() => {
+  navigationStore.setBackLabel('home')
+  navigationStore.setBackDestination('Dashboard', {})
+})
+onActivated(() => {
+  navigationStore.setBackLabel('home')
+  navigationStore.setBackDestination('Dashboard', {})
+})
 
 // Admin capabilities for checking org admin status (also client-state).
 const { isOrgAdmin } = useAdminCapabilities()
