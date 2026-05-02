@@ -18,7 +18,7 @@ For general guidelines, read and follow `STYLE.md`.
 - Accessibility is a top priority in UI implementation. All features must be usable by keyboard and screen readers. Other accessibility best practices must be followed.
 - Follow established project architecture and coding patterns and be consistent in programming style.
 - Variables and functions should be named using full English words. Case conventions should follow TypeScript norms (camelCase for variables/functions, PascalCase for types/components).
-- Please use stores and composables only in Views. If there is a reasonable case to use a repository, ask the user before doing so.
+- Please refrain from using repositories in views and components. The use of query hooks, composables is preferred, or stores where appropriate.
 
 - Ask questions about anything in the user request that is not clear and follow up as needed.
 
