@@ -663,6 +663,11 @@ onMounted(() => {
 // Re-activate the component each time the user navigates to this view.
 // With <KeepAlive>, onMounted only fires once; onActivated fires every time.
 onActivated(() => {
+  // The watch on organization.value?.name only fires when the value changes.
+  // Re-publish the back label on reactivation so the AppHeader aria-label is
+  // always current even when the org name hasn't changed since last visit.
+  navigationStore.setBackLabel(organization.value?.name ?? null)
+
   // EditRunView passes ?updated=1 after a successful save. Show the toast and
   // immediately replace the URL to remove the param so it doesn't re-trigger.
   if (route.query.updated) {
