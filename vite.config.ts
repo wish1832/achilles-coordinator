@@ -33,6 +33,12 @@ firebaseEnvVars.forEach((key) => {
   definedEnv[`import.meta.env.${key}`] = raw === undefined ? 'undefined' : JSON.stringify(raw)
 })
 
+// Parse comma-separated VITE_ALLOWED_HOSTS env var into an array of hostnames.
+// Example: VITE_ALLOWED_HOSTS=myapp.ngrok.io,192.168.1.10
+const allowedHosts = process.env['VITE_ALLOWED_HOSTS']
+  ? process.env['VITE_ALLOWED_HOSTS'].split(',').map((h) => h.trim()).filter(Boolean)
+  : []
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue(), vueDevTools()],
@@ -42,5 +48,10 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
+  },
+  server: {
+    // Allow additional hosts beyond localhost (e.g. tunnels, LAN access).
+    // Set VITE_ALLOWED_HOSTS=host1,host2 in your .env to add entries.
+    allowedHosts: allowedHosts.length > 0 ? allowedHosts : undefined,
   },
 })
