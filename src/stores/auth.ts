@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { where } from 'firebase/firestore'
 import { useAuthRepository, useDataRepository, useUserRepository } from '@/composables/useRepositories'
 import { useInvitationService } from '@/composables/useInvitationService'
 import type { OrganizationInvite, User, UserRole, LoadingState } from '@/types'
@@ -268,21 +269,29 @@ export const useAuthStore = defineStore('auth', () => {
   /**
    * Find a pending organization invite by email address.
    * This supports first-time sign-ins where the profile is created on acceptance.
+   *
+   * Filters by email and status server-side so Firestore only returns documents
+   * the requesting user is allowed to read (their own email). The mock backend
+   * ignores query constraints, so the client-side status check below is kept as
+   * a safe fallback.
+   *
    * @param email - Email address to search for
    */
   async function findPendingInviteForEmail(
     email: string,
   ): Promise<OrganizationInvite | null> {
-    const invites = await dataRepository.getDocuments<OrganizationInvite>('organizationInvites')
     const normalizedEmail = email.trim().toLowerCase()
 
-    return (
-      invites.find(
-        (invite) =>
-          invite.status === 'pending' &&
-          invite.email.trim().toLowerCase() === normalizedEmail,
-      ) ?? null
+    // Pass server-side filters so only matching invite documents are fetched.
+    // This aligns with the Firestore security rule that gates reads on
+    // resource.data.email == request.auth.token.email.
+    const invites = await dataRepository.getDocuments<OrganizationInvite>(
+      'organizationInvites',
+      [where('email', '==', normalizedEmail), where('status', '==', 'pending')],
     )
+
+    // Return the first match (there should be at most one pending invite per email).
+    return invites[0] ?? null
   }
 
   /**

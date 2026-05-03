@@ -3,17 +3,112 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // This rule allows anyone with your Firestore database reference to view, edit,
-    // and delete all data in your Firestore database. It is useful for getting
-    // started, but it is configured to expire after 30 days because it
-    // leaves your app open to attackers. At that time, all client
-    // requests to your Firestore database will be denied.
-    //
-    // Make sure to write security rules for your app before that time, or else
-    // all client requests to your Firestore database will be denied until you Update
-    // your rules
-    match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2025, 11, 18);
+    // Returns true when the requester is signed in.
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Returns true when the signed-in user's UID matches the given userId.
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Returns true when the signed-in user is listed in the `adminIds` array of
+    // the given organization. This performs one extra document read per call, so
+    // use it only where the write path requires it.
+    function isOrgAdmin(orgId) {
+      return isAuthenticated() &&
+        request.auth.uid in
+          get(/databases/$(database)/documents/organizations/$(orgId)).data.adminIds;
+    }
+
+    // ── organizations ──────────────────────────────────────────────────────────
+    // All authenticated users can read org documents (needed to load the org list
+    // on the dashboard and to check admin membership).
+    // Only existing org admins may update or delete their organization.
+    // Any authenticated user may create an organization; in practice this is only
+    // done via admin tooling or Cloud Functions.
+    match /organizations/{orgId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isOrgAdmin(orgId);
+    }
+
+    // ── locations ──────────────────────────────────────────────────────────────
+    // All authenticated users can read locations (displayed on run detail pages).
+    // Only org admins may create, update, or delete locations for their org.
+    match /locations/{locationId} {
+      allow read: if isAuthenticated();
+      allow create: if isOrgAdmin(request.resource.data.organizationId);
+      allow update, delete: if isOrgAdmin(resource.data.organizationId);
+    }
+
+    // ── users ──────────────────────────────────────────────────────────────────
+    // All authenticated users can read user profiles. The app is invite-only so
+    // every authenticated user is a vetted member of at least one organization.
+    // Users may only update their own profile.
+    // Any authenticated user may create a user document — needed when an admin
+    // invites a new member and creates their Firestore profile in the invite flow.
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isOwner(userId);
+    }
+
+    // ── runs ───────────────────────────────────────────────────────────────────
+    // All authenticated users can read runs (for the dashboard and sign-up flow).
+    // Only org admins may create runs for their organization.
+    // Org admins may update or delete runs. Run-level admins (runAdminIds) may
+    // also update a run. runAdminIds is optional on the model, so guard with
+    // keys().hasAny before the `in` check to avoid a runtime error.
+    match /runs/{runId} {
+      allow read: if isAuthenticated();
+      allow create: if isOrgAdmin(request.resource.data.organizationId);
+      allow update, delete: if isOrgAdmin(resource.data.organizationId) ||
+        (isAuthenticated() &&
+          resource.data.keys().hasAny(['runAdminIds']) &&
+          request.auth.uid in resource.data.runAdminIds);
+    }
+
+    // ── signups ────────────────────────────────────────────────────────────────
+    // Users may read, update, and delete their own sign-ups.
+    // On create, the userId on the incoming document must match the requester.
+    // (resource doesn't exist yet for creates, so we use request.resource.)
+    // Org admins may read and write any sign-up for runs in their organization,
+    // which is needed for the pairing view and admin sign-up management.
+    // Note: each write rule is a separate allow statement so they are OR-ed —
+    // a user satisfying either condition is permitted.
+    match /signups/{signupId} {
+      allow read, update, delete: if isAuthenticated() &&
+        request.auth.uid == resource.data.userId;
+
+      allow create: if isAuthenticated() &&
+        request.auth.uid == request.resource.data.userId;
+
+      allow read, update, delete: if isAuthenticated() &&
+        isOrgAdmin(
+          get(/databases/$(database)/documents/runs/$(resource.data.runId)).data.organizationId
+        );
+
+      allow create: if isAuthenticated() &&
+        isOrgAdmin(
+          get(/databases/$(database)/documents/runs/$(request.resource.data.runId)).data.organizationId
+        );
+    }
+
+    // ── organizationInvites ────────────────────────────────────────────────────
+    // The invited user can read their own invite (matched by email). The sign-in
+    // flow queries with where('email', '==', email) so each returned document
+    // satisfies this rule.
+    // Org admins can read and manage all invites for their organization (to list
+    // pending invites, revoke them, etc.).
+    match /organizationInvites/{inviteId} {
+      allow read: if isAuthenticated() && (
+        resource.data.email == request.auth.token.email ||
+        isOrgAdmin(resource.data.organizationId)
+      );
+      allow create: if isOrgAdmin(request.resource.data.organizationId);
+      allow update, delete: if isOrgAdmin(resource.data.organizationId);
     }
   }
 }
