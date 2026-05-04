@@ -286,15 +286,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onActivated } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useNavigationStore } from '@/stores/navigation'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
 import ActionMenu, { type ActionMenuItem } from '@/components/ui/ActionMenu.vue'
 import ModalElement from '@/components/ui/ModalElement.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useNavigationStore } from '@/stores/navigation'
 import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
 import { useUsersByIdsQuery } from '@/composables/queries/useUsersByIdsQuery'
 import { useDraftState } from '@/composables/useDraftState'
@@ -317,14 +317,12 @@ const orgId = computed(() => route.params.orgId as string)
 // Fetch organization and its members
 const { data: organization, status: organizationStatus } = useOrganizationQuery(orgId)
 
-// Back button label: the org name so the user knows they're returning to that org's page.
-const orgName = computed(() => organization.value?.name ?? null)
-function updateBackLabel(): void {
-  navigationStore.setBackLabel(orgName.value)
-}
-watch(orgName, updateBackLabel)
-onMounted(updateBackLabel)
-onActivated(updateBackLabel)
+// Publish the org name to the navigation store so AppHeader can show it as the back label.
+watch(
+  () => organization.value?.name,
+  (name) => navigationStore.setBackLabel(name ?? null),
+  { immediate: true },
+)
 
 // Compute all member IDs (admins + non-admins)
 const allMemberIds = computed(() => {

@@ -233,13 +233,13 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onActivated, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useNavigationStore } from '@/stores/navigation'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import ModalElement from '@/components/ui/ModalElement.vue'
 import RSVPModal from '@/components/RSVPModal.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useNavigationStore } from '@/stores/navigation'
 import { useAdminCapabilities } from '@/composables/useAdminCapabilities'
 import { useRunQuery } from '@/composables/queries/useRunQuery'
 import { useOrganizationQuery } from '@/composables/queries/useOrganizationQuery'
@@ -331,7 +331,7 @@ function dismissToast(): void {
   }
 }
 
-// Get the run ID from the route parameter
+// Get route parameters — both are always present on this route
 const runId = computed(() => route.params.id as string)
 const runQuery = useRunQuery(runId)
 const run = computed(() => runQuery.data.value ?? null)
@@ -350,16 +350,12 @@ const locationName = computed(() => location.value?.name || 'Unknown Location')
 // Get the organization name from the loaded organization
 const organizationName = computed(() => organization.value?.name || 'Unknown Organization')
 
-// Back button label: show the org name if we came from OrganizationView, otherwise Dashboard.
-// Watches organizationName so the label updates once the query resolves.
-// Also called on activation since <KeepAlive> skips onMounted on re-entry.
-function updateBackLabel(): void {
-  const prev = navigationStore.previousRoute?.name
-  const label = prev === 'Organization' ? organizationName.value : 'Dashboard'
-  navigationStore.setBackLabel(label)
-}
-watch(organizationName, updateBackLabel, { immediate: true })
-onActivated(updateBackLabel)
+// Publish the org name to the navigation store so AppHeader can show it as the back label.
+watch(
+  () => organization.value?.name,
+  (name) => navigationStore.setBackLabel(name ?? null),
+  { immediate: true },
+)
 
 // Get the list of admin IDs for this run
 const adminIds = computed(() => {
@@ -667,6 +663,11 @@ onMounted(() => {
 // Re-activate the component each time the user navigates to this view.
 // With <KeepAlive>, onMounted only fires once; onActivated fires every time.
 onActivated(() => {
+  // The watch on organization.value?.name only fires when the value changes.
+  // Re-publish the back label on reactivation so the AppHeader aria-label is
+  // always current even when the org name hasn't changed since last visit.
+  navigationStore.setBackLabel(organization.value?.name ?? null)
+
   // EditRunView passes ?updated=1 after a successful save. Show the toast and
   // immediately replace the URL to remove the param so it doesn't re-trigger.
   if (route.query.updated) {

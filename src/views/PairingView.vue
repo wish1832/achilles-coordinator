@@ -155,9 +155,8 @@
 
 <script setup lang="ts">
 // Core Vue imports
-import { ref, computed, onMounted, onActivated, onBeforeUnmount, nextTick, toRaw, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, onActivated, nextTick, toRaw, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useNavigationStore } from '@/stores/navigation'
 
 // Type imports
 import type { SignUp, User, LoadingState } from '@/types'
@@ -173,6 +172,7 @@ import { useCreateOrUpdateSignUpMutation } from '@/composables/mutations/useCrea
 
 // Composable imports
 import { usePairingLogic } from '@/composables/usePairingLogic'
+import { useNavigationStore } from '@/stores/navigation'
 
 // UI Component imports
 import AchillesButton from '@/components/ui/AchillesButton.vue'
@@ -186,8 +186,8 @@ import AddUserDrawer from '@/components/pairing/AddUserDrawer.vue'
 
 // Route access
 const route = useRoute()
-
 const navigationStore = useNavigationStore()
+
 
 // Extract run ID from route parameters
 const runId = computed(() => route.params.id as string)
@@ -199,23 +199,30 @@ const runId = computed(() => route.params.id as string)
 const runQuery = useRunQuery(runId)
 const run = computed(() => runQuery.data.value ?? undefined)
 
-// Location detail — used for the back button label (mirrors RunView's title).
-const locationQuery = useLocationQuery(computed(() => run.value?.locationId))
-const locationName = computed(() => locationQuery.data.value?.name ?? null)
-
-// Set back label to the location name once it resolves, and on every activation.
-function updateBackLabel(): void {
-  navigationStore.setBackLabel(locationName.value)
-}
-watch(locationName, updateBackLabel, { immediate: true })
-onActivated(updateBackLabel)
-
 // Organization detail, gated on the run resolving so we know which org to
 // fetch. Used for the page subtitle and for the Add User drawer's member
 // list (org members fall outside this run's sign-ups but should still be
 // addable).
 const organizationQuery = useOrganizationQuery(computed(() => run.value?.organizationId))
 const organization = computed(() => organizationQuery.data.value ?? undefined)
+
+// Location detail — used only for the back label (back target is RunView, which titles itself by location name).
+const locationQuery = useLocationQuery(computed(() => run.value?.locationId))
+
+// Publish the location name to the navigation store so AppHeader can show it as the back label.
+watch(
+  () => locationQuery.data.value?.name,
+  (name) => navigationStore.setBackLabel(name ?? null),
+  { immediate: true },
+)
+
+// Re-publish the back label when the component is re-activated from the
+// KeepAlive cache. The watcher above only fires on data changes, so if the
+// location name hasn't changed since the last activation it won't re-run and
+// the back-button aria-label would be stale.
+onActivated(() => {
+  navigationStore.setBackLabel(locationQuery.data.value?.name ?? null)
+})
 
 // Sign-ups for this run. Drives the athlete and guide columns plus pace
 // lookups in usePairingLogic.

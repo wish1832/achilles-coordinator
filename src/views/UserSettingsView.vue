@@ -287,10 +287,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onActivated } from 'vue'
+import { computed, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAccessibilityStore } from '@/stores/accessibility'
 import { useNavigationStore } from '@/stores/navigation'
+
 import AchillesButton from '@/components/ui/AchillesButton.vue'
 import { useDraftState } from '@/composables/useDraftState'
 import { useUpdateProfileMutation } from '@/composables/mutations/useUpdateProfileMutation'
@@ -301,24 +302,8 @@ const authStore = useAuthStore()
 const accessibilityStore = useAccessibilityStore()
 const navigationStore = useNavigationStore()
 
-// Map the previous route name to a human-readable back label.
-// Settings can be reached from any authenticated view, so we cover the known cases
-// and fall back to "Dashboard" for anything unexpected.
-function resolveBackLabel(): string {
-  switch (navigationStore.previousRoute?.name) {
-    case 'Organization': return 'organization'
-    case 'Run': return 'run'
-    case 'RunPairing': return 'pairings'
-    case 'EditRun': return 'edit run'
-    case 'OrganizationSettings': return 'organization settings'
-    case 'CreateRun': return 'create run'
-    default: return 'Dashboard'
-  }
-}
-
-onMounted(() => navigationStore.setBackLabel(resolveBackLabel()))
-onActivated(() => navigationStore.setBackLabel(resolveBackLabel()))
-
+// Back label is the static string "home" — no async data needed.
+navigationStore.setBackLabel('home')
 // Mutation for updating profile
 const updateProfileMutation = useUpdateProfileMutation()
 

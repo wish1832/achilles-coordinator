@@ -137,7 +137,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onActivated } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import CardUI from '@/components/ui/CardUI.vue'
@@ -145,7 +145,6 @@ import AchillesButton from '@/components/ui/AchillesButton.vue'
 import LoadingUI from '@/components/ui/LoadingUI.vue'
 import RSVPModal from '@/components/RSVPModal.vue'
 import { useAuthStore } from '@/stores/auth'
-import { useNavigationStore } from '@/stores/navigation'
 import { useRunsSignUpsQuery } from '@/composables/queries/useRunsSignUpsQuery'
 import { useUserMemberOrganizationsQuery } from '@/composables/queries/useUserMemberOrganizationsQuery'
 import { useUpcomingRunsForOrganizationsQuery } from '@/composables/queries/useUpcomingRunsForOrganizationsQuery'
@@ -156,11 +155,6 @@ import type { LoadingState, Run, SignUp } from '@/types'
 const router = useRouter()
 const authStore = useAuthStore()
 const { currentUser } = storeToRefs(authStore)
-
-const navigationStore = useNavigationStore()
-// Dashboard has no parent to go back to, so clear the back button on entry.
-onMounted(() => navigationStore.setBackLabel(null))
-onActivated(() => navigationStore.setBackLabel(null))
 
 // === Server state via TanStack Query ===
 

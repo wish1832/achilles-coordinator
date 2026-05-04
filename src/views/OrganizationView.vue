@@ -175,7 +175,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onActivated } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import CardUI from '@/components/ui/CardUI.vue'
@@ -198,14 +198,11 @@ const router = useRouter()
 // Auth is the only Pinia store still in use here — it owns client-side
 // session state, which is not server data and stays out of TanStack.
 const authStore = useAuthStore()
-const { currentUser } = storeToRefs(authStore)
-
 const navigationStore = useNavigationStore()
 
-// Tell the header to show a back button pointing to the Dashboard.
-// Runs on every activation so the label is always set when arriving at this view.
-onMounted(() => navigationStore.setBackLabel('Dashboard'))
-onActivated(() => navigationStore.setBackLabel('Dashboard'))
+// Back label is the static string "home" — no async data needed.
+navigationStore.setBackLabel('home')
+const { currentUser } = storeToRefs(authStore)
 
 // Admin capabilities for checking org admin status (also client-state).
 const { isOrgAdmin } = useAdminCapabilities()

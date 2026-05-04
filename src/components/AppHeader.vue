@@ -1,12 +1,12 @@
 <template>
   <header class="app-header">
     <div class="app-header__content">
-      <!-- Left side: Back button (shown only when a back destination is set by the current view) -->
+      <!-- Left side: Back button (shown only when the current route declares a back target) -->
       <div class="app-header__left">
         <button
-          v-if="backLabel"
+          v-if="backTarget"
           class="app-header__back-button"
-          :aria-label="`Back to ${backLabel}`"
+          :aria-label="backLabel ? `Back to ${backLabel}` : 'Go back'"
           @click="goBack"
         >
           <font-awesome-icon :icon="['fas', 'chevron-left']" aria-hidden="true" />
@@ -82,18 +82,25 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNavigationStore } from '@/stores/navigation'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
 
 // Router and stores
+const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const navigationStore = useNavigationStore()
 
-// The label set by the current view. Null means no back button should be shown.
-const backLabel = computed(() => navigationStore.backLabel)
+// Back-button target derived from the current route's meta.back. Resolving from
+// the route guarantees the target stays in lockstep with the URL — no view-side
+// state to keep in sync, no chance of a stale value lingering after navigation.
+const backTarget = computed(() => route.meta.back?.(route) ?? null)
+
+// The human-readable label is set by whichever view is currently mounted, once
+// its data resolves. AppHeader reads it as a plain string — no fetching here.
+const backLabel = computed(() => (backTarget.value ? navigationStore.backLabel : null))
 
 // Refs for DOM elements
 const userMenuRef = ref<HTMLElement | null>(null)
@@ -107,17 +114,13 @@ const isDropdownOpen = ref(false)
 // Computed: Get the user's display name from the auth store
 const displayName = computed(() => authStore.userDisplayName || 'User')
 
-// Navigate back using the previousRoute recorded by the router guard.
-// This is deterministic and works correctly on deep links and page refreshes,
-// unlike router.back() which relies on browser history being in sync with in-app routes.
-// Falls back to /dashboard when there is no recorded previous route.
+// Navigate to the explicit destination declared by the current route's meta.back.
+// The button is hidden when no target exists, so this is only invoked with a
+// concrete destination — no router.back() fallback is needed.
 function goBack(): void {
-  const previousRoute = navigationStore.previousRoute
-  if (previousRoute?.name) {
-    router.push({ name: previousRoute.name, params: previousRoute.params })
-    return
-  }
-  router.push('/dashboard')
+  const target = backTarget.value
+  if (!target) return
+  router.push({ name: target.name, params: target.params })
 }
 
 // Toggle the dropdown menu open/closed
