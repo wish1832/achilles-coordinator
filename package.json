@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "vite --mode=mock",
     "dev:mock": "vite --mode=mock",
-    "dev:firebase": "vite --mode=emulated",
+    "dev:firebase": "vite --mode=emulator",
     "dev:prodFirebase::dangerous": "vite --mode=production",
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",

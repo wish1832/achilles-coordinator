@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import { getAuth, connectAuthEmulator } from 'firebase/auth'
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore'
 import { getAnalytics, isSupported as analyticsIsSupported } from 'firebase/analytics'
 import type { Analytics } from 'firebase/analytics'
 
@@ -25,6 +25,20 @@ export const auth = getAuth(app)
 
 // Initialize Cloud Firestore and get a reference to the service
 export const db = getFirestore(app)
+
+// Connect to local emulators when VITE_FIREBASE_USE_EMULATOR is set to 'true'.
+// This is configured via .env.emulator and activated by `pnpm dev:firebase`.
+if (import.meta.env.VITE_FIREBASE_USE_EMULATOR === 'true') {
+  const authHost = import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_HOST ?? 'localhost'
+  const authPort = Number(import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_PORT ?? 9099)
+  const firestoreHost = import.meta.env.VITE_FIREBASE_FIRESTORE_EMULATOR_HOST ?? 'localhost'
+  const firestorePort = Number(import.meta.env.VITE_FIREBASE_FIRESTORE_EMULATOR_PORT ?? 8080)
+
+  connectAuthEmulator(auth, `http://${authHost}:${authPort}`, { disableWarnings: false })
+  connectFirestoreEmulator(db, firestoreHost, firestorePort)
+
+  console.info(`[Firebase] Connected to emulators — Auth: ${authHost}:${authPort}, Firestore: ${firestoreHost}:${firestorePort}`)
+}
 
 // Initialize Analytics only in supported browser environments and when measurementId is provided
 let analytics: Analytics | null = null
