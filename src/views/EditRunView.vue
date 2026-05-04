@@ -218,7 +218,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onActivated, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
@@ -404,11 +404,18 @@ const editRunTitle = computed(() => {
 
 // Publish the run's location name to the navigation store so AppHeader can
 // show it as the back label (back target is RunView, which uses location name as its title).
-watch(
-  () => locationsById.value.get(run.value?.locationId ?? '')?.name,
-  (name) => navigationStore.setBackLabel(name ?? null),
-  { immediate: true },
-)
+function updateBackLabel() {
+  const name = locationsById.value.get(run.value?.locationId ?? '')?.name
+  navigationStore.setBackLabel(name ?? null)
+}
+
+watch(() => locationsById.value.get(run.value?.locationId ?? '')?.name, updateBackLabel, {
+  immediate: true,
+})
+
+// When returning to this view from KeepAlive cache, the watcher does not re-fire
+// if the watched value has not changed, so we refresh the back label explicitly.
+onActivated(updateBackLabel)
 
 // Format the run's date and time for display in the subtitle.
 // Uses the draft values (which are initialized from the current run on load).
