@@ -155,7 +155,7 @@
 
 <script setup lang="ts">
 // Core Vue imports
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, toRaw, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, onActivated, nextTick, toRaw, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 // Type imports
@@ -215,6 +215,14 @@ watch(
   (name) => navigationStore.setBackLabel(name ?? null),
   { immediate: true },
 )
+
+// Re-publish the back label when the component is re-activated from the
+// KeepAlive cache. The watcher above only fires on data changes, so if the
+// location name hasn't changed since the last activation it won't re-run and
+// the back-button aria-label would be stale.
+onActivated(() => {
+  navigationStore.setBackLabel(locationQuery.data.value?.name ?? null)
+})
 
 // Sign-ups for this run. Drives the athlete and guide columns plus pace
 // lookups in usePairingLogic.
