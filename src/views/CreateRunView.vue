@@ -209,7 +209,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onActivated } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CardUI from '@/components/ui/CardUI.vue'
 import AchillesButton from '@/components/ui/AchillesButton.vue'
@@ -241,11 +241,13 @@ const organizationQuery = useOrganizationQuery(orgId)
 const organization = computed(() => organizationQuery.data.value ?? undefined)
 
 // Publish the org name to the navigation store so AppHeader can show it as the back label.
-watch(
-  () => organization.value?.name,
-  (name) => navigationStore.setBackLabel(name ?? null),
-  { immediate: true },
-)
+const updateBackLabel = (name: string | undefined) => navigationStore.setBackLabel(name ?? null)
+
+watch(() => organization.value?.name, updateBackLabel, { immediate: true })
+
+// With <KeepAlive>, the watch's `immediate` only fires on first mount.
+// onActivated re-publishes the label whenever the component is reactivated.
+onActivated(() => updateBackLabel(organization.value?.name))
 
 // Locations for this organization (powers the dropdown). Default to an empty
 // array while loading so the LocationDropdown receives a stable shape.
