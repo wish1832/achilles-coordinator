@@ -73,7 +73,6 @@
         role="listbox"
         :aria-label="ariaLabel || label || 'Locations'"
         class="location-dropdown__listbox"
-        tabindex="-1"
         @keydown="handleListboxKeydown"
       >
         <!-- Empty state when no locations available -->
@@ -86,7 +85,7 @@
         <li
           v-for="(location, index) in locations"
           :key="location.id"
-          :id="`${listboxId}-option-${index}`"
+          :id="getOptionId(index)"
           role="option"
           :aria-selected="location.id === modelValue"
           class="location-dropdown__option"
@@ -225,7 +224,7 @@ const hasError = computed(() => props.error || !!props.errorMessage)
 // Computed: ID of the currently active option for aria-activedescendant
 const activeDescendantId = computed(() => {
   if (!isOpen.value || activeIndex.value < 0) return undefined
-  return `${listboxId.value}-option-${activeIndex.value}`
+  return getOptionId(activeIndex.value)
 })
 
 // Computed: the currently selected location object
@@ -257,6 +256,14 @@ function formatCityState(location: Location): string {
 }
 
 /**
+ * Build the DOM id for a rendered option.
+ * This keeps the aria-activedescendant target and the rendered <li> in sync.
+ */
+function getOptionId(index: number): string {
+  return `${listboxId.value}-option-${index}`
+}
+
+/**
  * Toggle dropdown open/closed state
  */
 function toggleDropdown(): void {
@@ -281,9 +288,11 @@ function openDropdown(): void {
   const selectedIndex = props.locations.findIndex((loc) => loc.id === props.modelValue)
   activeIndex.value = selectedIndex >= 0 ? selectedIndex : 0
 
-  // Focus the listbox after it becomes visible
+  // Keep focus on the trigger because it owns aria-activedescendant.
+  // Screen readers only announce the active option reliably when the focused
+  // element is the one exposing the active descendant relationship.
   nextTick(() => {
-    listboxRef.value?.focus()
+    triggerRef.value?.focus()
     scrollActiveOptionIntoView()
   })
 }
@@ -312,16 +321,22 @@ function selectLocation(location: Location): void {
 function scrollActiveOptionIntoView(): void {
   if (activeIndex.value < 0) return
 
-  const optionId = `${listboxId.value}-option-${activeIndex.value}`
+  const optionId = getOptionId(activeIndex.value)
   const optionElement = document.getElementById(optionId)
   optionElement?.scrollIntoView({ block: 'nearest' })
 }
 
 /**
  * Handle keydown events on the trigger button
- * Opens dropdown on arrow down, space, or enter
+ * Opens the dropdown and, once it is open, keeps keyboard navigation on the
+ * trigger so aria-activedescendant can continue to describe the active option.
  */
 function handleTriggerKeydown(event: KeyboardEvent): void {
+  if (isOpen.value) {
+    handlePopupKeydown(event)
+    return
+  }
+
   switch (event.key) {
     case 'ArrowDown':
     case 'ArrowUp':
@@ -345,10 +360,20 @@ function handleTriggerKeydown(event: KeyboardEvent): void {
 }
 
 /**
- * Handle keydown events on the listbox
- * Provides full keyboard navigation for option selection
+ * Handle keydown events on the popup listbox.
+ * This remains as a defensive fallback if focus is moved into the popup by
+ * browser or assistive-technology behavior.
  */
 function handleListboxKeydown(event: KeyboardEvent): void {
+  handlePopupKeydown(event)
+}
+
+/**
+ * Shared keyboard navigation for the open popup.
+ * Keeping this logic in one place prevents the trigger and popup handlers from
+ * drifting apart, which would make keyboard behavior inconsistent.
+ */
+function handlePopupKeydown(event: KeyboardEvent): void {
   const lastIndex = props.locations.length - 1
 
   switch (event.key) {

@@ -26,6 +26,7 @@
       :id="menuId"
       ref="menuRef"
       role="menu"
+      :aria-activedescendant="activeDescendantId"
       class="action-menu__dropdown"
       tabindex="-1"
       @keydown="handleMenuKeydown"
@@ -34,7 +35,7 @@
       <li
         v-for="(item, index) in items"
         :key="item.id"
-        :id="`${menuId}-item-${index}`"
+        :id="getMenuItemId(index)"
         role="menuitem"
         class="action-menu__item"
         :class="{
@@ -93,6 +94,21 @@ const activeIndex = ref(-1)
 // Generate unique ID for accessibility associations
 const uniqueId = Math.random().toString(36).substring(2, 9)
 const menuId = computed(() => `action-menu-${uniqueId}`)
+
+// The focused menu element uses aria-activedescendant so assistive technology
+// can announce which menuitem arrow-key navigation has highlighted.
+const activeDescendantId = computed(() => {
+  if (!isOpen.value || activeIndex.value < 0) return undefined
+  return getMenuItemId(activeIndex.value)
+})
+
+/**
+ * Build the DOM id for a rendered menu item.
+ * A dedicated helper keeps the template and aria-activedescendant in sync.
+ */
+function getMenuItemId(index: number): string {
+  return `${menuId.value}-item-${index}`
+}
 
 /**
  * Toggle the menu open/closed
